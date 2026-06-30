@@ -57,6 +57,13 @@ yarn-error.log*
 dist/
 .cache/
 
+# ---- Azurite（本機 Azure Storage 模擬器狀態，勿納入版控） ----
+__azurite_db*.json
+__blobstorage__/
+__queuestorage__/
+azurite-debug.log
+AzuriteConfig
+
 # ---- 機密 / 環境設定 ----
 appsettings.*.local.json
 appsettings.Development.json
