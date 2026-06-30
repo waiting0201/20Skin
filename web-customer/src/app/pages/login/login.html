@@ -1,0 +1,82 @@
+<main id="main">
+  <div class="online-item">
+    <div class="item-block">
+      <div class="online-in-item">
+        <div class="item-left">
+          <img class="online-p" src="/images/online/in-pro.jpg" alt="20Skin 線上預約">
+        </div>
+        <div class="item-right">
+          <form [formGroup]="form">
+            <div class="online-in-title-block first">
+              <div class="online-title blue">線上預約</div>
+              <div class="online-dr">
+                <a href="https://www.20skin.tw/share_info.php?no=574" target="_blank">二林醫師班表</a>
+              </div>
+              <div class="online-dr">
+                <a href="https://www.20skin.tw/share_info.php?no=575" target="_blank">台中醫師班表 ｜</a>
+              </div>
+            </div>
+
+            @if (error()) {
+              <div class="field-validation-error" style="display:block; margin-bottom:8px;">{{ error() }}</div>
+            }
+
+            <div class="online-in-field-block">
+              <div class="field-title">身分證號 ｜</div>
+              <div class="field-text">
+                <input formControlName="number" maxlength="10" type="text" />
+              </div>
+              @if (form.controls.number.touched && form.controls.number.invalid) {
+                <span class="field-validation-error">請輸入有效身分證號</span>
+              }
+            </div>
+
+            <div class="online-in-field-block">
+              <div class="field-title">生&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日 ｜</div>
+              <div class="field-text">
+                <select formControlName="yyyy">
+                  <option [value]="0">  年</option>
+                  @for (y of years; track y) {
+                    <option [value]="y"> {{ y - 1911 }} 年</option>
+                  }
+                </select>
+                <select formControlName="mm">
+                  <option [value]="0">  月</option>
+                  @for (m of months; track m) {
+                    <option [value]="m"> {{ m }} 月</option>
+                  }
+                </select>
+                <select formControlName="dd">
+                  <option [value]="0">  日</option>
+                  @for (d of days; track d) {
+                    <option [value]="d"> {{ d }} 日</option>
+                  }
+                </select>
+              </div>
+              @if (form.controls.yyyy.touched && form.controls.yyyy.value === 0) {
+                <span class="field-validation-error">請選擇年</span>
+              }
+              @if (form.controls.mm.touched && form.controls.mm.value === 0) {
+                <span class="field-validation-error">請選擇月</span>
+              }
+              @if (form.controls.dd.touched && form.controls.dd.value === 0) {
+                <span class="field-validation-error">請選擇日</span>
+              }
+            </div>
+
+            <div class="online-in-title-block second">
+              <div class="online-btn right">
+                <a href="javascript:;" (click)="submit('/appointments')"
+                   [style.opacity]="loading() ? '0.5' : '1'">預約查詢</a>
+              </div>
+              <div class="online-btn right">
+                <a href="javascript:;" (click)="submit('/')"
+                   [style.opacity]="loading() ? '0.5' : '1'">{{ loading() ? '登入中…' : '進入預約' }}</a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>

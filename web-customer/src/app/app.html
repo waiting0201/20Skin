@@ -1,0 +1,167 @@
+<div id="wrapper">
+  <!-- ░░ Header（對應 _Header.cshtml）░░ -->
+  <header class="scroll" id="header">
+    <div class="header_inner">
+      <a class="head_logo" href="https://www.20skin.tw">
+        <img class="retina" src="/images/logo.jpg" alt="20Skin">
+      </a>
+      <!-- 舊版 main.js 以 hover 加 .active 才會顯示子選單（.head_nav.active ul>li:hover>ul）；
+           .active 僅在 li:hover 時生效，故固定掛上即等效還原 hover 子選單 -->
+      <nav class="head_nav active">
+        <ul>
+          <li>|</li>
+          <li><a href="https://www.20skin.tw/index2.php#about">品牌理念</a></li>
+          <li>|</li>
+          <li>
+            <a href="https://www.20skin.tw/index2.php#serve">專業服務</a>
+            <ul>
+              <li><a href="https://www.20skin.tw/product01.php">光療美顏</a></li>
+              <li><a href="https://www.20skin.tw/product02.php">微針美容</a></li>
+              <li><a href="https://www.20skin.tw/product03.php">光電美容</a></li>
+              <li><a href="https://www.20skin.tw/product04.php">醫學美容護膚</a></li>
+            </ul>
+          </li>
+          <li>|</li>
+          <li><a href="https://www.20skin.tw/doctor.php">醫師團隊</a></li>
+          <li>|</li>
+          <li>
+            <a href="https://www.20skin.tw/index.php#share">臻美分享</a>
+            <ul>
+              <li><a href="https://www.20skin.tw/share.php?class=%E6%BC%94%E8%AC%9B%E6%8E%88%E8%AA%B2">演講授課</a></li>
+              <li><a href="https://www.20skin.tw/share.php?class=%E5%AA%92%E9%AB%94%E5%A0%B1%E5%B0%8E">媒體報導</a></li>
+              <li><a href="https://www.20skin.tw/share.php?class=%E9%86%AB%E7%BE%8E%E6%96%B0%E7%9F%A5">季節新知</a></li>
+              <li><a href="https://www.20skin.tw/share.php?class=%E7%9A%AE%E8%86%9A%E6%96%B0%E7%9F%A5">皮膚新知</a></li>
+            </ul>
+          </li>
+          <li>|</li>
+          <li><a href="https://www.20skin.tw/news-art.php">新中式美學</a></li>
+          <li>|</li>
+          <li><a href="https://www.20skin.tw/make-up-style.php">彩妝式輕醫美</a></li>
+          <li>|</li>
+          <li>
+            <a routerLink="/">預約聯繫</a>
+            <ul>
+              <li><a href="https://www.20skin.tw/contact.php">四季診所</a></li>
+              <li><a href="https://www.20skin.tw/contact.php#20">二林診所</a></li>
+              <li><a href="https://www.20skin.tw/contact.php#dental">允赫齒科</a></li>
+            </ul>
+          </li>
+          <li>|</li>
+          <li><a href="https://www.20skinshop.com/" target="_blank" title="四季顏選">線上購物</a></li>
+        </ul>
+      </nav>
+      <!-- 漢堡按鈕：#btn_menu，舊版 jQuery click 開 sideBar；此處用 Angular signal 還原 -->
+      <a id="btn_menu" href="javascript:;" (click)="toggleSidebar()"><span></span></a>
+    </div>
+  </header>
+
+  <!-- ░░ 頁面內容（各頁 main#main）░░ -->
+  <router-outlet />
+
+  <!-- ░░ Footer（對應 _Footer.cshtml）░░ -->
+  <footer id="footer"></footer>
+</div>
+
+<!-- ░░ Sidebar（手機側欄，對應 _Sidebar.cshtml）░░
+     舊版：#sideBar { display:none }，jQuery .show()/.hide() 切換。
+     Angular：[style.display] signal 控制，無對應 CSS class，故直接綁定 style。 -->
+<div id="sideBar" [style.display]="sidebarOpen() ? 'block' : 'none'">
+  <div class="sb_logo">
+    <a href="https://www.20skin.tw"><img src="/images/logo.jpg" alt="20Skin"></a>
+  </div>
+  <nav class="sb_menu">
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/index2.php#about">品牌理念</a></p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/index2.php#serve">專業服務</a></p>
+        <div class="second-list-icon02" (click)="toggleSection('serve')">
+          <div class="arrow-close" [style.display]="expanded() === 'serve' ? 'block' : 'none'"></div>
+          <div class="arrow-open" [style.display]="expanded() !== 'serve' ? 'block' : 'none'"></div>
+        </div>
+      </div>
+      <div class="second-list" [style.display]="expanded() === 'serve' ? 'block' : 'none'">
+        <ul>
+          <li><a href="https://www.20skin.tw/product01.php">光療美顏</a></li>
+          <li><a href="https://www.20skin.tw/product02.php">微針美容</a></li>
+          <li><a href="https://www.20skin.tw/product03.php">光電美容</a></li>
+          <li><a href="https://www.20skin.tw/product04.php">醫學美容護膚</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/doctor.php">醫師團隊</a></p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/index.php#share">臻美分享</a></p>
+        <div class="second-list-icon02" (click)="toggleSection('share')">
+          <div class="arrow-close" [style.display]="expanded() === 'share' ? 'block' : 'none'"></div>
+          <div class="arrow-open" [style.display]="expanded() !== 'share' ? 'block' : 'none'"></div>
+        </div>
+      </div>
+      <div class="second-list" [style.display]="expanded() === 'share' ? 'block' : 'none'">
+        <ul>
+          <li><a href="https://www.20skin.tw/share.php?class=%E6%BC%94%E8%AC%9B%E6%8E%88%E8%AA%B2">演講授課</a></li>
+          <li><a href="https://www.20skin.tw/share.php?class=%E5%AA%92%E9%AB%94%E5%A0%B1%E5%B0%8E">媒體報導</a></li>
+          <li><a href="https://www.20skin.tw/share.php?class=%E9%86%AB%E7%BE%8E%E6%96%B0%E7%9F%A5">季節新知</a></li>
+          <li><a href="https://www.20skin.tw/share.php?class=%E7%9A%AE%E8%86%9A%E6%96%B0%E7%9F%A5">皮膚新知</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/news-art.php">新中式美學</a></p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skin.tw/make-up-style.php">彩妝式輕醫美</a></p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a routerLink="/" (click)="closeSidebar()">預約聯繫</a></p>
+      </div>
+    </div>
+    <div class="item">
+      <div class="second-list-btn">
+        <p><a href="https://www.20skinshop.com/" target="_blank" title="四季顏選">線上購物</a></p>
+      </div>
+    </div>
+    <div class="message-wrapper">
+      <div class="item">
+        <div class="line-block">
+          <div class="icon-line"></div>
+          <div class="line-text"><a href="http://line.me/ti/p/J7pW5KBB5M" target="_blank">四季專人諮詢</a></div>
+        </div>
+        <div class="looknumber-block">
+          <div class="icon-looknumber"></div>
+          <div class="looknumber-text">
+            <a href="https://www.mainpi.com/query?i=1035" target="_blank">四季看診進度</a>
+          </div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="line-block">
+          <div class="icon-line"></div>
+          <div class="line-text">
+            <a href="https://line.me/R/ti/p/%40xat.0000144991.qy6" target="_blank">二林線上預約</a>
+          </div>
+        </div>
+        <div class="looknumber-block">
+          <div class="icon-looknumber"></div>
+          <div class="looknumber-text">
+            <a href="https://www.mainpi.com/query?i=823" target="_blank">二林看診進度</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <a class="btn_close" href="javascript:;" (click)="closeSidebar()"></a>
+</div>

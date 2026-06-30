@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/20Skin.Api/">
+    <Project Path="20Skin.Api/_20Skin_Api.csproj" />
+  </Folder>
+  <Project Path="Skin.Core/Skin.Core.csproj" />
+  <Project Path="Skin.Data/Skin.Data.csproj" />
+  <Project Path="Skin.Services/Skin.Services.csproj" />
+</Solution>

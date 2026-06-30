@@ -1,0 +1,77 @@
+# ---- 20Skin ignore ----
+
+# 參考用舊資料（不納入版控，亦由 .claude/settings.json deny）
+reference/
+
+# ---- .NET / build output ----
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+.idea/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+TestResults/
+
+# ---- Node / front-end (B 端 SmartAdmin / C 端 jQuery 若有 build) ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+.cache/
+
+# ---- 機密 / 環境設定 ----
+appsettings.*.local.json
+appsettings.Development.json
+*.env
+.env
+.env.*
+secrets.json
+*.pfx
+*.key
+
+# ---- OS / 編輯器 ----
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ---- Claude Code 本機覆寫 ----
+.claude/settings.local.json

@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "_20Skin_Api": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7001",
+      "launchBrowser": false
+    }
+  }
+}
