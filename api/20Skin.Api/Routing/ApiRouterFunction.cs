@@ -142,6 +142,10 @@ public sealed class ApiRouterFunction(
             {
                 args[i] = null; // 由 RequestContext 取用；保留以利擴充
             }
+            else if (p.ParameterType == typeof(HttpRequest))
+            {
+                args[i] = req; // 原始請求（multipart 檔案上傳等用）
+            }
             else if (IsSimple(p.ParameterType))
             {
                 // 簡單型別（含 Guid/DateTime/enum）：從 query string 綁定

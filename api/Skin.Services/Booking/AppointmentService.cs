@@ -182,7 +182,7 @@ public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions o
         return await conn.QueryFirstOrDefaultAsync<AppointmentDetailDto>(new CommandDefinition("""
             SELECT a.AppointmentID AS AppointmentId, a.AppointmentDate, a.Clinic,
                    b.Title AS BranchTitle, c.Title AS CategoryTitle, d.Name AS DoctorName,
-                   p.Title AS PeriodTitle, a.Amount, a.OutpatientNum, a.IsFirstVisit, a.Status, a.QuestionTypeID AS QuestionTypeId
+                   p.Title AS PeriodTitle, a.Amount, a.OutpatientNum, a.IsFirstVisit, a.Status, a.QuestionTypeID AS QuestionTypeId, a.Photo
             FROM Appointments a
             LEFT JOIN Branchs b   ON b.BranchID = a.BranchID
             LEFT JOIN Categorys c ON c.CategoryID = a.CategoryID

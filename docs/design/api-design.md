@@ -100,7 +100,8 @@ status: draft
 > `OptionType`：**1=單選(radio)／2=複選(checkbox)**（真實 DB 僅此二值，無文字/檔案；見 [gotchas.md](gotchas.md)）。
 
 ### 地點 / 上傳
-`/api/locations/cities`、`/api/locations/zipcodes?city=`、`/api/uploads`（multipart → Blob，見 [blueprints/file-upload.md](../blueprints/file-upload.md)）。
+- `/api/zipcodes`（GET，公開，城市→區→ZipcodeID）。**Done 2026-07-01**
+- `/api/uploads`（POST，需會員登入，multipart：`file`[+`folder`，預設 appointments]）→ Blob `upload/{folder}/{guid}{ext}`，回 `{ filename, folder, url }`。目錄白名單/型別/大小驗證；`Appointments.Photo` 存檔名。見 [blueprints/file-upload.md](../blueprints/file-upload.md)。**Done 2026-07-01**
 
 ### 後台（各 admin blueprint）
 基礎資料 `/api/branches|doctors|periods|categories|question-types|questions`（皆 `?clinic=` 參數化）；班表 `/api/rosters`；預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`。

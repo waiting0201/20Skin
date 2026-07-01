@@ -71,6 +71,15 @@ builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 // 問卷（術前電子病歷）
 builder.Services.AddScoped<Skin.Services.Question.IQuestionService, Skin.Services.Question.QuestionService>();
 
+// 檔案上傳（Azure Blob；連線字串統一用 AzureWebJobsStorage，本機 = Azurite）
+builder.Services.AddSingleton(new Skin.Services.Storage.StorageOptions
+{
+    ConnectionString = config["AzureWebJobsStorage"] ?? "UseDevelopmentStorage=true",
+    Container = config["Blob:Container"] ?? "upload",
+    MaxBytes = (long.TryParse(config["Blob:MaxMB"], out var mb) ? mb : 8) * 1024 * 1024,
+});
+builder.Services.AddSingleton<Skin.Services.Storage.IFileStorage, Skin.Services.Storage.BlobFileStorage>();
+
 // 簡訊寄送：dev 用 no-op（不真的發；客人手機）。正式環境改注入智邦 API 實作。
 builder.Services.AddSingleton<ISmsSender, DevNoOpSmsSender>();
 

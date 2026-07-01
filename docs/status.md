@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-01T21:30+08:00
+last_updated: 2026-07-01T23:30+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob，統一連線字串/沿用舊資料夾名，真實驗證）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -51,7 +51,7 @@ last_updated: 2026-07-01T21:30+08:00
   - 指定醫師流程已完成（2026-07-01，見 Recently Done）；問卷（`IsQuestion`）已完成。客戶前台三缺口全數補齊。
 - [x] **問卷** ✅ Done 2026-07-01（真實 DB 端對端驗證，見 Recently Done）[blueprints/questionnaire.md](blueprints/questionnaire.md)
 - [ ] **簡訊雙寫 + Timer 排程** [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
-- [ ] **檔案上傳（Blob）** [blueprints/file-upload.md](blueprints/file-upload.md)
+- [x] **檔案上傳（Blob）** ✅ Done 2026-07-01（客戶預約照片，真實 Blob/DB 驗證，見 Recently Done）[blueprints/file-upload.md](blueprints/file-upload.md)
 
 ### P1 — 核心功能（後台）
 - [x] **後台認證與權限** ✅ Done 2026-07-01（地基 + 權限管理，真實 DB 驗證，見 Recently Done） [blueprints/admin-auth-authority.md](blueprints/admin-auth-authority.md)
@@ -78,6 +78,12 @@ last_updated: 2026-07-01T21:30+08:00
 
 ## ✅ Recently Done
 
+- [x] **客戶預約照片上傳（Azure Blob）完成 — 真實 Blob/DB 端對端 + 前端 Playwright 驗證** — Done 2026-07-01 [blueprints/file-upload.md](blueprints/file-upload.md)
+  - **後端**：`Skin.Services/Storage`（`IFileStorage`/`BlobFileStorage`/`StorageOptions`）+ `POST /api/uploads`（需登入，multipart）。連線字串**統一用 `AzureWebJobsStorage`**；容器 `upload` 下用**舊資料夾名**（appointments/branchs/categorys/memberquestions，方便整包搬遷）；目錄白名單（擋路徑穿越）+ 型別/大小驗證 + GUID 檔名 + public-blob 容器。`Appointments.Photo` 沿用只存檔名；`AppointmentDetailDto` 加回 Photo；router 可注入 `HttpRequest` 讀 multipart。
+  - **前端**：`UploadService` + `appointment-form` 檔案選擇/預覽/移除；`complete`/`appointment-detail` 顯示照片；`environment.uploadBase`。
+  - **踩雷修復**：`Azure.Storage.Blobs 12.29.1` 預設 service 版本 Azurite 3.35 不支援（500）→ 釘 `ServiceVersion.V2025_11_05`（正式 Azure 安全；本機不需特殊旗標）。見 [gotchas.md](gotchas.md)。
+  - **驗證**：API（上傳→blob 公開 GET image/png→INVALID_TYPE/INVALID_FOLDER/401→建預約帶 photo→詳情回 photo→硬刪+刪 blob 零殘留）＋ Playwright 前端 14/14（選檔→預覽→送出→完成頁顯示圖）。`dotnet build` 0 warn、`ng build` 通過。
+  - **未做**：後台分院/項目圖上傳；問卷檔案題型（無資料）；刪除端點；歷史 4275 張照片＋分院/項目圖搬進 `upload` 容器（部署 azcopy）。
 - [x] **客戶前台指定醫師流程完成 + 修 router async BusinessException→500 bug — 真實 DB 驗證** — Done 2026-07-01 [blueprints/customer-booking.md](blueprints/customer-booking.md)
   - **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`（null→不指定 IsAppointment=0；有值→該醫師 IsAppointment=1）；`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援指定醫師（roster 依 IsAppointment+DoctorID 解析）。
   - **router bug 修復**：async action 拋 `BusinessException`（FULL/DUPLICATE/NO_ROSTER/問卷 NOT_FOUND…）原誤回 HTTP 500 → 加 `catch (BusinessException)` 回 200 Fail（見 [gotchas.md](gotchas.md)）。

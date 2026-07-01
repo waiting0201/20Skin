@@ -1,7 +1,7 @@
 ---
 title: 檔案上傳（Blob Storage）
 purpose: 圖片（預約照片、分院/項目/問卷圖）與問卷檔案上傳改用 Azure Blob Storage，取代舊本機 ~/Upload + Web API 三段式
-status: draft
+status: done
 applicable_when: 要實作或修改檔案上傳/刪除、Blob 整合、或處理上傳安全時
 related_agents:
   - software-architect-blueprint
@@ -12,8 +12,20 @@ related_docs:
   - ../design/api-design.md
   - ../design/backend-design.md
 keywords: [upload, blob-storage, file, image, questionnaire-file]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 ---
+
+## 實作狀態（2026-07-01 完成，客戶預約照片；真實 Blob/DB 驗證）
+
+- **後端**：`Skin.Services/Storage`（`IFileStorage`/`BlobFileStorage`/`StorageOptions`）+ `POST /api/uploads`（`UploadsController`，需會員登入，multipart）。
+  - **連線字串統一**用 `AzureWebJobsStorage`（本機 = Azurite；與 Functions 執行階段同一個，不另設）。
+  - **容器 `upload`**，子路徑用**舊系統資料夾名**（`appointments`/`branchs`/`categorys`/`memberquestions`）→ 舊 `~/Upload` 可整包搬進容器（路徑 1:1）。
+  - 驗證：目錄白名單（擋路徑穿越）、型別白名單（jpg/png/webp/gif）、大小上限（8 MB）；檔名 GUID（避免覆蓋）；容器 public-blob（`<img>` 直接讀）。
+  - `Appointments.Photo` 沿用「只存檔名」（相容舊資料）；`AppointmentDetailDto` 加回 `Photo`。
+  - **router 擴充**：action 可注入原始 `HttpRequest` 讀 multipart。
+- **前端**：`UploadService`（FormData → `/api/uploads`；`photoUrl(filename)` 依 `environment.uploadBase` 組 URL）；`appointment-form` 加檔案選擇+預覽+移除；`complete`/`appointment-detail` 顯示照片。
+- **驗證**：API 端（上傳→blob 公開 GET image/png→INVALID_TYPE/INVALID_FOLDER/401→建立預約帶 photo→詳情回 photo→硬刪+刪 blob 零殘留）＋ 前端 Playwright（選檔→預覽→送出→完成頁顯示圖）全通過。
+- **未做**：後台分院/項目圖上傳（admin 模組）、問卷檔案題型（真實資料無 OptionType 3）、刪除端點（目前只上傳）、歷史 4275 張照片＋分院/項目圖從舊主機搬進 `upload` 容器（部署時 azcopy）。
 
 ## 背景與動機
 舊系統檔案存 IIS 本機 `~/Upload/{Entity}`，後台經 Web API 三段式（暫存→上傳前台→刪）、金鑰極弱(`!@#qwe`)、無副檔名驗證、未進版控無備份。重寫改 Azure Blob Storage。

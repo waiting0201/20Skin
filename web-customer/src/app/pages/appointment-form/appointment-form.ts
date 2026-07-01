@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { BookingService } from '../../core/services/booking.service';
 import { AppointmentService } from '../../core/services/appointment.service';
+import { UploadService } from '../../core/services/upload.service';
 import { ReservationStore } from '../../store/reservation.store';
 import { Doctor, TimeSlot } from '../../core/models';
 
@@ -102,6 +103,21 @@ import { Doctor, TimeSlot } from '../../core/models';
                   </div>
                 </div>
               }
+
+              <div class="form-block">
+                <div class="from-title"></div>圖片上傳
+                <div class="form-box">
+                  <input type="file" accept="image/*" (change)="onPhotoSelected($event)" />
+                  @if (uploadingPhoto()) { <span>上傳中…</span> }
+                  @if (photoError()) { <span style="color:red;">{{ photoError() }}</span> }
+                  @if (photoUrl()) {
+                    <div style="margin-top:8px;">
+                      <img [src]="photoUrl()" alt="已上傳圖片" style="max-width:200px; max-height:200px; display:block;" />
+                      <a href="javascript:;" (click)="removePhoto()" style="color:#c00;">移除圖片</a>
+                    </div>
+                  }
+                </div>
+              </div>
             </div>
             <div class="block-stitle">
               <div class="btn center">
@@ -120,6 +136,7 @@ import { Doctor, TimeSlot } from '../../core/models';
 export class AppointmentFormComponent {
   private readonly booking = inject(BookingService);
   private readonly appointments = inject(AppointmentService);
+  private readonly uploads = inject(UploadService);
   readonly store = inject(ReservationStore);
   private readonly router = inject(Router);
 
@@ -137,6 +154,12 @@ export class AppointmentFormComponent {
   readonly doctors = signal<Doctor[]>([]);
   readonly doctorId = signal<string | null>(null);
   readonly loadingDoctors = signal(false);
+
+  // 圖片上傳（存 Blob，回檔名存 Appointments.Photo）
+  readonly photoFilename = signal<string | null>(null);
+  readonly photoUrl = signal<string | null>(null);
+  readonly uploadingPhoto = signal(false);
+  readonly photoError = signal<string | null>(null);
 
   /** 時段區塊顯示時機：不指定+已選日期，或指定+已選醫師。 */
   readonly showSlots = computed(() => !!this.date() && (!this.designate() || !!this.doctorId()));
@@ -196,6 +219,26 @@ export class AppointmentFormComponent {
     });
   }
 
+  onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.photoError.set(null);
+    if (!file.type.startsWith('image/')) { this.photoError.set('僅能上傳圖片'); input.value = ''; return; }
+    if (file.size > 8 * 1024 * 1024) { this.photoError.set('圖片需在 8 MB 以內'); input.value = ''; return; }
+    this.uploadingPhoto.set(true);
+    this.uploads.upload(file, 'appointments').subscribe({
+      next: (r) => { this.photoFilename.set(r.filename); this.photoUrl.set(r.url); this.uploadingPhoto.set(false); },
+      error: (e) => { this.photoError.set(e?.message ?? '上傳失敗'); this.uploadingPhoto.set(false); },
+    });
+  }
+
+  removePhoto() {
+    this.photoFilename.set(null);
+    this.photoUrl.set(null);
+    this.photoError.set(null);
+  }
+
   submit() {
     if (!this.canSubmit()) return;
     const b = this.store.branch()!, clinic = this.store.clinic()!, cat = this.store.category()!;
@@ -205,7 +248,7 @@ export class AppointmentFormComponent {
       branchId: b.branchId, clinic, categoryId: cat.categoryId,
       periodId: this.periodId()!, doctorId: this.designate() ? this.doctorId() : null, isAppointment: this.designate(),
       appointmentDate: this.date(), amount: this.amount(),
-      questionTypeId: this.store.questionTypeId(), photo: null,
+      questionTypeId: this.store.questionTypeId(), photo: this.photoFilename(),
     }).subscribe({
       next: (res) => {
         this.submitting.set(false);

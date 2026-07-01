@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AppointmentService } from '../../core/services/appointment.service';
+import { UploadService } from '../../core/services/upload.service';
 import { AppointmentDetail, clinicTitle } from '../../core/models';
 
 /** 預約完成頁（對應舊 Complete.cshtml）。 */
@@ -57,6 +58,12 @@ import { AppointmentDetail, clinicTitle } from '../../core/models';
                 <div class="from-title blue-text">預約狀態：</div>
                 <div class="form-box left">{{ a.status === 1 ? '預約成功' : '已取消' }}</div>
               </div>
+              @if (uploads.photoUrl(a.photo); as url) {
+                <div class="form-block">
+                  <div class="from-title blue-text">上傳圖片：</div>
+                  <div class="form-box left"><img [src]="url" alt="預約圖片" style="max-width:240px; max-height:240px;" /></div>
+                </div>
+              }
             </div>
           }
           <div class="block-stitle">
@@ -70,6 +77,7 @@ import { AppointmentDetail, clinicTitle } from '../../core/models';
 export class CompleteComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly appointments = inject(AppointmentService);
+  readonly uploads = inject(UploadService);
   readonly d = signal<AppointmentDetail | null>(null);
   readonly ct = clinicTitle;
 

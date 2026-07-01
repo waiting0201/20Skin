@@ -88,6 +88,14 @@ export interface AppointmentDetail {
   isFirstVisit: boolean;
   status: number;
   questionTypeId: string | null;
+  photo: string | null;
+}
+
+/** 上傳結果（後端回檔名+公開 URL）。filename 存入預約 Photo。 */
+export interface UploadResult {
+  filename: string;
+  folder: string;
+  url: string;
 }
 
 export interface PagedAppointments {

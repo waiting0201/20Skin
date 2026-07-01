@@ -36,4 +36,5 @@ public sealed record AppointmentDetailDto(
     int? OutpatientNum,
     bool IsFirstVisit,
     int Status,
-    Guid? QuestionTypeId);
+    Guid? QuestionTypeId,
+    string? Photo);

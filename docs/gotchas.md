@@ -58,6 +58,19 @@ last_updated: 2026-07-01
 - **修法**：所有 `<form>` 內的 `[ngModel]` 一律加 `[ngModelOptions]="{ standalone: true }"`（本專案表單狀態走 signals，不需 Angular form control 註冊）。
 - **預防**：新頁面若在 `<form>` 內用 `[ngModel]`，務必加 `standalone`；**每個前端頁面至少用瀏覽器（Playwright headless）跑過一次**，別只信 `ng build`。可用 scratchpad 的 Playwright E2E（登入→分院→診別→項目→日期/時段/指定醫師→送出→查詢/詳情→JoinUs 城市區連動）當回歸。
 
+## 檔案上傳 / Blob
+
+### Azurite 不支援新 SDK 的 service 版本 → 釘版（2026-07-01）
+- **症狀**：`Azure.Storage.Blobs 12.29.1` 預設 service 版本 `2026-06-06`，本機 Azurite 3.35 回 `400 InvalidHeaderValue: The API version ... is not supported`；上傳一律 500。Azurite 的 `--skipApiVersionCheck` **在此版無效**（試過仍擋）。
+- **修法**：`BlobFileStorage` 以 `new BlobClientOptions(BlobClientOptions.ServiceVersion.V2025_11_05)` **釘住 service 版本**（正式 Azure 支援所有較舊版本，對正式安全）。→ 本機 Azurite **不需**任何特殊旗標。
+- **預防**：升 `Azure.Storage.*` 後若上傳 500，先看是否又超出本機 Azurite 支援版本；升 Azurite 或調整釘版。
+
+### 上傳走 multipart：router 需注入 HttpRequest
+- 自訂 router 預設把複雜型別當 JSON body 綁定；檔案上傳要讀 multipart → 已讓 action 可宣告 `HttpRequest` 參數（router 直接傳 `req`），controller 用 `req.ReadFormAsync().Files`。
+
+### Blob 公開容器：GET 可、DELETE 需授權
+- 容器建為 `PublicAccessType.Blob`（`<img>` 直接讀）。**匿名只能讀**；刪除要用帳戶金鑰/SAS（測試清理時用 SDK 帶金鑰，別用匿名 DELETE，會 403）。
+
 ## 待補充
 
 （開發開始後，把新系統實際踩到的雷紀錄於此；格式：症狀 / 影響 / 預防）
