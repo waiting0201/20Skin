@@ -14,9 +14,17 @@ related_docs:
   - ../design/database-design.md
   - sms-reminder.md
   - questionnaire.md
-keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel]
-last_updated: 2026-06-30
+keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel, doctor, designated]
+last_updated: 2026-07-01
 ---
+
+## 指定醫師流程（2026-07-01 完成，真實 DB 驗證）
+
+舊系統將此功能以 `1 == 2` 停用（資料稀少）；新系統補齊：
+- **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`——null → 不指定（`IsAppointment=0`）；有值 → 該醫師（`IsAppointment=1 且 DoctorID=doctorId`）。`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援（roster context 依 `IsAppointment=@IsAppointment` + `(@DoctorId IS NULL OR r.DoctorID=@DoctorId)` 解析），指定時 `isAppointment=true`＋`doctorId` 即綁定該醫師排班。
+- **前端**：`appointment-form` 加「不指定／指定」切換；選「指定」→ 載入 `/api/rosters/doctors` → 選醫師 → 載入該醫師時段（`/api/rosters?...&doctorId=`）→ 送出帶 `doctorId`＋`isAppointment=true`。
+- **順帶修 router bug**：async action 拋 `BusinessException`（如 FULL/DUPLICATE）原誤回 500，已修為 200 Fail（見 [gotchas.md](../gotchas.md)）。
+- **驗證**（施百潤 2022-03-18 指定排班）：醫師清單、指定 vs 不指定時段差異、FULL 回 200、暫解容量後建立成功（`DoctorID`＝該醫師、`RosterID`＝該 `IsAppointment=1` 排班）、硬刪＋還原零殘留。
 
 ## 背景與動機
 系統核心。重寫保留全部預約業務行為（需求 7），改為 SPA + JSON API + 前端 signal store。

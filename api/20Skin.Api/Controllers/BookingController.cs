@@ -23,10 +23,13 @@ public sealed class BookingController(IBookingService booking, RequestContext ct
     [ApiRoute("GET", "categories")]
     public Task<IReadOnlyList<CategoryDto>> Categories(string clinic) => booking.GetCategoriesByClinicAsync(clinic);
 
-    /// <summary>GET /api/rosters?branchId=&amp;clinic=&amp;categoryId=&amp;date= — 不指定醫師的可預約時段。</summary>
+    /// <summary>
+    /// GET /api/rosters?branchId=&amp;clinic=&amp;categoryId=&amp;date=&amp;doctorId= — 可預約時段。
+    /// 帶 doctorId → 該指定醫師（IsAppointment=1）；不帶 → 不指定醫師（IsAppointment=0）。
+    /// </summary>
     [ApiRoute("GET", "rosters")]
-    public Task<IReadOnlyList<TimeSlotDto>> TimeSlots(Guid branchId, string clinic, Guid categoryId, DateTime date)
-        => booking.GetTimeSlotsAsync(branchId, clinic, categoryId, date);
+    public Task<IReadOnlyList<TimeSlotDto>> TimeSlots(Guid branchId, string clinic, Guid categoryId, DateTime date, Guid? doctorId = null)
+        => booking.GetTimeSlotsAsync(branchId, clinic, categoryId, date, doctorId);
 
     /// <summary>GET /api/rosters/doctors?... — 該日可指定醫師。</summary>
     [ApiRoute("GET", "rosters/doctors")]

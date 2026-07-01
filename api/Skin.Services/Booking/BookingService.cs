@@ -30,11 +30,12 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
     }
 
     public async Task<IReadOnlyList<TimeSlotDto>> GetTimeSlotsAsync(
-        Guid branchId, string clinic, Guid categoryId, DateTime date, CancellationToken ct = default)
+        Guid branchId, string clinic, Guid categoryId, DateTime date, Guid? doctorId = null, CancellationToken ct = default)
     {
         var dayStart = date.Date;
         var dayEnd = dayStart.AddDays(1);
-        // 不指定醫師（IsAppointment=0）的排班；容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。
+        // doctorId=null → 不指定（IsAppointment=0）；有值 → 指定醫師（IsAppointment=1 且 DoctorID=doctorId）。
+        // 容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。
         const string sql = """
             SELECT p.PeriodID                 AS PeriodId,
                    p.Title                    AS Title,
@@ -51,13 +52,15 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
             JOIN Periods p          ON p.PeriodID = rp.PeriodID
             LEFT JOIN OutpatientTimes ot ON ot.OutpatientTimeID = p.OutpatientTimeID
             WHERE r.BranchID = @branchId AND r.Clinic = @clinic
-              AND r.IsAppointment = 0
+              AND r.IsAppointment = @isAppointment
+              AND (@doctorId IS NULL OR r.DoctorID = @doctorId)
               AND r.RosterDate >= @dayStart AND r.RosterDate < @dayEnd
             ORDER BY rp.Sort
             """;
         using var conn = db.Create();
         var rows = await conn.QueryAsync<TimeSlotDto>(new CommandDefinition(sql,
-            new { branchId, clinic, categoryId, dayStart, dayEnd, active = AppointmentStatus.Active }, cancellationToken: ct));
+            new { branchId, clinic, categoryId, dayStart, dayEnd, doctorId,
+                  isAppointment = doctorId.HasValue ? 1 : 0, active = AppointmentStatus.Active }, cancellationToken: ct));
         return rows.AsList();
     }
 

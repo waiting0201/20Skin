@@ -83,8 +83,8 @@ status: draft
 |---|---|---|
 | `/api/branches` | GET | 啟用分院列表 |
 | `/api/categories?clinic=` | GET | 某診別項目 |
-| `/api/rosters?branch=&clinic=&category=&date=` | GET | 可預約時段（JSON） |
-| `/api/rosters/doctors?...` | GET | 可指定醫師 |
+| `/api/rosters?branch=&clinic=&category=&date=&doctorId=` | GET | 可預約時段（JSON）。**帶 `doctorId` → 該指定醫師時段（IsAppointment=1）；不帶 → 不指定（IsAppointment=0）**。2026-07-01 |
+| `/api/rosters/doctors?...` | GET | 該日可指定醫師 |
 | `/api/rosters/check-availability` | POST | 重複預約檢查 |
 | `/api/appointments` | POST/GET | 建立 / 查詢自己的預約（分頁） |
 | `/api/appointments/{id}` | GET | 詳情（**含歸屬驗證，修 IDOR**） |

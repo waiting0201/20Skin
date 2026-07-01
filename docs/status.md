@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-01T20:00+08:00
+last_updated: 2026-07-01T21:30+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug，真實 DB 驗證）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -48,7 +48,7 @@ last_updated: 2026-07-01T20:00+08:00
   - 頁面（standalone + signals + Tailwind）：login、index(分院)、clinic、category、appointment-form(日期→即時時段→送出)、complete、appointment-list、appointment-detail(含取消)
   - 服務：`BookingService` / `AppointmentService`（呼叫 9 端點）、`authInterceptor`(Bearer)、`authGuard`、`ReservationStore`(signals + sessionStorage 防 F5)
   - 驗證：`ng build` 通過；CORS 已驗（preflight + ACAO :4200）；request/response 欄位與 API 一致（camelCase↔PascalCase）
-  - 未串：指定醫師流程（資料稀少，先走不指定）。問卷（`IsQuestion`）已完成，見下方問卷項。
+  - 指定醫師流程已完成（2026-07-01，見 Recently Done）；問卷（`IsQuestion`）已完成。客戶前台三缺口全數補齊。
 - [x] **問卷** ✅ Done 2026-07-01（真實 DB 端對端驗證，見 Recently Done）[blueprints/questionnaire.md](blueprints/questionnaire.md)
 - [ ] **簡訊雙寫 + Timer 排程** [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
 - [ ] **檔案上傳（Blob）** [blueprints/file-upload.md](blueprints/file-upload.md)
@@ -78,6 +78,11 @@ last_updated: 2026-07-01T20:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **客戶前台指定醫師流程完成 + 修 router async BusinessException→500 bug — 真實 DB 驗證** — Done 2026-07-01 [blueprints/customer-booking.md](blueprints/customer-booking.md)
+  - **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`（null→不指定 IsAppointment=0；有值→該醫師 IsAppointment=1）；`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援指定醫師（roster 依 IsAppointment+DoctorID 解析）。
+  - **router bug 修復**：async action 拋 `BusinessException`（FULL/DUPLICATE/NO_ROSTER/問卷 NOT_FOUND…）原誤回 HTTP 500 → 加 `catch (BusinessException)` 回 200 Fail（見 [gotchas.md](gotchas.md)）。
+  - **前端**：`appointment-form` 加「不指定／指定」切換 → 指定則載入醫師清單 → 選醫師載入該醫師時段 → 送出帶 `doctorId`+`isAppointment=true`。
+  - **真實 DB 實測**（施百潤 2022-03-18 指定排班）：醫師清單、指定 vs 不指定時段差異、FULL 回 200、暫解容量後建立成功（DoctorID＝該醫師、RosterID＝該 IsAppointment=1 排班、自動門診號）、硬刪＋還原容量零殘留。`dotnet build` 0 warn、`ng build` 通過。
 - [x] **客戶前台初診註冊（JoinUs）完成 — 真實 DB 端對端驗證 + 硬刪零殘留** — Done 2026-07-01 [blueprints/member-auth.md](blueprints/member-auth.md)
   - **後端**：`MemberService.RegisterAsync`（Dapper INSERT）+ `POST /api/auth/member/register`（reCAPTCHA→ 身分證/手機/生日格式驗證→ 查無則建檔→ 簽 JWT 直接登入態）；`GET /api/zipcodes`（公開，城市→區→ZipcodeID）+ `LookupController`。身分證+生日已存在 → 回既有不重複建檔（沿用舊 JoinUs）；身分證轉大寫；Allergy/MedicalHistory 多選存 CSV；Createdate 台灣時間。
   - **前端**：`JoinUsComponent`（`/join-us`，公開路由）Reactive Forms（姓名/身分證/手機/民國年生日/性別/血型/email/緊急聯絡人）+ signals（城市→區連動、過敏史/病史多選＋「其他」自填）；`LookupService`；`AuthService.register`；登入查無會員時帶身分證+生日導入；舊 `/MainMs/JoinUs` redirect 到 `/join-us`。

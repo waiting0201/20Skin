@@ -79,6 +79,12 @@ public sealed class ApiRouterFunction(
                 _ => new OkObjectResult(ApiResponseFactory.Ok(resultObj)),
             };
         }
+        // 業務例外 → 200 Fail 信封（非 500）。async action 直接拋出 BusinessException；
+        // sync action 經反射 Invoke 會包成 TargetInvocationException，兩者都要處理。
+        catch (BusinessException be)
+        {
+            return new OkObjectResult(ApiResponse.Fail(be.Message, be.Code));
+        }
         catch (TargetInvocationException tie) when (tie.InnerException is BusinessException be)
         {
             return new OkObjectResult(ApiResponse.Fail(be.Message, be.Code));

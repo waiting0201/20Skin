@@ -43,6 +43,14 @@ last_updated: 2026-07-01
 - **症狀**：以 HS256 手簽 member token 時，`ClaimTypes.Role`（URI）與短名 `role` 皆無法被 `RequestContext.Role` 讀到（`/auth/me` role=null、`[Authorize(Roles.Member)]` 回 403）；但 `nameidentifier`/`name` 正常。
 - **預防**：測試需要 member token 時，直接打 `POST /api/auth/member/login`（dev reCAPTCHA 空 secret 自動放行），用回傳的真 token，別手簽。
 
+## 自訂 router
+
+### async action 拋 BusinessException → 曾誤回 500（已修 2026-07-01）
+- **症狀**：controller 的 **async** action 內 `throw new BusinessException(...)`（如預約 FULL/DUPLICATE/NO_ROSTER、問卷 NOT_FOUND）原本回 HTTP 500，而非預期的 `200 {success:false, code}`。
+- **原因**：router 以反射 `action.Invoke` 取得 `Task` 再 `await`；**async 例外直接以原型別拋出**，但 catch 只攔 `TargetInvocationException`（僅 sync Invoke 才會包裝）→ 落到通用 catch 回 500。
+- **修法**：`ApiRouterFunction` 於通用 catch **之前**加 `catch (BusinessException be)` 直接回 `ApiResponse.Fail`；保留 `TargetInvocationException` 分支處理 sync 情形。
+- **預防**：新增會拋 BusinessException 的端點時，記得業務錯誤應回 200 Fail 信封；若又見 500，先查此 catch 順序。
+
 ## 待補充
 
 （開發開始後，把新系統實際踩到的雷紀錄於此；格式：症狀 / 影響 / 預防）

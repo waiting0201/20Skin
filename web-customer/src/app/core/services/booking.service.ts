@@ -26,8 +26,10 @@ export class BookingService {
     return this.http.get<ApiResponse<Category[]>>(`${this.base}/categories`, { params }).pipe(this.unwrap<Category[]>());
   }
 
-  timeSlots(branchId: string, clinic: string, categoryId: string, date: string): Observable<TimeSlot[]> {
-    const params = new HttpParams().set('branchId', branchId).set('clinic', clinic).set('categoryId', categoryId).set('date', date);
+  /** doctorId 有值 → 指定醫師時段（IsAppointment=1）；不帶 → 不指定（IsAppointment=0）。 */
+  timeSlots(branchId: string, clinic: string, categoryId: string, date: string, doctorId?: string): Observable<TimeSlot[]> {
+    let params = new HttpParams().set('branchId', branchId).set('clinic', clinic).set('categoryId', categoryId).set('date', date);
+    if (doctorId) params = params.set('doctorId', doctorId);
     return this.http.get<ApiResponse<TimeSlot[]>>(`${this.base}/rosters`, { params }).pipe(this.unwrap<TimeSlot[]>());
   }
 

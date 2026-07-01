@@ -12,9 +12,12 @@ public interface IBookingService
 
     Task<IReadOnlyList<CategoryDto>> GetCategoriesByClinicAsync(string clinic, CancellationToken ct = default);
 
-    /// <summary>不指定醫師的可預約時段（含容量）。容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。</summary>
+    /// <summary>
+    /// 可預約時段（含容量）。容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。
+    /// doctorId 為 null → 不指定醫師（IsAppointment=0）；有值 → 該指定醫師（IsAppointment=1 且 DoctorID=doctorId）。
+    /// </summary>
     Task<IReadOnlyList<TimeSlotDto>> GetTimeSlotsAsync(
-        Guid branchId, string clinic, Guid categoryId, DateTime date, CancellationToken ct = default);
+        Guid branchId, string clinic, Guid categoryId, DateTime date, Guid? doctorId = null, CancellationToken ct = default);
 
     /// <summary>該日可指定的醫師（IsAppointment=1 的排班）。</summary>
     Task<IReadOnlyList<DoctorDto>> GetDoctorsAsync(
