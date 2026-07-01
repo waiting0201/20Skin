@@ -48,7 +48,8 @@ export class LoginComponent {
         if (res.success && res.data?.status === 1) {
           this.router.navigate([dest]);
         } else if (res.data?.status === 2) {
-          this.router.navigate(['/join-us']);
+          // 查無會員 → 導初診建檔，帶入已填的身分證+生日
+          this.router.navigate(['/join-us'], { queryParams: { number: v.number, yyyy: v.yyyy, mm: v.mm, dd: v.dd } });
         } else {
           this.error.set(res.message ?? '登入失敗');
         }

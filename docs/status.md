@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-01T18:30+08:00
+last_updated: 2026-07-01T20:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入，真實 DB 驗證）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -33,10 +33,11 @@ last_updated: 2026-07-01T18:30+08:00
   - Related: [design/infrastructure.md](design/infrastructure.md)
 
 ### P1 — 核心功能（客戶端）
-- [x] **會員認證**（完成，真實 DB + 真實會員驗證）[blueprints/member-auth.md](blueprints/member-auth.md)
+- [x] **會員認證**（登入 + 初診註冊 JoinUs 均完成，真實 DB 驗證）[blueprints/member-auth.md](blueprints/member-auth.md)
   - Members POCO、MemberService（Dapper）、reCAPTCHA verifier、`POST /api/auth/member/login`（驗證→黑名單→簽 JWT）、`/api/auth/me`、客戶 SPA login 已串接
-  - 實測：真實會員 `B121583140`/`1978-02-01` → status 1 + JWT；`/api/auth/me` 帶 token 解出正確 claims
-  - 未做（需求保留無密碼）：OTP/refresh token 持久化（見「待 schema 核准」）
+  - **初診註冊（2026-07-01）**：`POST /api/auth/member/register`（格式驗證→ 查無則建檔→ 簽 JWT 直接登入）、`GET /api/zipcodes`（城市→區）、`JoinUsComponent`（全欄位 + 城市區連動 + 過敏/病史多選 CSV + 民國年）；身分證+生日已存在則不重複建檔；見 Recently Done
+  - 實測：真實會員 `B121583140`/`1978-02-01` → status 1 + JWT；註冊測試身分證端對端 + 硬刪零殘留
+  - 未做（需求保留無密碼）：OTP/refresh token 持久化（見「待 schema 核准」）；reCAPTCHA 前端 token；登入 rate-limit
 - [x] **客戶線上預約（讀+寫）完成，真實 DB 端對端驗證** [blueprints/customer-booking.md](blueprints/customer-booking.md)
   - 讀取面：10 POCO + `BookingService`（Dapper）+ `GET /api/branches`、`/api/categories?clinic=`、`/api/rosters`(時段+容量)、`/api/rosters/doctors`、`POST /api/rosters/check-availability`（重複視窗設定驅動，台中 ±2 天）
   - 寫入面：`AppointmentService` + `POST /api/appointments`（容量檢查交易內防超賣 + 自動門診號 +2 偶數 + 重複限制 + 問卷強制 + **簡訊雙寫**）、`GET /api/appointments`(分頁)、`GET /api/appointments/{id}`(歸屬檢查修 IDOR)、`POST /api/appointments/{id}/cancel`(>1 小時 + 標記未發 SMS=CANCEL)
@@ -77,6 +78,11 @@ last_updated: 2026-07-01T18:30+08:00
 
 ## ✅ Recently Done
 
+- [x] **客戶前台初診註冊（JoinUs）完成 — 真實 DB 端對端驗證 + 硬刪零殘留** — Done 2026-07-01 [blueprints/member-auth.md](blueprints/member-auth.md)
+  - **後端**：`MemberService.RegisterAsync`（Dapper INSERT）+ `POST /api/auth/member/register`（reCAPTCHA→ 身分證/手機/生日格式驗證→ 查無則建檔→ 簽 JWT 直接登入態）；`GET /api/zipcodes`（公開，城市→區→ZipcodeID）+ `LookupController`。身分證+生日已存在 → 回既有不重複建檔（沿用舊 JoinUs）；身分證轉大寫；Allergy/MedicalHistory 多選存 CSV；Createdate 台灣時間。
+  - **前端**：`JoinUsComponent`（`/join-us`，公開路由）Reactive Forms（姓名/身分證/手機/民國年生日/性別/血型/email/緊急聯絡人）+ signals（城市→區連動、過敏史/病史多選＋「其他」自填）；`LookupService`；`AuthService.register`；登入查無會員時帶身分證+生日導入；舊 `/MainMs/JoinUs` redirect 到 `/join-us`。
+  - **真實 DB 實測**（測試身分證 `Z199999990` 建檔 → 驗欄位/CSV/大寫/ZipcodeID → `/auth/me` → 同證登入 status 1 → 重複註冊不產 dup → 格式負向 INVALID_NUMBER/MOBILE/BIRTHDAY → 硬刪零殘留）全通過；`dotnet build` 0 warn、`ng build` 通過。
+  - **未做**：reCAPTCHA 前端 token（dev 放行）；登入 rate-limit；refresh token（待 schema）。
 - [x] **客戶前台問卷（術前電子病歷）完成 — 真實 DB 端對端驗證 + 零殘留** — Done 2026-07-01 [blueprints/questionnaire.md](blueprints/questionnaire.md)
   - **後端**：5 POCO + `QuestionService`（Dapper）+ `QuestionsController` 3 端點：`GET /api/question-types?clinic=&categoryId=`（清單+已答旗標）、`GET /api/question-types/{id}`（題目+選項+pre-fill）、`POST /api/member-questions`（交易內作答）。
   - **前端**：`QuestionnaireListComponent`（`/questionnaire`）+ `QuestionnaireComponent`（`/booking/questionnaire`，動態題型 radio/checkbox/其他）+ `QuestionnaireService` + store `setQuestionTypeId`；`category` 的 `IsQuestion` 改導問卷清單（全數作答才可回預約）；舊 `/MainMs/Questions*` redirect 到 `/questionnaire`。

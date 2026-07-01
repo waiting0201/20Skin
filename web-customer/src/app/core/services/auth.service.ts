@@ -22,6 +22,28 @@ export interface LoginResult {
   message?: string;
 }
 
+/** 初診註冊請求（JoinUs，見 docs/blueprints/member-auth.md）。 */
+export interface RegisterMemberRequest {
+  number: string;
+  yyyy: number;
+  mm: number;
+  dd: number;
+  name: string;
+  mobile: string;
+  gender: number | null;
+  bloodType: string | null;
+  email: string | null;
+  zipcodeId: number | null;
+  address: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+  allergy: string[];
+  allergyOther: string | null;
+  medicalHistory: string[];
+  medicalHistoryOther: string | null;
+  googleCaptchaToken: string;
+}
+
 const TOKEN_KEY = 'skin_token';
 
 /**
@@ -40,6 +62,15 @@ export class AuthService {
   login(req: MemberLoginRequest): Observable<ApiResponse<LoginResult>> {
     return this.http
       .post<ApiResponse<LoginResult>>(`${environment.apiBase}/auth/member/login`, req)
+      .pipe(tap((res) => {
+        if (res.success && res.data?.token) this.setToken(res.data.token);
+      }));
+  }
+
+  /** 初診註冊 → 成功即為登入態（後端回 JWT）。 */
+  register(req: RegisterMemberRequest): Observable<ApiResponse<LoginResult>> {
+    return this.http
+      .post<ApiResponse<LoginResult>>(`${environment.apiBase}/auth/member/register`, req)
       .pipe(tap((res) => {
         if (res.success && res.data?.token) this.setToken(res.data.token);
       }));

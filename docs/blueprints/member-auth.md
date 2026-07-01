@@ -12,9 +12,20 @@ related_docs:
   - ../design/frontend-customer.md
   - ../design/api-design.md
   - ../design/database-design.md
-keywords: [member, auth, login, register, jwt, recaptcha, blacklist]
-last_updated: 2026-06-30
+keywords: [member, auth, login, register, jwt, recaptcha, blacklist, joinus, zipcode]
+last_updated: 2026-07-01
 ---
+
+## 實作狀態
+
+- **登入**（2026-06-30 完成）：`POST /api/auth/member/login`（身分證+生日→ 1/2/3 分支 → 簽 JWT）。
+- **初診註冊 JoinUs**（2026-07-01 完成，真實 DB 端對端驗證）：
+  - 後端 `POST /api/auth/member/register`（reCAPTCHA→ 驗證身分證/手機/生日格式 → `MemberService.RegisterAsync` → 簽 JWT 直接登入態）；`GET /api/zipcodes`（城市→區→ZipcodeID，公開）。
+  - `RegisterAsync`：**身分證+生日已存在 → 回既有會員不重複建檔**（沿用舊 JoinUs）；否則 INSERT `Members`。身分證轉大寫；`Allergy`/`MedicalHistory` 多選存 **CSV**（`string.Join(",")`）；`Createdate` 台灣時間；`IsBlackList=false`。
+  - 前端 `JoinUsComponent`（`/join-us`，公開路由）：Reactive Forms（姓名/身分證/手機/民國年生日/性別/血型/email/緊急聯絡人）＋ signals（城市→區連動、過敏史/病史多選＋「其他」自填）。登入查無時帶入身分證+生日（query）。成功即登入態 → 導 `/`。舊 `/MainMs/JoinUs` redirect 到 `/join-us`。
+  - 選項值（沿用舊）：血型 O/A/B/AB/NO(不清楚)；性別 1男/2女；過敏史 無/磺胺劑/青黴素/Pyrine匹林類/其他；病史 無/糖尿病/高血壓/其他。
+  - **實測**（測試身分證建檔 → 驗欄位/CSV/大寫 → `/me` → 同證登入 status 1 → 重複註冊不產生 dup → 格式負向 → 硬刪零殘留）全通過；`dotnet build` 0 warn、`ng build` 通過。
+- **未做**：reCAPTCHA 前端 token（dev 空 secret 放行）；登入 rate-limit；refresh token 持久化（待 schema 核准）。
 
 ## 背景與動機
 客戶端預約的入口。沿用舊系統「身分證+生日」無密碼登入（需求 7），但改以 JWT 取代 Session。

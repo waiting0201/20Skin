@@ -100,6 +100,13 @@ export interface PagedAppointments {
 export const clinicTitle = (c: string): string =>
   c === 'Skin' ? '健保門診' : c === 'Cosmetic' ? '醫學美容' : c === 'Dentist' ? '齒科' : c;
 
+export interface Zipcode {
+  zipcodeId: number;
+  city: string;
+  area: string;
+  zipcode: string;
+}
+
 // ── 問卷（術前電子病歷）。OptionType：1=單選(radio) / 2=複選(checkbox)（見 docs/gotchas.md） ──
 
 export interface QuestionnaireEntry {

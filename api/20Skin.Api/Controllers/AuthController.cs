@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Skin.Api.Auth;
 using Skin.Api.Routing;
 using Skin.Core;
@@ -45,6 +46,39 @@ public sealed class AuthController(
         var member = await members.FindByNumberAndBirthdayAsync(req.Number, birthday);
         if (member is null)
             return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 2, Message: "查無資料，請填寫初診表單"));
+
+        if (member.IsBlackList)
+            return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 3, Message: "您的帳號已被限制預約，請洽診所"));
+
+        var token = jwt.CreateToken([
+            new Claim(ClaimTypes.NameIdentifier, member.MemberID.ToString()),
+            new Claim(ClaimTypes.Name, member.Name ?? ""),
+            new Claim(ClaimTypes.Role, Roles.Member),
+        ]);
+        return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID));
+    }
+
+    /// <summary>
+    /// POST /api/auth/member/register — 初診建檔（JoinUs）→ 直接登入態（簽 JWT）。
+    /// 已存在（身分證+生日）則不重複建檔、直接登入（沿用舊行為）。見 docs/blueprints/member-auth.md。
+    /// </summary>
+    [ApiRoute("POST", "auth/member/register")]
+    public async Task<ApiResponse<LoginResult>> MemberRegister(RegisterMemberRequest req)
+    {
+        if (!await recaptcha.VerifyAsync(req.GoogleCaptchaToken, "login"))
+            return ApiResponse<LoginResult>.Fail("reCAPTCHA 驗證失敗", "RECAPTCHA_FAILED");
+
+        var number = (req.Number ?? "").Trim().ToUpperInvariant();
+        if (!Regex.IsMatch(number, "^[A-Z][0-9]{9}$"))
+            return ApiResponse<LoginResult>.Fail("身分證格式錯誤", "INVALID_NUMBER");
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return ApiResponse<LoginResult>.Fail("請輸入姓名", "INVALID_NAME");
+        if (!Regex.IsMatch(req.Mobile ?? "", "^09[0-9]{8}$"))
+            return ApiResponse<LoginResult>.Fail("手機格式錯誤", "INVALID_MOBILE");
+        if (!TryBuildDate(req.Yyyy, req.Mm, req.Dd, out var birthday))
+            return ApiResponse<LoginResult>.Fail("生日格式錯誤", "INVALID_BIRTHDAY");
+
+        var (member, _) = await members.RegisterAsync(req, birthday);
 
         if (member.IsBlackList)
             return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 3, Message: "您的帳號已被限制預約，請洽診所"));

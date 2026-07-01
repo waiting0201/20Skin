@@ -73,7 +73,7 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 | `/MainMs/Complete?AppointmentID=` | `/booking/complete/:id`（函式型 redirect 轉 query→path，無 id 退 `/appointments`） |
 | `/MainMs/AppointmentDetail?AppointmentID=` | `/appointments/:id`（同上） |
 | `/MainMs/AppointmentCancel?AppointmentID=` | `/appointments/:id`（cancel 頁未獨立重建，先導詳情） |
-| `/MainMs/JoinUs` | `/login`（註冊頁未重建，先導登入入口） |
+| `/MainMs/JoinUs` | `/join-us`（初診註冊頁已重建） |
 | `/MainMs/QuestionTypes`、`Questions`、`QuestionComplete` | `/questionnaire`（問卷已重建，見 [blueprints/questionnaire.md](../blueprints/questionnaire.md)） |
 
 > **⚠️ 正式部署必辦**：Static Web Apps 需在 `staticwebapp.config.json` 設 `navigationFallback` → `/index.html`（並排除 assets），伺服器才會把 `/MainMs/*` 這類深層路徑交給 SPA 由前端路由處理；否則 SWA 會回 404，前端 redirect 根本不會執行。本機 `ng serve` 已自動 fallback，無此問題。此設定屬 P2 CI/CD（見 [infrastructure.md](infrastructure.md)）。

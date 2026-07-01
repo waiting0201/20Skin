@@ -72,7 +72,8 @@ status: draft
 | 端點 | Method | 說明 |
 |---|---|---|
 | `/api/auth/member/login` | POST | 身分證+生日+reCAPTCHA → JWT（status 1/2/3：成功/新客/黑名單） |
-| `/api/auth/member/register` | POST | 新會員建檔 → JWT |
+| `/api/auth/member/register` | POST | 初診建檔（JoinUs）→ JWT 直接登入態；身分證+生日已存在則回既有不重複建檔；Allergy/MedicalHistory 存 CSV。**Done 2026-07-01** |
+| `/api/zipcodes` | GET | 郵遞區號（城市→區→ZipcodeID，公開，供註冊連動）。**Done 2026-07-01** |
 | `/api/auth/admin/login` | POST | 帳號+密碼+reCAPTCHA → JWT（`is_super_admin`+攤平 `perms`）。**Done 2026-07-01** |
 | `/api/auth/refresh` | POST | refresh token → 新 access token（狀態存 reused DB 之外） |
 | `/api/auth/me` | GET | 取當前使用者 |

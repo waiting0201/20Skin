@@ -21,7 +21,7 @@ const legacyRoutes: Routes = [
   { path: 'MainMs/AppointmentDetail', redirectTo: ({ queryParams }) => (queryParams['AppointmentID'] ? `/appointments/${queryParams['AppointmentID']}` : '/appointments') },
   { path: 'MainMs/AppointmentCancel', redirectTo: ({ queryParams }) => (queryParams['AppointmentID'] ? `/appointments/${queryParams['AppointmentID']}` : '/appointments') },
   // 尚未重建的舊頁面 → 導向最接近的既有入口
-  { path: 'MainMs/JoinUs', redirectTo: 'login' },
+  { path: 'MainMs/JoinUs', redirectTo: 'join-us' },
   { path: 'MainMs/QuestionTypes', redirectTo: 'questionnaire' },
   { path: 'MainMs/Questions', redirectTo: 'questionnaire' },
   { path: 'MainMs/QuestionComplete', redirectTo: 'questionnaire' },
@@ -32,6 +32,7 @@ export const routes: Routes = [
   ...legacyRoutes,
 
   { path: 'login', loadComponent: () => import('./pages/login/login').then((m) => m.LoginComponent) },
+  { path: 'join-us', loadComponent: () => import('./pages/join-us/join-us').then((m) => m.JoinUsComponent) },
 
   { path: '', canActivate: [authGuard], loadComponent: () => import('./pages/index/index').then((m) => m.IndexComponent) },
   {
