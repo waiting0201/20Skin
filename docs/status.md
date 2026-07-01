@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-01T14:00+08:00
+last_updated: 2026-07-01T18:30+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -47,8 +47,8 @@ last_updated: 2026-07-01T14:00+08:00
   - 頁面（standalone + signals + Tailwind）：login、index(分院)、clinic、category、appointment-form(日期→即時時段→送出)、complete、appointment-list、appointment-detail(含取消)
   - 服務：`BookingService` / `AppointmentService`（呼叫 9 端點）、`authInterceptor`(Bearer)、`authGuard`、`ReservationStore`(signals + sessionStorage 防 F5)
   - 驗證：`ng build` 通過；CORS 已驗（preflight + ACAO :4200）；request/response 欄位與 API 一致（camelCase↔PascalCase）
-  - 未串：需問卷的科別（`IsQuestion`）前端先擋（問卷功能未做）；指定醫師流程（資料稀少，先走不指定）
-- [ ] **問卷** [blueprints/questionnaire.md](blueprints/questionnaire.md)
+  - 未串：指定醫師流程（資料稀少，先走不指定）。問卷（`IsQuestion`）已完成，見下方問卷項。
+- [x] **問卷** ✅ Done 2026-07-01（真實 DB 端對端驗證，見 Recently Done）[blueprints/questionnaire.md](blueprints/questionnaire.md)
 - [ ] **簡訊雙寫 + Timer 排程** [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
 - [ ] **檔案上傳（Blob）** [blueprints/file-upload.md](blueprints/file-upload.md)
 
@@ -77,6 +77,14 @@ last_updated: 2026-07-01T14:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **客戶前台問卷（術前電子病歷）完成 — 真實 DB 端對端驗證 + 零殘留** — Done 2026-07-01 [blueprints/questionnaire.md](blueprints/questionnaire.md)
+  - **後端**：5 POCO + `QuestionService`（Dapper）+ `QuestionsController` 3 端點：`GET /api/question-types?clinic=&categoryId=`（清單+已答旗標）、`GET /api/question-types/{id}`（題目+選項+pre-fill）、`POST /api/member-questions`（交易內作答）。
+  - **前端**：`QuestionnaireListComponent`（`/questionnaire`）+ `QuestionnaireComponent`（`/booking/questionnaire`，動態題型 radio/checkbox/其他）+ `QuestionnaireService` + store `setQuestionTypeId`；`category` 的 `IsQuestion` 改導問卷清單（全數作答才可回預約）；舊 `/MainMs/Questions*` redirect 到 `/questionnaire`。
+  - **關鍵事實修正**：真實 DB `Questions.OptionType` **只有 1=單選/2=複選**（無文字/檔案）→ 問卷**不依賴檔案上傳**；`QuestionOptionType` enum 已改 `Single=1/Multiple=2`（見 [gotchas.md](gotchas.md)）。
+  - **重填語義決策**：提交交易內先刪該會員此問卷舊作答再寫入（可重填/pre-fill 正確/冪等），改良舊「只新增不覆蓋」（歷史 5 萬筆重複）。
+  - **真實 DB 實測**（青春痘門診暫啟用 3 問卷 → 測 → 還原）：登入取真 token → 清單/已答旗標、radio+checkbox 作答、「其他」自填寫入、pre-fill、**偽造 answerID 被濾除（0 落庫）**、未登入 401、不存在 NOT_FOUND 全通過；還原後 flags/member 列/`MemberQuestionID` 集合完全一致，**零殘留**。`dotnet build` 0 warn、`ng build` 通過。
+  - **未做**：`OptionType 3=檔案`（真實資料不存在，不實作）；後台問卷編輯（admin-basic-data）。
+  - 本機驗證：API `func start`(:7071, Azurite)；前端 `ng serve`(:4200)。
 - [x] **後台地基 + 權限管理模組（真實 DB 端對端驗證）** — Done 2026-07-01 [blueprints/admin-auth-authority.md](blueprints/admin-auth-authority.md)
   - **地基**：管理員登入 `POST /api/auth/admin/login`（reCAPTCHA→超管設定比對 or `Admins` 明碼比對→攤平 `perms`→簽 JWT 帶 `is_super_admin`+`perms`）。
   - **資料驅動左側選單（忠於舊做法）**：`GET /api/admin/menu` 讀 `Lims`+`AdminLims` 回過濾後二層樹；前端 `admin-layout` 以 Tailwind 重現 SmartAdmin（深色側欄 + fa 圖示 + Ribbon 麵包屑 + 頂欄/頁尾），葉節點以 `menu-route-map`（Lims.Key→路由）導向；未建模組導 `/coming-soon`（選單仍完整顯示，像舊系統）。

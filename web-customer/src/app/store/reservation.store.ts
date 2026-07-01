@@ -10,7 +10,7 @@ export class ReservationStore {
   readonly branch = signal<Branch | null>(this.load('branch'));
   readonly clinic = signal<ClinicCode | null>(this.load('clinic'));
   readonly category = signal<Category | null>(this.load('category'));
-  readonly questionTypeId = signal<string | null>(null);
+  readonly questionTypeId = signal<string | null>(this.load('questionTypeId'));
 
   readonly appointmentDate = signal<string | null>(null);
   readonly periodId = signal<string | null>(null);
@@ -34,10 +34,19 @@ export class ReservationStore {
   setCategory(c: Category) {
     this.category.set(c);
     this.save('category', c);
+    // 換項目時清掉上一項目殘留的問卷選擇（避免帶錯 QuestionTypeID 到預約）。
+    this.setQuestionTypeId(null);
+  }
+
+  /** 問卷作答完成後記下此問卷 ID（供預約表單一併送出，決定 Appointments.QuestionTypeID）。 */
+  setQuestionTypeId(id: string | null) {
+    this.questionTypeId.set(id);
+    if (id) this.save('questionTypeId', id);
+    else sessionStorage.removeItem('rsv_questionTypeId');
   }
 
   reset() {
-    for (const k of ['branch', 'clinic', 'category']) sessionStorage.removeItem(`rsv_${k}`);
+    for (const k of ['branch', 'clinic', 'category', 'questionTypeId']) sessionStorage.removeItem(`rsv_${k}`);
     this.branch.set(null);
     this.clinic.set(null);
     this.category.set(null);

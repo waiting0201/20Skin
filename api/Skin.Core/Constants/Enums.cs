@@ -32,13 +32,14 @@ public static class SmsStatusValue
     public const string Cancel = "CANCEL";
 }
 
-/// <summary>Questions.OptionType：0=單選/1=複選/2=文字/3=檔案（沿用）。</summary>
+/// <summary>
+/// Questions.OptionType。⚠️ 真實 DB 只有 1=單選(radio)/2=複選(checkbox)（見 docs/gotchas.md）。
+/// 舊文件曾記為 0/1/2/3=單選/複選/文字/檔案，與實際資料不符，勿採用。
+/// </summary>
 public enum QuestionOptionType
 {
-    Single = 0,
-    Multiple = 1,
-    Text = 2,
-    File = 3,
+    Single = 1,   // 單選 radio
+    Multiple = 2, // 複選 checkbox
 }
 
 /// <summary>JWT 角色。</summary>

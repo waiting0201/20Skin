@@ -99,3 +99,57 @@ export interface PagedAppointments {
 
 export const clinicTitle = (c: string): string =>
   c === 'Skin' ? '健保門診' : c === 'Cosmetic' ? '醫學美容' : c === 'Dentist' ? '齒科' : c;
+
+// ── 問卷（術前電子病歷）。OptionType：1=單選(radio) / 2=複選(checkbox)（見 docs/gotchas.md） ──
+
+export interface QuestionnaireEntry {
+  questionTypeId: string;
+  title: string;
+  sort: number;
+  answered: boolean;
+}
+
+export interface QuestionnaireCategory {
+  categoryId: string;
+  clinic: string;
+  title: string;
+  intro: string | null;
+  photo: string;
+  questionTypes: QuestionnaireEntry[];
+}
+
+export interface QuestionAnswerOption {
+  questionAnswerId: string;
+  title: string;
+  sort: number;
+}
+
+export interface QuestionFormItem {
+  questionId: string;
+  title: string;
+  optionType: number; // 1=單選 / 2=複選
+  isOther: boolean;
+  otherTitle: string | null;
+  answers: QuestionAnswerOption[];
+  selectedAnswerIds: string[];
+  otherText: string | null;
+}
+
+export interface QuestionForm {
+  questionTypeId: string;
+  categoryId: string;
+  title: string;
+  answered: boolean;
+  questions: QuestionFormItem[];
+}
+
+export interface MemberQuestionInput {
+  questionId: string;
+  answerIds: string[];
+  other: string | null;
+}
+
+export interface SaveMemberQuestionsRequest {
+  questionTypeId: string;
+  answers: MemberQuestionInput[];
+}

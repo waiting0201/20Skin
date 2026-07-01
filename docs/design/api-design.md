@@ -89,8 +89,14 @@ status: draft
 | `/api/appointments/{id}` | GET | 詳情（**含歸屬驗證，修 IDOR**） |
 | `/api/appointments/{id}/cancel` | POST | 取消（>1 小時限制 + 標記未發 SMS=CANCEL） |
 
-### 問卷（[blueprints/questionnaire.md](../blueprints/questionnaire.md)）
-`/api/question-types?clinic=`、`/api/question-types/{id}`（題目+選項+會員已答）、`/api/member-questions`（POST 儲存）。
+### 問卷（[blueprints/questionnaire.md](../blueprints/questionnaire.md)）✅ 已實作
+| 端點 | 方法 | 說明 |
+|---|---|---|
+| `/api/question-types?clinic=&categoryId=` | GET | 有啟用問卷的項目清單（含會員**已作答旗標** answered） |
+| `/api/question-types/{id}` | GET | 單份問卷：題目＋選項＋會員既有作答（pre-fill）；不存在/停用回 NOT_FOUND |
+| `/api/member-questions` | POST | 作答；交易內「重填」語義（先刪該會員此問卷舊作答再寫）。偽造 answerID 於應用層濾除 |
+
+> `OptionType`：**1=單選(radio)／2=複選(checkbox)**（真實 DB 僅此二值，無文字/檔案；見 [gotchas.md](gotchas.md)）。
 
 ### 地點 / 上傳
 `/api/locations/cities`、`/api/locations/zipcodes?city=`、`/api/uploads`（multipart → Blob，見 [blueprints/file-upload.md](../blueprints/file-upload.md)）。

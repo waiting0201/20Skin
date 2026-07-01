@@ -74,9 +74,18 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 | `/MainMs/AppointmentDetail?AppointmentID=` | `/appointments/:id`（同上） |
 | `/MainMs/AppointmentCancel?AppointmentID=` | `/appointments/:id`（cancel 頁未獨立重建，先導詳情） |
 | `/MainMs/JoinUs` | `/login`（註冊頁未重建，先導登入入口） |
-| `/MainMs/QuestionTypes`、`Questions`、`QuestionComplete` | `/`（問卷未重建，先導首頁） |
+| `/MainMs/QuestionTypes`、`Questions`、`QuestionComplete` | `/questionnaire`（問卷已重建，見 [blueprints/questionnaire.md](../blueprints/questionnaire.md)） |
 
 > **⚠️ 正式部署必辦**：Static Web Apps 需在 `staticwebapp.config.json` 設 `navigationFallback` → `/index.html`（並排除 assets），伺服器才會把 `/MainMs/*` 這類深層路徑交給 SPA 由前端路由處理；否則 SWA 會回 404，前端 redirect 根本不會執行。本機 `ng serve` 已自動 fallback，無此問題。此設定屬 P2 CI/CD（見 [infrastructure.md](infrastructure.md)）。
+
+## 問卷流程（2026-07-01 實作，見 [blueprints/questionnaire.md](../blueprints/questionnaire.md)）
+
+- **兩頁**：`QuestionnaireListComponent`（`/questionnaire`，對應舊 QuestionTypes.cshtml）＋ `QuestionnaireComponent`（`/booking/questionnaire`，對應舊 Questions.cshtml）。以 `QuestionnaireService` 呼叫 `/question-types`（清單/單份）與 `/member-questions`（作答）。
+- **題型渲染**：`optionType===2` → checkbox（複選）、否則 radio（單選）；`isOther` 時額外顯示「其他」自填 text（存 `MemberQuestions.Other`）。真實 DB 無文字/檔案題型（見 [gotchas.md](../gotchas.md)）。
+- **預約分支**：`category` 頁 `IsQuestion` → `navigate(['/questionnaire'],{queryParams:{categoryId, return:'booking'}})`；清單頁在**所有問卷作答完**才顯示「完成，回預約表單」，點擊回填 `store.setQuestionTypeId(第一份)` 並導 `/booking/appointment-form`（預約以此帶 `QuestionTypeID`）。
+- **獨立入口**：`/questionnaire`（無參數）列出所有有啟用問卷的項目；作答後回清單。
+- **pre-fill**：表單載入時以會員既有作答預選；submit 為「重填」語義（後端交易內先刪再寫）。
+- **F5 防失**：`store.questionTypeId` 已同步 `sessionStorage`（`rsv_questionTypeId`），換項目時自動清除。
 
 ## Reservation signal store（取代舊 Session `myReserve`）
 

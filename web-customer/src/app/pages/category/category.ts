@@ -77,8 +77,8 @@ export class CategoryComponent {
   select(c: Category) {
     this.store.setCategory(c);
     if (c.isQuestion) {
-      // 問卷功能建置中（見 docs/blueprints/questionnaire.md）；先擋下需問卷的項目
-      this.notice.set('此項目需先填寫問卷，問卷功能建置中，暫無法線上預約。');
+      // 需術前問卷 → 先導問卷清單（該項目），全部作答後才可回預約表單。
+      this.router.navigate(['/questionnaire'], { queryParams: { categoryId: c.categoryId, return: 'booking' } });
       return;
     }
     this.router.navigate(['/booking/appointment-form']);

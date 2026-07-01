@@ -68,6 +68,9 @@ builder.Services.AddSingleton(new BookingOptions
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 
+// 問卷（術前電子病歷）
+builder.Services.AddScoped<Skin.Services.Question.IQuestionService, Skin.Services.Question.QuestionService>();
+
 // 簡訊寄送：dev 用 no-op（不真的發；客人手機）。正式環境改注入智邦 API 實作。
 builder.Services.AddSingleton<ISmsSender, DevNoOpSmsSender>();
 

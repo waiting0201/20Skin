@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -23,6 +23,25 @@ last_updated: 2026-06-30
 
 ### 與舊系統並行寫同一 DB
 - 新舊系統可能同時讀寫 `20Skin`；欄位語意、列舉值、CASCADE 行為須與舊系統完全相容。Dapper 依「POCO 屬性名＝欄位名」對應，**勿自行「修正」既有怪欄位名**（`Createdate` 小寫 vs `CreateDate`），否則對應不到。
+
+## 問卷（Questions）
+
+### `OptionType` 實際值與文件不符（重要）
+- **症狀**：舊文件與程式 enum 記為 `0=單選/1=複選/2=文字/3=檔案`，但真實 `20Skin` DB `Questions.OptionType` **只有 `1`（單選 radio，180 題）與 `2`（複選 checkbox，4 題）**，無 0、無 3（無文字/檔案題型）。舊 View 的 `if(OptionType==1)→radio else→checkbox` 才是對的。
+- **影響**：問卷渲染只需 radio(1)/checkbox(2)；**不依賴檔案上傳/Blob**（本以為要等 file-upload 才能做，實際不用）。
+- **預防**：`QuestionOptionType` enum 已更正為 `Single=1/Multiple=2`（[Enums.cs](../api/Skin.Core/Constants/Enums.cs)）；前後端一律以「1→radio、2→checkbox」處理。「其他」自填由 `Questions.IsOther`＋`MemberQuestions.Other` 表達，與 OptionType 無關。
+
+### 問卷目前全數停用
+- **症狀**：14 個 `QuestionTypes` 全 `IsEnabled=false`，且**沒有任何 `Categorys.IsQuestion=true`**（歷史用過，`MemberQuestions` 有 5 萬筆，但後台已關）。
+- **影響**：預約流程的 `IsQuestion` 分支現在不會觸發；問卷清單也為空。功能正確、但要等後台把某問卷/項目啟用才會出現。驗證時須自行以交易暫啟用再還原。
+- **預防**：後端誠實遵守 `IsEnabled`／`IsQuestion` 過濾，不硬塞。
+
+### `MemberQuestionAnswers.QuestionAnswerID` 為 NOT NULL
+- 每筆答案列必須有合法 `QuestionAnswerID`（該表**無 FK** 到 `QuestionAnswers`）→ 寫入前於應用層過濾非法/偽造的 answerID（`QuestionService.SubmitAsync`）。「其他」自填不佔答案列，存 `MemberQuestions.Other`。
+
+### 手動簽的 JWT role claim 對不上（測試用）
+- **症狀**：以 HS256 手簽 member token 時，`ClaimTypes.Role`（URI）與短名 `role` 皆無法被 `RequestContext.Role` 讀到（`/auth/me` role=null、`[Authorize(Roles.Member)]` 回 403）；但 `nameidentifier`/`name` 正常。
+- **預防**：測試需要 member token 時，直接打 `POST /api/auth/member/login`（dev reCAPTCHA 空 secret 自動放行），用回傳的真 token，別手簽。
 
 ## 待補充
 

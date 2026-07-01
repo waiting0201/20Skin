@@ -22,9 +22,9 @@ const legacyRoutes: Routes = [
   { path: 'MainMs/AppointmentCancel', redirectTo: ({ queryParams }) => (queryParams['AppointmentID'] ? `/appointments/${queryParams['AppointmentID']}` : '/appointments') },
   // 尚未重建的舊頁面 → 導向最接近的既有入口
   { path: 'MainMs/JoinUs', redirectTo: 'login' },
-  { path: 'MainMs/QuestionTypes', redirectTo: '' },
-  { path: 'MainMs/Questions', redirectTo: '' },
-  { path: 'MainMs/QuestionComplete', redirectTo: '' },
+  { path: 'MainMs/QuestionTypes', redirectTo: 'questionnaire' },
+  { path: 'MainMs/Questions', redirectTo: 'questionnaire' },
+  { path: 'MainMs/QuestionComplete', redirectTo: 'questionnaire' },
 ];
 
 /** 客戶前台路由（對應舊 Views/MainMs，見 docs/design/frontend-customer.md）。 */
@@ -41,8 +41,14 @@ export const routes: Routes = [
       { path: 'clinic', loadComponent: () => import('./pages/clinic/clinic').then((m) => m.ClinicComponent) },
       { path: 'category', loadComponent: () => import('./pages/category/category').then((m) => m.CategoryComponent) },
       { path: 'appointment-form', loadComponent: () => import('./pages/appointment-form/appointment-form').then((m) => m.AppointmentFormComponent) },
+      { path: 'questionnaire', loadComponent: () => import('./pages/questionnaire/questionnaire').then((m) => m.QuestionnaireComponent) },
       { path: 'complete/:id', loadComponent: () => import('./pages/complete/complete').then((m) => m.CompleteComponent) },
     ],
+  },
+  {
+    path: 'questionnaire',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/questionnaire-list/questionnaire-list').then((m) => m.QuestionnaireListComponent),
   },
   {
     path: 'appointments',
