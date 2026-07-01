@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/frontend-customer.md
   - ../blueprints/customer-booking.md
 keywords: [frontend, customer, angular, signals, spa, main.css, reservation-store, recaptcha]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 status: draft
 ---
 
@@ -37,6 +37,7 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 - **側欄開關**：`#sideBar` 預設 `display:none`（main.css 規則），用 signal `sidebarOpen()` 控制 `[style.display]`（舊版純 jQuery `.show()/.hide()`，無對應 CSS class）。`#btn_menu (click)` 觸發 `toggleSidebar()`；`.btn_close (click)` 觸發 `closeSidebar()`。子選單展開狀態沿用 `expanded()` signal + `[style.display]` 控制 `.second-list`。
 - **Templates**：各頁 template 還原舊 `.cshtml` 的 HTML 結構與 class，Razor 語法換成 Angular 綁定，完全無 Tailwind utility class。
 - **登入雙鈕**：`Login` 保留舊「預約查詢 / 進入預約」兩鈕，`submit(dest)` 控制登入後導向（`/appointments` vs `/`）。
+- **登出（舊系統無，新增）**：`app.ts` 注入 `AuthService`，以 `isLoggedIn()` signal 於 `#header .head_nav` 尾端與手機 `#sideBar` 選單各掛一個「登出」連結，**僅登入後顯示**；`logout()` 關側欄後呼叫 `AuthService.logout()`（清 token → 導 `/login`）。
 
 ## 路由 / 元件對照（對應舊 Views/MainMs）
 
@@ -56,6 +57,26 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 | `/appointments/:id/cancel` | AppointmentCancelComponent | AppointmentCancel.cshtml | 取消確認（>1 小時才可）→ `/api/appointments/:id/cancel` |
 
 > 舊 `Visit`（初/複診）流程舊系統已停用 → 不重建（併入清單）。`QuestionComplete` 為中間狀態 → 省略。
+
+### 舊 URL 後方相容（2026-07-01 決策）
+
+舊系統為 MVC 標準路由（`{controller}/{action}/{id}`，預設 `controller=MainMs`），實際網址是 `/MainMs/{Action}`。**使用者可能有舊書籤**（最關鍵是登入頁 `/MainMs/Login`），若直接連到新 SPA 會 404。因此在 `app.routes.ts` 新增 `legacyRoutes` 區塊，把所有舊 `/MainMs/*` 路徑 redirect 到新對應路由：
+
+| 舊 URL | 新路由 |
+|---|---|
+| `/MainMs/Login` | `/login` |
+| `/MainMs`、`/MainMs/Index` | `/` |
+| `/MainMs/Clinic` | `/booking/clinic` |
+| `/MainMs/Category` | `/booking/category` |
+| `/MainMs/AppointmentForm` | `/booking/appointment-form` |
+| `/MainMs/Appointment` | `/appointments` |
+| `/MainMs/Complete?AppointmentID=` | `/booking/complete/:id`（函式型 redirect 轉 query→path，無 id 退 `/appointments`） |
+| `/MainMs/AppointmentDetail?AppointmentID=` | `/appointments/:id`（同上） |
+| `/MainMs/AppointmentCancel?AppointmentID=` | `/appointments/:id`（cancel 頁未獨立重建，先導詳情） |
+| `/MainMs/JoinUs` | `/login`（註冊頁未重建，先導登入入口） |
+| `/MainMs/QuestionTypes`、`Questions`、`QuestionComplete` | `/`（問卷未重建，先導首頁） |
+
+> **⚠️ 正式部署必辦**：Static Web Apps 需在 `staticwebapp.config.json` 設 `navigationFallback` → `/index.html`（並排除 assets），伺服器才會把 `/MainMs/*` 這類深層路徑交給 SPA 由前端路由處理；否則 SWA 會回 404，前端 redirect 根本不會執行。本機 `ng serve` 已自動 fallback，無此問題。此設定屬 P2 CI/CD（見 [infrastructure.md](infrastructure.md)）。
 
 ## Reservation signal store（取代舊 Session `myReserve`）
 

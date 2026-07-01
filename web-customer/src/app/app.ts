@@ -1,5 +1,6 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
+import { AuthService } from './core/services/auth.service';
 
 /**
  * 客戶前台外殼（對應舊 _Layout + _Header + _Sidebar + _Footer）。
@@ -13,10 +14,20 @@ import { RouterOutlet, RouterLink } from '@angular/router';
   styleUrl: './app.css',
 })
 export class App {
+  /** 會員登入狀態（控制登出鈕顯示；舊系統無登出功能，此為新增） */
+  private readonly auth = inject(AuthService);
+  readonly isLoggedIn = this.auth.isLoggedIn;
+
   /** 手機版側欄開合 */
   readonly sidebarOpen = signal(false);
   /** 側欄展開中的子選單 key */
   readonly expanded = signal<string | null>(null);
+
+  /** 登出並導回 /login；側欄開著時一併關閉 */
+  logout() {
+    this.closeSidebar();
+    this.auth.logout();
+  }
 
   toggleSidebar() {
     this.sidebarOpen.update((v) => !v);

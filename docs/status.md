@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-06-30T22:00+08:00
+last_updated: 2026-07-01T01:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -77,6 +77,11 @@ last_updated: 2026-06-30T22:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **舊 `/MainMs/*` URL 後方相容 redirect（客戶前台）** — Done 2026-07-01
+  - 需求：舊系統登入頁是 `/MainMs/Login`，怕使用者用舊書籤連不到新登入頁。
+  - `app.routes.ts` 新增 `legacyRoutes`：所有舊 `/MainMs/*` redirect 到新 SPA 對應路由；帶 `?AppointmentID=` 的舊頁面以函式型 redirect 轉成新 `:id` 路徑；未重建頁面（JoinUs/問卷）導向最接近入口。
+  - `ng build` 通過。**正式部署待辦**：SWA `staticwebapp.config.json` 需設 `navigationFallback`→index.html，`/MainMs/*` 深層路徑才會交給 SPA（歸 P2 CI/CD）。
+  - 記錄於 [design/frontend-customer.md](design/frontend-customer.md) §舊 URL 後方相容。
 - [x] **客戶前台視覺改為直接套用舊 `main.css`（移除 Tailwind，template 還原舊標記）** — Done 2026-06-30
   - 理由：Tailwind 重建版仍有細微視覺差異；改用原檔求像素一致。
   - `public/content/main.css` = 舊原始 CSS 原封不動；`index.html` 加 `<link>`；`styles.css` 移除 Tailwind。

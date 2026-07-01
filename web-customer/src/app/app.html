@@ -48,6 +48,11 @@
           </li>
           <li>|</li>
           <li><a href="https://www.20skinshop.com/" target="_blank" title="四季顏選">線上購物</a></li>
+          <!-- 登出：僅登入後顯示（舊系統無此功能，新增） -->
+          @if (isLoggedIn()) {
+            <li>|</li>
+            <li><a href="javascript:;" (click)="logout()">登出</a></li>
+          }
         </ul>
       </nav>
       <!-- 漢堡按鈕：#btn_menu，舊版 jQuery click 開 sideBar；此處用 Angular signal 還原 -->
@@ -134,6 +139,14 @@
         <p><a href="https://www.20skinshop.com/" target="_blank" title="四季顏選">線上購物</a></p>
       </div>
     </div>
+    <!-- 登出：僅登入後顯示（舊系統無此功能，新增） -->
+    @if (isLoggedIn()) {
+      <div class="item">
+        <div class="second-list-btn">
+          <p><a href="javascript:;" (click)="logout()">登出</a></p>
+        </div>
+      </div>
+    }
     <div class="message-wrapper">
       <div class="item">
         <div class="line-block">
