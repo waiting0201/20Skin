@@ -25,7 +25,8 @@ last_updated: 2026-07-01
   - 前端 `JoinUsComponent`（`/join-us`，公開路由）：Reactive Forms（姓名/身分證/手機/民國年生日/性別/血型/email/緊急聯絡人）＋ signals（城市→區連動、過敏史/病史多選＋「其他」自填）。登入查無時帶入身分證+生日（query）。成功即登入態 → 導 `/`。舊 `/MainMs/JoinUs` redirect 到 `/join-us`。
   - 選項值（沿用舊）：血型 O/A/B/AB/NO(不清楚)；性別 1男/2女；過敏史 無/磺胺劑/青黴素/Pyrine匹林類/其他；病史 無/糖尿病/高血壓/其他。
   - **實測**（測試身分證建檔 → 驗欄位/CSV/大寫 → `/me` → 同證登入 status 1 → 重複註冊不產生 dup → 格式負向 → 硬刪零殘留）全通過；`dotnet build` 0 warn、`ng build` 通過。
-- **未做**：reCAPTCHA 前端 token（dev 空 secret 放行）；登入 rate-limit；refresh token 持久化（待 schema 核准）。
+- **reCAPTCHA v3 前端（2026-07-01 完成）**：`RecaptchaService` 動態載入 script，登入/註冊 `execute('login')` 取 token 附於請求；dev（site key 空）→ 空 token + 後端 secret 空放行。以 mock grecaptcha 驗證 token 確實流入登入/註冊請求。
+- **未做**：登入 rate-limit；refresh token 持久化（待 schema 核准）。
 
 ## 背景與動機
 客戶端預約的入口。沿用舊系統「身分證+生日」無密碼登入（需求 7），但改以 JWT 取代 Session。

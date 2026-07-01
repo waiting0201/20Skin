@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { LookupService } from '../../core/services/lookup.service';
+import { RecaptchaService } from '../../core/services/recaptcha.service';
 import { Zipcode } from '../../core/models';
 
 /**
@@ -179,6 +180,7 @@ export class JoinUsComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly lookup = inject(LookupService);
+  private readonly recaptcha = inject(RecaptchaService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -273,6 +275,7 @@ export class JoinUsComponent {
     this.error.set(null);
     this.loading.set(true);
     const v = this.form.getRawValue();
+    this.recaptcha.execute('login').then((token) => {
     this.auth
       .register({
         number: v.number.toUpperCase(),
@@ -288,7 +291,7 @@ export class JoinUsComponent {
         allergyOther: this.allergySet().has('其他') ? (v.allergyOther || null) : null,
         medicalHistory: [...this.medicalSet()],
         medicalHistoryOther: this.medicalSet().has('其他') ? (v.medicalHistoryOther || null) : null,
-        googleCaptchaToken: '', // TODO: reCAPTCHA token（見 docs/design/security.md）
+        googleCaptchaToken: token,
       })
       .subscribe({
         next: (res) => {
@@ -299,6 +302,7 @@ export class JoinUsComponent {
         },
         error: () => { this.loading.set(false); this.error.set('系統忙線，請稍後再試'); },
       });
+    });
   }
 
   cancel() {

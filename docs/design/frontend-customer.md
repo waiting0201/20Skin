@@ -110,7 +110,7 @@ memberID(來自 JWT)
 
 | 項目 | 前端做法 | 對應舊 |
 |---|---|---|
-| reCAPTCHA v3 | 載入頁取 token 附在登入/註冊請求；**後端驗證** | Login/JoinUs |
+| reCAPTCHA v3（2026-07-01 已實作） | `RecaptchaService` 動態載入 script；登入/註冊送出前 `execute('login')` 取 token 附在請求；**後端驗證**。`environment.recaptchaSiteKey` 空（dev）→ 空 token，後端 secret 空則放行 | Login/JoinUs |
 | 圖片上傳 | `multipart` → `/api/uploads` 取回 URL，附在預約 | UploadsController |
 | 自動門診號 | 前端只顯示 API 回傳 `outpatientNum` | Complete |
 | 生日民國年三選單 | 保留（服務年長者 + Line/FB in-app browser 相容），修舊閏年 bug | [old/gotchas.md](../old/gotchas.md) 前端段 |

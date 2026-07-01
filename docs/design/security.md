@@ -26,7 +26,9 @@ status: draft
 | 後台（管理員） | **帳號 + 密碼** + reCAPTCHA v3（新增） | 驗證 `Admins.Username + Password` 成功 → JWT（role=admin，帶權限） | `MainController.Login` |
 
 - 全面 **HTTPS**；登入加 **rate-limit** 與帳號鎖定。
-- reCAPTCHA：**後端確實驗證** token（score > 0.5），修正舊系統「載入卻未驗」。
+- reCAPTCHA：**後端確實驗證** token（`success` + `score ≥ MinScore` + `action == "login"`），修正舊系統「載入卻未驗」。
+- **reCAPTCHA v3 前端（2026-07-01 已實作）**：`RecaptchaService` 動態載入 `google/recaptcha/api.js?render={siteKey}`，登入/註冊送出前 `grecaptcha.execute(siteKey,{action:'login'})` 取 token 附於請求。
+  - `environment.recaptchaSiteKey` 為空（dev）→ 前端回空 token；後端 `Recaptcha:SecretKey` 為空 → 放行。**正式環境兩把金鑰都要設**（site key 前端、secret 後端經 Key Vault）。
 
 ## JWT 設計
 
