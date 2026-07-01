@@ -51,6 +51,13 @@ last_updated: 2026-07-01
 - **修法**：`ApiRouterFunction` 於通用 catch **之前**加 `catch (BusinessException be)` 直接回 `ApiResponse.Fail`；保留 `TargetInvocationException` 分支處理 sync 情形。
 - **預防**：新增會拋 BusinessException 的端點時，記得業務錯誤應回 200 Fail 信封；若又見 500，先查此 catch 順序。
 
+## 客戶前台（Angular）
+
+### `[ngModel]` 置於 `<form>` 內未加 `standalone` → NG01352（已修 2026-07-01）
+- **症狀**：`appointment-form` 的預約人數/日期 `<input [ngModel]="...">` 包在 `<form>` 內、且無 `name` 也無 `[ngModelOptions]="{standalone:true}"` → 執行時瀏覽器丟 `NG01352`，**日期輸入失效 → 無法載入時段 → 無法預約**。`ng build` 不會報錯（僅執行期才炸），故只有實際跑起前端才會發現。
+- **修法**：所有 `<form>` 內的 `[ngModel]` 一律加 `[ngModelOptions]="{ standalone: true }"`（本專案表單狀態走 signals，不需 Angular form control 註冊）。
+- **預防**：新頁面若在 `<form>` 內用 `[ngModel]`，務必加 `standalone`；**每個前端頁面至少用瀏覽器（Playwright headless）跑過一次**，別只信 `ng build`。可用 scratchpad 的 Playwright E2E（登入→分院→診別→項目→日期/時段/指定醫師→送出→查詢/詳情→JoinUs 城市區連動）當回歸。
+
 ## 待補充
 
 （開發開始後，把新系統實際踩到的雷紀錄於此；格式：症狀 / 影響 / 預防）

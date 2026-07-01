@@ -33,14 +33,14 @@ import { Doctor, TimeSlot } from '../../core/models';
               <div class="form-block">
                 <div class="from-title"></div>預約人數<span class="form-red">*</span>
                 <div class="form-box">
-                  <input type="number" min="1" [ngModel]="amount()" (ngModelChange)="amount.set($event)" autocomplete="off" />
+                  <input type="number" min="1" [ngModel]="amount()" (ngModelChange)="amount.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
                 </div>
               </div>
 
               <div class="form-block">
                 <div class="from-title"></div>預約日期<span class="form-red">*</span>
                 <div class="form-box width-date">
-                  <input type="date" [min]="today" [ngModel]="date()" (ngModelChange)="date.set($event); onDateChange()" autocomplete="off" />
+                  <input type="date" [min]="today" [ngModel]="date()" (ngModelChange)="date.set($event); onDateChange()" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
                 </div>
               </div>
 
