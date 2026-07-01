@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Skin.Api.Auth;
 using Skin.Api.Routing;
 using Skin.Core;
 using Skin.Core.Constants;
+using Skin.Core.Dtos;
 using Skin.Services;
+using Skin.Services.Admin;
 using Skin.Services.Recaptcha;
 
 namespace Skin.Api.Controllers;
@@ -15,10 +18,14 @@ namespace Skin.Api.Controllers;
 [ApiController]
 public sealed class AuthController(
     IMemberService members,
+    IAdminService admins,
     IRecaptchaVerifier recaptcha,
     JwtTokenService jwt,
+    SuperAdminOptions superAdmin,
     RequestContext ctx)
 {
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+
     public sealed record MemberLoginRequest(string Number, int Yyyy, int Mm, int Dd, string GoogleCaptchaToken);
     public sealed record AdminLoginRequest(string Username, string Password, string GoogleCaptchaToken);
 
@@ -50,10 +57,45 @@ public sealed class AuthController(
         return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID));
     }
 
-    /// <summary>POST /api/auth/admin/login — TODO: 驗證 Admins、攤平 Lims/AdminLims 進 claims。</summary>
+    /// <summary>
+    /// POST /api/auth/admin/login — 帳密(+reCAPTCHA) → JWT（帶 is_super_admin + 攤平 perms）。
+    /// 超管為設定驅動（取代舊硬編碼 weypro）；一般管理員明碼比對（schema 不可改，雜湊待核准）。
+    /// </summary>
     [ApiRoute("POST", "auth/admin/login")]
-    public ApiResponse AdminLogin(AdminLoginRequest req)
-        => ApiResponse.Fail("尚未實作：見 blueprints/admin-auth-authority.md", "NOT_IMPLEMENTED");
+    public async Task<ApiResponse<AdminLoginResult>> AdminLogin(AdminLoginRequest req)
+    {
+        if (!await recaptcha.VerifyAsync(req.GoogleCaptchaToken, "login"))
+            return ApiResponse<AdminLoginResult>.Fail("reCAPTCHA 驗證失敗", "RECAPTCHA_FAILED");
+
+        var username = (req.Username ?? "").Trim();
+
+        // 1) 超管（設定驅動）：全放行
+        if (superAdmin.Matches(username, req.Password ?? ""))
+            return ApiResponse<AdminLoginResult>.Ok(new AdminLoginResult(
+                CreateAdminToken(Guid.Empty, username, isSuper: true, perms: [])));
+
+        // 2) 一般管理員：明碼比對
+        var admin = await admins.FindByUsernameAsync(username);
+        if (admin is null || admin.Password != (req.Password ?? ""))
+            return ApiResponse<AdminLoginResult>.Fail("帳號或密碼錯誤", "INVALID_CREDENTIALS");
+
+        var lims = await admins.ListLimsAsync();
+        var adminLims = await admins.GetAdminLimsAsync(admin.AdminID);
+        var perms = AuthorizationDomain.Flatten(lims, adminLims);
+
+        return ApiResponse<AdminLoginResult>.Ok(new AdminLoginResult(
+            CreateAdminToken(admin.AdminID, admin.Name ?? admin.Username, isSuper: false, perms)));
+    }
+
+    /// <summary>簽發後台 JWT。perms 以 JSON 字串 claim 承載（前端解析、router 比對）。</summary>
+    private string CreateAdminToken(Guid adminId, string name, bool isSuper, List<AdminPermDto> perms)
+        => jwt.CreateToken([
+            new Claim(ClaimTypes.NameIdentifier, adminId.ToString()),
+            new Claim(ClaimTypes.Name, name),
+            new Claim(ClaimTypes.Role, Roles.Admin),
+            new Claim("is_super_admin", isSuper ? "true" : "false"),
+            new Claim("perms", JsonSerializer.Serialize(perms, JsonOpts)),
+        ]);
 
     /// <summary>GET /api/auth/me — 當前 token 身分。</summary>
     [ApiRoute("GET", "auth/me")]

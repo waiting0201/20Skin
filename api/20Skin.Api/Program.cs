@@ -32,6 +32,13 @@ builder.Services.AddSingleton(new JwtOptions
 });
 builder.Services.AddSingleton<JwtTokenService>();
 
+// --- 超管（設定驅動，取代舊硬編碼 weypro）---
+builder.Services.AddSingleton(new SuperAdminOptions
+{
+    Username = config["SuperAdmin:Username"] ?? "",
+    Password = config["SuperAdmin:Password"] ?? "",
+});
+
 // --- 每請求使用者上下文 ---
 builder.Services.AddScoped<RequestContext>();
 
@@ -49,6 +56,7 @@ builder.Services.AddHttpClient<IRecaptchaVerifier, RecaptchaVerifier>();
 
 // --- 業務服務 ---
 builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<Skin.Services.Admin.IAdminService, Skin.Services.Admin.AdminService>();
 
 // 預約規則（設定驅動，取代舊硬編碼分院 GUID）
 builder.Services.AddSingleton(new BookingOptions

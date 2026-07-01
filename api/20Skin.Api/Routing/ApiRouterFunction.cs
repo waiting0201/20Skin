@@ -48,6 +48,11 @@ public sealed class ApiRouterFunction(
             if (entry.Authorize.Role is { } role &&
                 user.FindFirst(ClaimTypes.Role)?.Value != role)
                 return new ObjectResult(ApiResponse.Fail("權限不足", "FORBIDDEN")) { StatusCode = 403 };
+
+            // 逐操作授權（後台）：超管放行，否則比對 JWT perms 的 add/update/delete
+            if (entry.Authorize.Resource is { } resource &&
+                !HasPermission(user, resource, entry.Authorize.Op ?? "read"))
+                return new ObjectResult(ApiResponse.Fail("權限不足", "FORBIDDEN")) { StatusCode = 403 };
         }
 
         using var scope = scopeFactory.CreateScope();
@@ -84,6 +89,33 @@ public sealed class ApiRouterFunction(
             return new ObjectResult(new ProblemDetails { Title = "伺服器錯誤", Status = 500 }) { StatusCode = 500 };
         }
     }
+
+    /// <summary>比對 JWT perms claim：超管放行；否則該 resource 的對應操作旗標為真（read 只需存在）。</summary>
+    private static bool HasPermission(ClaimsPrincipal user, string resource, string op)
+    {
+        if (string.Equals(user.FindFirst("is_super_admin")?.Value, "true", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var permsJson = user.FindFirst("perms")?.Value;
+        if (string.IsNullOrEmpty(permsJson)) return false;
+
+        PermClaim[]? perms;
+        try { perms = JsonSerializer.Deserialize<PermClaim[]>(permsJson, JsonOpts); }
+        catch { return false; }
+
+        var p = perms?.FirstOrDefault(x => string.Equals(x.Key, resource, StringComparison.OrdinalIgnoreCase));
+        if (p is null) return false;
+
+        return op.ToLowerInvariant() switch
+        {
+            "add" => p.Add,
+            "update" => p.Update,
+            "delete" => p.Delete,
+            _ => true,   // read：有列即可
+        };
+    }
+
+    private sealed record PermClaim(string Key, string Module, bool Add, bool Update, bool Delete);
 
     private static async Task<object?[]> BindArgumentsAsync(
         MethodInfo action, IReadOnlyDictionary<string, string> routeValues, HttpRequest req)

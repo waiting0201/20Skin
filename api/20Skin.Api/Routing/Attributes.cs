@@ -15,9 +15,19 @@ public sealed class ApiRouteAttribute(string method, string template) : Attribut
     public string Template { get; } = template.Trim('/');
 }
 
-/// <summary>要求已認證；可指定角色（member/admin）。授權真相在此，前端 guard 僅體驗。</summary>
+/// <summary>
+/// 要求已認證；可指定角色（member/admin）。授權真相在此，前端 guard 僅體驗。
+/// 後台可再帶 Resource+Op（對應 Lims.Key + 操作）做逐操作授權，router 比對 JWT perms；
+/// 超管（is_super_admin）一律放行。取代舊 CheckSession 字串 Contains 推導。
+/// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class)]
 public sealed class AuthorizeAttribute(string? role = null) : Attribute
 {
     public string? Role { get; } = role;
+
+    /// <summary>受保護資源鍵（對應 Lims.Key，如 "Admins"）。null 表不做逐操作授權。</summary>
+    public string? Resource { get; set; }
+
+    /// <summary>所需操作：read / add / update / delete。預設 read。</summary>
+    public string? Op { get; set; }
 }

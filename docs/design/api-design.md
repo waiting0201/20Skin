@@ -11,7 +11,7 @@ related_docs:
   - ../old/design/api-design.md
   - ../old/blueprints/customer-booking.md
 keywords: [api, endpoint, custom-router, azure-functions, mvc, rest, apiresponse, jwt]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 status: draft
 ---
 
@@ -73,7 +73,7 @@ status: draft
 |---|---|---|
 | `/api/auth/member/login` | POST | 身分證+生日+reCAPTCHA → JWT（status 1/2/3：成功/新客/黑名單） |
 | `/api/auth/member/register` | POST | 新會員建檔 → JWT |
-| `/api/auth/admin/login` | POST | 帳號+密碼+reCAPTCHA → JWT（claims 帶權限） |
+| `/api/auth/admin/login` | POST | 帳號+密碼+reCAPTCHA → JWT（`is_super_admin`+攤平 `perms`）。**Done 2026-07-01** |
 | `/api/auth/refresh` | POST | refresh token → 新 access token（狀態存 reused DB 之外） |
 | `/api/auth/me` | GET | 取當前使用者 |
 
@@ -96,7 +96,19 @@ status: draft
 `/api/locations/cities`、`/api/locations/zipcodes?city=`、`/api/uploads`（multipart → Blob，見 [blueprints/file-upload.md](../blueprints/file-upload.md)）。
 
 ### 後台（各 admin blueprint）
-基礎資料 `/api/branches|doctors|periods|categories|question-types|questions`（皆 `?clinic=` 參數化）；班表 `/api/rosters`；預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`；權限 `/api/admins`、`/api/lims`。
+基礎資料 `/api/branches|doctors|periods|categories|question-types|questions`（皆 `?clinic=` 參數化）；班表 `/api/rosters`；預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`。
+
+**後台認證與權限（已實作 Done 2026-07-01，`AdminController`）**：
+
+| 端點 | Method | 授權 | 說明 |
+|---|---|---|---|
+| `/api/admin/menu` | GET | admin | 資料驅動左側選單（讀 Lims+AdminLims 過濾，忠於舊做法） |
+| `/api/admins` | GET/POST | Admins read/add | 管理員列表 / 新增（含權限樹） |
+| `/api/admins/{id}` | GET/PUT/DELETE | Admins read/update/delete | 詳情（含權限樹勾選）/ 編輯 / 刪除 |
+| `/api/lims` | GET | Admins read | 完整權限樹（供新增表單，全未勾） |
+| `/api/admin/check-username?username=&excludeId=` | GET | Admins read | 帳號唯一性（對應舊 `/Ajax/CheckUsername`；用 `admin/*` 避與 `admins/{id}` 樣板衝突） |
+
+> 逐操作授權：`[Authorize(Roles.Admin, Resource="Admins", Op="...")]`，router 比對 JWT `perms`，超管放行。見 [security.md](security.md)、[../blueprints/admin-auth-authority.md](../blueprints/admin-auth-authority.md)。
 
 ## 分頁與篩選
 - 分頁：`?page=&pageSize=`（預設 15）。

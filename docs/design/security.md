@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/security.md
   - ../old/modernization.md
 keywords: [security, jwt, auth, authorization, claims, lims, recaptcha, refresh-token]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 status: draft
 ---
 
@@ -47,14 +47,16 @@ status: draft
   "iat": ..., "exp": ..., "iss": "20skin", "aud": "20skin-admin" }
 ```
 
-- `perms` 由 `AuthorizationDomain` 在登入時把 `Lims`(樹) + `AdminLims`(IsAdd/IsUpdate/IsDelete) 攤平寫入。
+- `perms` 由 `AuthorizationDomain.Flatten`（`Skin.Services/Admin/`）在登入時把 `Lims`(樹) + `AdminLims`(IsAdd/IsUpdate/IsDelete) 攤平寫入。
 - token 過大時可只放權限摘要，細項由 `/api/auth/me` 補；視 claims 大小決定。
+
+> **實作細節（Done 2026-07-01）**：JWT claim 值皆為字串，故 `is_super_admin` 存 `"true"`/`"false"`、`perms` 存 **JSON 字串**（`JsonSerializer.Serialize`）。前端 `auth.service` 對 `perms` 做 `JSON.parse`、`is_super_admin` 容錯 `true`/`'true'`（避開 JWT 陣列 claim 序列化陷阱）。`ClaimTypes.Name` 在 payload 為長 URI，前端以該 key 讀取。
 
 ## 授權（取代 CheckSession 字串比對）
 
 | 層 | 機制 |
 |---|---|
-| API（後台功能） | middleware 依 `perms` 比對「資源 key + 操作(add/update/delete/read)」；`is_super_admin` 直接放行；取代舊 `Lims.Key.Contains` 脆弱比對 |
+| API（後台功能） | 自訂 router 依 `perms` 比對「資源 key + 操作(add/update/delete/read)」；`is_super_admin` 直接放行；取代舊 `Lims.Key.Contains` 脆弱比對。**實作**：`[Authorize(Roles.Admin, Resource="Admins", Op="update")]`（`Routing/Attributes.cs`）+ `ApiRouterFunction.HasPermission`（讀 JWT `perms` claim）。read 只需該資源有列即可（對應舊「有 AdminLims 列即可見/可讀」）。 |
 | API（會員資源） | 一律加**歸屬檢查**（`Appointment.MemberID == sub`），**修正舊 IDOR** |
 | 前端 route guard | 客戶：有無有效 token；後台：依 `perms` 控制可見選單與可進頁面（見 [frontend-backend.md](frontend-backend.md)） |
 
@@ -75,7 +77,7 @@ DB 連線字串、SMS API key/帳密、reCAPTCHA secret、JWT 簽章金鑰、Blo
 
 ## 超管處理（weypro）
 
-舊硬編碼 `weypro/weypro12ab`。新系統：移除原始碼硬編碼；以資料庫中一個全權限管理員帳號取代，登入後 `is_super_admin=true`。過渡後改為純 `perms` 判定並廢棄旗標。
+舊硬編碼 `weypro/weypro12ab`。新系統（**Done 2026-07-01**）：移除原始碼硬編碼，改**設定驅動** `SuperAdmin:Username` / `SuperAdmin:Password`（`Auth/SuperAdminOptions`，來源 local.settings / 正式經 Key Vault；未設定則停用超管登入），命中則 `is_super_admin=true` 全放行。過渡後可改為純 DB 全權限帳號 + `perms` 判定並廢棄旗標。
 
 ## 安全檢查清單（新系統）
 - [ ] HTTPS-only、HSTS

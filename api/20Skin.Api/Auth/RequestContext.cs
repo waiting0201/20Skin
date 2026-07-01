@@ -13,4 +13,5 @@ public sealed class RequestContext
     public string? Role => User?.FindFirst(ClaimTypes.Role)?.Value;
     public bool IsAdmin => Role == Roles.Admin;
     public bool IsMember => Role == Roles.Member;
+    public bool IsSuperAdmin => string.Equals(User?.FindFirst("is_super_admin")?.Value, "true", StringComparison.OrdinalIgnoreCase);
 }

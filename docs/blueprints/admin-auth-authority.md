@@ -1,7 +1,7 @@
 ---
 title: 後台認證與權限管理
 purpose: 管理員帳號+密碼登入發 JWT、Lims/AdminLims 樹狀權限攤平成 claims、權限管理 CRUD、超管過渡
-status: draft
+status: shipped
 applicable_when: 要實作或修改後台登入、權限授權、管理員/權限樹維護時
 related_agents:
   - software-architect-blueprint
@@ -13,7 +13,7 @@ related_docs:
   - ../design/api-design.md
   - ../design/database-design.md
 keywords: [admin, auth, authority, jwt, lims, adminlims, permission, super-admin]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 ---
 
 ## 背景與動機
@@ -49,11 +49,26 @@ last_updated: 2026-06-30
 | 安全 | 是 | JWT claims 授權、超管過渡、密碼緩解 |
 
 ## 驗收標準
-- [ ] 登入發含 `perms` 的 JWT
-- [ ] API 依操作(add/update/delete/read)正確授權
-- [ ] 前端選單/進頁依 perms 過濾
-- [ ] 超管全放行且非硬編碼
-- [ ] 權限樹 CRUD 正確寫 AdminLims
+- [x] 登入發含 `perms` 的 JWT（`perms` 以 JSON 字串 claim 承載 + `is_super_admin`）
+- [x] API 依操作(add/update/delete/read)正確授權（實測 `GET 200 / PUT 403 / DELETE 403`）
+- [x] 前端選單/進頁依 perms 過濾（限權管理員登入僅見「權限管理/Admins」）
+- [x] 超管全放行且非硬編碼（`SuperAdmin:*` 設定驅動）
+- [x] 權限樹 CRUD 正確寫 AdminLims（清空重建；只寫有旗標列，零殘留刪除驗證）
+
+## 實作紀錄（Done 2026-07-01）
+
+- **程式位置**：
+  - API：`AuthController.AdminLogin`、`AdminController`（menu/admins CRUD/lims/check-username）、`Skin.Services/Admin/{AdminService,AuthorizationDomain}`、POCO `Skin.Data/Entities/{Admins,Lims,AdminLims}`；授權擴充於 `Routing/Attributes.cs`(`Authorize.Resource/Op`) + `ApiRouterFunction.HasPermission`；`Auth/SuperAdminOptions`。
+  - 前端：`layout/admin-layout`（資料驅動選單 + SmartAdmin Tailwind 重現）、`core/services/admin-api.service`、`core/menu-route-map`、`pages/authority/{admins-list,admin-form}`、`pages/{coming-soon,forbidden}`。
+- **選單忠於舊做法**：`GET /api/admin/menu` = `Lims`(二層) 依 `AdminLims` 過濾（模組層任一子項有權即顯示）；`menu-route-map` 把 `Lims.Key` 轉新路由。
+- **真實 `Lims` 內容**（對真實 DB 確認，供後續模組參考）：
+  - `AuthorityMs`(權限管理,fa-key) → `Admins`
+  - `BasicMs`(預約設定管理,fa-cogs) → `Branchs`/`Doctors`/`QuestionTypes`/`Skins`/`Cosmetics`/`TaPeriods`/`ChPeriods`/`TaCosmeticPeriods`/`ChCosmeticPeriods`/`ChDentistPeriods`
+  - `ShiftMs`(門診管理,fa-calendar) → `TaRosters`/`ChRosters`/`TaCosmeticRosters`/`ChCosmeticRosters`/`ChDentistRosters`
+  - `ReserveMs`(預約管理,fa-hospital-o) → `TaAppointments`/`ChAppointments`/`ChDentistAppointments`
+  - `MemberMs`(會員管理,fa-list) → `Members`
+  - 註：舊系統子功能仍是 Ta/Ch/Cosmetic/Dentist **變體**；新系統以 clinic/branch **參數化** 收斂（`menu-route-map` 已把變體 key 對到同一參數化路由）。
+- **讀取權語意**：`AdminLims` 無「全 false」列（新增時 all-false 略過、編輯時 all-false 刪除），故「可見/可讀」等同「至少有一個 add/update/delete」——與舊系統一致。
 
 ## 風險與未解問題
 - JWT 帶完整 perms 可能過大 → 必要時改 `/me` 補細項。

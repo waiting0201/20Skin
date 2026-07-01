@@ -17,11 +17,15 @@ export interface AdminLoginResult {
 
 interface JwtPayload {
   sub?: string;
-  name?: string;
-  is_super_admin?: boolean;
-  perms?: AdminPerm[];
+  // JWT claim 值皆為字串：is_super_admin='true'/'false'、perms=JSON 字串（見 API AuthController）。
+  is_super_admin?: boolean | string;
+  perms?: AdminPerm[] | string;
   exp?: number;
+  [key: string]: unknown; // ClaimTypes.Name 等長 URI claim
 }
+
+/** ClaimTypes.Name 的完整 claim key（.NET 簽發）。 */
+const NAME_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name';
 
 const TOKEN_KEY = 'skin_admin_token';
 
@@ -37,9 +41,27 @@ export class AuthService {
   private readonly _token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly isLoggedIn = computed(() => !!this._token());
   readonly payload = computed<JwtPayload | null>(() => this.decode(this._token()));
-  readonly perms = computed<AdminPerm[]>(() => this.payload()?.perms ?? []);
-  readonly isSuperAdmin = computed(() => this.payload()?.is_super_admin === true);
-  readonly name = computed(() => this.payload()?.name ?? '');
+  readonly perms = computed<AdminPerm[]>(() => this.parsePerms(this.payload()?.perms));
+  readonly isSuperAdmin = computed(() => {
+    const v = this.payload()?.is_super_admin;
+    return v === true || v === 'true';
+  });
+  readonly name = computed(() => {
+    const p = this.payload();
+    return (p?.[NAME_CLAIM] as string) ?? (p?.['name'] as string) ?? '';
+  });
+
+  /** perms claim 為 JSON 字串（.NET 簽發）；容錯已是陣列的情況。 */
+  private parsePerms(raw: AdminPerm[] | string | undefined): AdminPerm[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
 
   login(req: AdminLoginRequest): Observable<ApiResponse<AdminLoginResult>> {
     return this.http

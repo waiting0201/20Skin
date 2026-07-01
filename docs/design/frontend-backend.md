@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 status: draft
 ---
 
@@ -39,10 +39,17 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 
 ## 權限選單（依 JWT claims）
 
-- 登入後 JWT 帶 `perms`（攤平的 Lims+AdminLims）與 `is_super_admin`。
-- `SidebarComponent` 依 `perms` 過濾可見模組/子功能（任一 add/update/delete/read 為真才顯示）。
-- 權限 route guard：進頁前比對 `perms` 中該資源的操作旗標；不足導錯誤頁。
-- 取代舊 `_Aside.cshtml` 的 `SiteMenuAsUnorderedList` + `CheckSession` 字串比對。詳見 [security.md](security.md)。
+- 登入後 JWT 帶 `perms`（攤平的 Lims+AdminLims，JSON 字串 claim）與 `is_super_admin`（字串 `true`/`false`）。前端 `auth.service` 解析：`perms` `JSON.parse`、`is_super_admin` 容錯 `true`/`'true'`。
+- 權限 route guard（`perm.guard`）：`route.data.perm={key,op}`；進頁前比對；不足導 `/forbidden`。授權真相仍在 API。
+
+### 選單資料驅動（**已定案 2026-07-01，忠於舊做法**）
+- **不硬編碼選單**：`admin-layout` 呼叫 `GET /api/admin/menu`，後端讀 `Lims`(二層) 依當前管理員 `AdminLims` 過濾（模組層任一子項有權即顯示），回傳 `{key,label,icon,sort,children}` 樹。等同舊 `SiteMenuAsUnorderedList`。
+- **Key→路由轉譯**：舊 href=`/{模組Key}/{子Key}`；新路由不同名，故前端 `core/menu-route-map.ts`（`LIMS_ROUTE_MAP` + `resolveMenuRoute`）把 `Lims.Key` 轉新 Angular 路由。舊 Ta/Ch/Cosmetic/Dentist 變體 key 對到同一 **clinic/branch 參數化** 路由。
+- **未建模組**：`BUILT_KEYS` 控制；未建者導 `/coming-soon`（選單仍完整顯示，像舊系統）。逐一補模組時把 key 加入 `BUILT_KEYS` 並確保路由存在。
+- **視覺**：`admin-layout` 以 Tailwind 重現 SmartAdmin：深色側欄（`#31353d`）+ 可展開模組（fa 圖示）+ 頂欄（使用者/超管標記/登出）+ Ribbon 麵包屑 + 頁尾。Font Awesome 4 由 `index.html` CDN 載入還原 `fa-*`。
+- 取代舊 `_Aside.cshtml` + `CheckSession` 字串比對。詳見 [security.md](security.md)、[../blueprints/admin-auth-authority.md](../blueprints/admin-auth-authority.md)。
+
+> **本機埠**：客戶前台 `ng serve` 用 :4200、後台用 **:4300**（`ng serve --port 4300`）；API `local.settings` Host.CORS 已加 :4300。
 
 ## 匯出策略（取代 NPOI / iTextSharp）
 
