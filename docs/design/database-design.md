@@ -11,7 +11,7 @@ related_docs:
   - security.md
   - ../project-overview.md
 keywords: [database, schema, reused, dapper, sql, micro-orm, sql-server, 沿用]
-last_updated: 2026-06-30
+last_updated: 2026-07-02
 status: draft
 ---
 
@@ -47,7 +47,7 @@ status: draft
 | `SmsStatus.SmsBody` 為 `ntext`（已棄用） | 沿用（不可改）；Dapper 對應 `string`；**不**改 nvarchar(max)（屬 schema 變更） |
 | `MemberQuestionAnswers.QuestionAnswerID` 無 FK | SQL 自行 join，注意孤兒資料 |
 | 時間戳命名不一致（`Createdate` vs `CreateDate`） | POCO 屬性名須**完全比照欄位名**（Dapper 依名對應），勿「修正」大小寫 |
-| CASCADE 刪除（FK 既定） | 沿用；刪除高風險實體（Members/Branchs）前在 Service 加前置檢查 |
+| CASCADE 刪除（FK 既定） | 沿用；刪除高風險實體（Members/Branchs）前在 Service 加前置檢查。**已對真實 DB 查證**（`sys.foreign_keys`）：`Branchs→Periods`、`Periods→RosterPeriods`、`Categorys→QuestionTypes`/`RosterCategorys`、`QuestionTypes→Questions`、`Questions→QuestionAnswers`/`MemberQuestions`、`Rosters→RosterCategorys`/`RosterPeriods` 皆 `CASCADE`；`Appointments`/`Rosters` 對 `Branchs`/`Doctors`/`Categorys`/`Periods` 皆 `NO_ACTION`；`Appointments→Rosters` 亦為 `NO_ACTION`（刪 Roster 前必須確保無任何 Appointments 引用，DB 會擋但仍需應用層給明確訊息）。刪除前置檢查要涵蓋整條 CASCADE 鏈（例：刪 Category 要連查 QuestionTypes 全表，不能只查直接子表），見 [blueprints/admin-basic-data.md](../blueprints/admin-basic-data.md)、[blueprints/admin-roster.md](../blueprints/admin-roster.md) 設計決策段 |
 | 列舉值散落（Status/BranchType/Gender/OptionType） | 在 `Skin.Core/Constants` 定義對照，值見 [old/design/database-design.md](../old/design/database-design.md) §列舉值對照 |
 | 無唯一索引（Members.Number / Admins.Username） | DB 未強制，應用層查重；**不**新增 unique index（schema 變更） |
 

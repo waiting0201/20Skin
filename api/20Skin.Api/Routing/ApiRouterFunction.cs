@@ -1,11 +1,14 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Serilog.Context;
 using Skin.Api.Auth;
 using Skin.Core;
 
@@ -29,6 +32,16 @@ public sealed class ApiRouterFunction(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", "put", "patch", "delete", Route = "{*path}")]
         HttpRequest req,
         string? path)
+    {
+        using var _ = LogContext.PushProperty("TraceId", req.HttpContext.TraceIdentifier);
+        var sw = Stopwatch.StartNew();
+        var result = await Dispatch(req, path);
+        logger.LogInformation("HTTP {Method} {Path} -> {StatusCode} ({ElapsedMs}ms)",
+            req.Method, path, (result as IStatusCodeActionResult)?.StatusCode ?? 200, sw.ElapsedMilliseconds);
+        return result;
+    }
+
+    private async Task<IActionResult> Dispatch(HttpRequest req, string? path)
     {
         var entry = table.Match(req.Method, path ?? "", out var routeValues);
         if (entry is null)

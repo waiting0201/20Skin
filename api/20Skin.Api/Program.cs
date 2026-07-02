@@ -3,6 +3,8 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
+using Serilog.Formatting.Compact;
 using Skin.Api.Auth;
 using Skin.Api.Routing;
 using Skin.Data;
@@ -15,7 +17,12 @@ var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.ConfigureFunctionsWebApplication();
 
-// TODO: 觀測（Serilog + Application Insights）見 docs/design/infrastructure.md
+// 觀測：Serilog 結構化 log（JSON lines，含 traceId，見 ApiRouterFunction）。
+// Application Insights sink 待正式環境接上連線字串時再加（見 docs/design/infrastructure.md）。
+builder.Services.AddSerilog((services, lc) => lc
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(new CompactJsonFormatter()));
 
 var config = builder.Configuration;
 
@@ -57,6 +64,29 @@ builder.Services.AddHttpClient<IRecaptchaVerifier, RecaptchaVerifier>();
 // --- 業務服務 ---
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<Skin.Services.Admin.IAdminService, Skin.Services.Admin.AdminService>();
+
+// 後台基礎資料（分院/醫師；Categorys/QuestionTypes 依 Phase 陸續加入）
+builder.Services.AddScoped<Skin.Services.BasicData.IBranchAdminService, Skin.Services.BasicData.BranchAdminService>();
+builder.Services.AddScoped<Skin.Services.BasicData.IDoctorAdminService, Skin.Services.BasicData.DoctorAdminService>();
+
+// 後台基礎資料：時段（Ta/Ch/ChDentist 分院別名 → 實際 BranchID，設定驅動，GUID 不進原始碼）
+builder.Services.AddSingleton(new Skin.Services.BasicData.PeriodsOptions
+{
+    BranchIdByAlias = config.GetSection("Periods:BranchIdByAlias")
+        .GetChildren().ToDictionary(c => c.Key, c => Guid.TryParse(c.Value, out var g) ? g : Guid.Empty,
+            StringComparer.OrdinalIgnoreCase),
+});
+builder.Services.AddScoped<Skin.Services.BasicData.IPeriodAdminService, Skin.Services.BasicData.PeriodAdminService>();
+
+// 後台基礎資料：科別項目（Skin/Cosmetic 診別參數化，取代舊 Skins/Cosmetics 2 變體）
+builder.Services.AddScoped<Skin.Services.BasicData.ICategoryAdminService, Skin.Services.BasicData.CategoryAdminService>();
+
+// 後台基礎資料：問卷類型 + 題目/選項（真實 Lims 無獨立 Questions key，兩者皆掛 Resource="QuestionTypes"）
+builder.Services.AddScoped<Skin.Services.BasicData.IQuestionTypeAdminService, Skin.Services.BasicData.QuestionTypeAdminService>();
+builder.Services.AddScoped<Skin.Services.BasicData.IQuestionAdminService, Skin.Services.BasicData.QuestionAdminService>();
+
+// 後台排班（分院別名重用 Skin.Services.BasicData.PeriodsOptions，見 docs/blueprints/admin-roster.md）
+builder.Services.AddScoped<Skin.Services.Roster.IRosterAdminService, Skin.Services.Roster.RosterAdminService>();
 
 // 預約規則（設定驅動，取代舊硬編碼分院 GUID）
 builder.Services.AddSingleton(new BookingOptions

@@ -1,7 +1,7 @@
 ---
 title: 後台基礎資料管理
 purpose: 分院/醫師/時段/科別項目/問卷 主檔 CRUD 與排序，clinic 參數化取代舊 Ta/Ch/ChDentist 變體
-status: draft
+status: shipped
 applicable_when: 要實作或修改後台主檔維護（分院/醫師/時段/科別/問卷）時
 related_agents:
   - software-architect-blueprint
@@ -13,7 +13,7 @@ related_docs:
   - ../design/database-design.md
   - questionnaire.md
 keywords: [admin, basic-data, master-data, branch, doctor, period, category, question, crud]
-last_updated: 2026-06-30
+last_updated: 2026-07-02
 ---
 
 ## 背景與動機
@@ -34,29 +34,42 @@ last_updated: 2026-06-30
 ```
 
 ## 設計決策
-- **clinic/branch 參數化**：單一 Controller/元件 + query 參數取代舊 15+ 變體（[modernization.md](../old/modernization.md) A5）。
-- **時段** `BranchID`/`Clinic` 由參數帶入（舊由 Controller 硬設）。
-- **刪除前置檢查**：醫師/分院/時段有關聯（排班/預約）則擋（沿用）。
-- 問卷題目編輯：比對新舊 answerID 做增/改/刪（沿用）。
+- **Service 完全參數化，Controller 保留變體 proxy**：`BranchID`/`Clinic` 由參數帶入 Service（[modernization.md](../old/modernization.md) A5），消除業務邏輯複製；但真實 `Lims` 權限仍是舊變體粒度（`TaPeriods`/`ChPeriods`/…/`Skins`/`Cosmetics`，見 [admin-auth-authority.md](admin-auth-authority.md)），而 router 的 `[Authorize(Resource,Op)]` 是啟動時綁死在單一 method 的靜態屬性、無法依 query 參數動態換 Resource key，因此 Controller 層保留對應數量的「瘦」proxy action（每個只是取別名解析 BranchID/Clinic 後轉呼叫共用 Service），不是走回頭路。
+- **路由 `admin/` 前綴**：客戶前台已用 `Roles.Member` 鎖住 `/api/branches`、`/api/categories?clinic=`、`/api/question-types`，同 method+同段數路由不可重複註冊，後台新端點統一 `admin/` 前綴（見 [api-design.md](../design/api-design.md)）。
+- **刪除前置檢查**：改為正確的 `COUNT(...)==0` 引用檢查（修正舊系統死碼 bug：`if (entity.Rosters==null)` 因 EF6 lazy-loading 集合永不為 null 而完全失效）。真實 DB 已查證 CASCADE 鏈：`Branchs→Periods`、`Periods→RosterPeriods`、`Categorys→QuestionTypes`/`RosterCategorys`、`QuestionTypes→Questions`、`Questions→QuestionAnswers`/`MemberQuestions` 皆為 `CASCADE`；`Appointments`/`Rosters` 對 `Branchs`/`Doctors`/`Categorys`/`Periods` 皆為 `NO_ACTION`（DB 會擋，但仍需應用層給出明確訊息，不能只靠 DB 丟例外）。Category 刪除需檢查 **QuestionTypes 全表 COUNT（含已軟刪 IsEnabled=false 的列）**，因為 QuestionTypes 從不硬刪，任何殘留列都代表 CASCADE 會波及到 Questions/QuestionAnswers/MemberQuestions（含會員歷史問卷記錄）。
+- **問卷選項（QuestionAnswers）編輯**：純沿用舊系統行為——比對新舊 answerID 做增/改/**硬刪**，不查 `MemberQuestionAnswers` 引用（該表對 QuestionAnswers 無 FK 保護，已知孤兒資料風險，使用者已拍板接受以維持舊行為相容性）。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |
 |---|---|---|
 | 前端 | 是 | Basic 模組各實體 list/form 元件（參數化） |
 | 後端 | 是 | BasicData Controllers + Services |
-| API | 是 | `/api/branches|doctors|periods|categories|question-types|questions`（`?clinic=`） |
+| API | 是 | `admin/branches`、`admin/doctors`、`admin/periods/{ta-skin\|ta-cosmetic\|ch-skin\|ch-cosmetic\|ch-dentist}`、`admin/categories/{skin\|cosmetic}`、`admin/question-types`、`admin/questions`（見 [api-design.md](../design/api-design.md)） |
 | 資料庫 | 否 | 讀寫既有主檔表 |
 | 安全 | 是 | 依 perms 授權 |
 
 ## 驗收標準
-- [ ] 各主檔 CRUD + 排序
-- [ ] clinic/branch 參數化（無硬編碼 GUID）
-- [ ] 刪除前置檢查
-- [ ] 問卷軟刪除、題目選項差異更新
-- [ ] 圖片走 Blob
+- [x] 各主檔 CRUD + 排序
+- [x] clinic/branch 參數化（無硬編碼 GUID，Periods 分院別名走設定驅動）
+- [x] 刪除前置檢查（正確 COUNT，修正舊系統死碼 bug）
+- [x] 問卷軟刪除、題目選項差異更新
+- [x] 圖片走 Blob
+
+## 實作紀錄（Done 2026-07-02，分 4 個 Phase）
+
+- **程式位置**：
+  - API：`Skin.Services/BasicData/{Branch,Doctor,Period,Category,QuestionType,Question}AdminService`（+ 對應 `I*` 介面）、`PeriodsOptions`（分院別名設定驅動）、`20Skin.Api/Controllers/{BranchesAdmin,DoctorsAdmin,PeriodsAdmin,CategoriesAdmin,QuestionTypesAdmin,QuestionsAdmin}Controller`、DTO 集中於 `Skin.Core/Dtos/BasicDataDtos.cs`。
+  - 前端：`web-admin/src/app/core/services/{basic-data-api,basic-upload}.service.ts`、`pages/basic/{branches-list,branch-form,doctors-list,doctor-form,periods-list,period-form,categories-list,category-form,question-types-list,question-type-form,questions-list,question-form}.ts`。
+- **Phase 0（前置查證）**：對真實 DB 查證 CASCADE 鏈（`Branchs→Periods→RosterPeriods`、`Categorys→QuestionTypes→Questions→QuestionAnswers/MemberQuestions`）與台中/二林四季/二林齒科三個真實 `BranchID`；修正 `api-design.md` 過時的端點路徑敘述。
+- **Phase 1（Branchs+Doctors）**：無變體，先驗證整條技術棧（含 `UploadsController` 授權從 `[Authorize(Roles.Member)]` 開放為 `[Authorize]`，讓後台也能上傳圖片）。踩雷：`Doctors.Name` 真實只有 15 字，原本沒做長度驗證觸發 SQL truncation 500，已補長度驗證並回友善錯誤。
+- **Phase 2（Periods，5 變體）**：**核心架構決策**——Service 完全參數化（`branchId`+`clinic`）消除業務邏輯複製，但真實 `Lims` 權限仍是變體粒度、router 授權是啟動時綁死在單一 method 的靜態屬性，故 Controller 保留 5 組「瘦」proxy action 各掛對應 Resource key。授權邊界測試（僅 `ChPeriods` 權限呼叫 `ta-skin` 端點）驗證正確回 403。過程中發現並修正 `menu-route-map.ts` 把「二林．齒科」誤當成「二林．四季分院的 Dentist 診別」（`branch=ch`）的既有 bug——兩者是不同 `BranchID`，已改用獨立別名 `chDentist`。
+- **Phase 3（Categorys，2 變體）**：同 Periods 模式（2 組 proxy）。刪除前置檢查發現 Category→QuestionTypes 是 CASCADE 但 QuestionTypes 從不硬刪，故檢查邏輯查**全表**（含已軟刪列），避免刪除科別時 CASCADE 波及會員歷史問卷記錄。
+- **Phase 4（QuestionTypes+Questions，最後一階段）**：QuestionTypes 軟刪；Questions 編輯採整組選項送出比對 diff（沿用舊系統：現有但未送出→硬刪除，**不查** `MemberQuestionAnswers` 引用——已知孤兒資料風險，使用者拍板接受以維持舊行為相容性）；偽造/不屬本題目的 `QuestionAnswerId` 視為新增（沿用問卷讀取面既有的「濾除偽造 ID」慣例）。
+- **真實 DB 驗證**：全 4 Phase 皆對本機真實 `20Skin` DB 端對端測試（CRUD/排序/刪除守門/長度驗證/授權邊界），測試資料事後清除零殘留，未動用任何正式資料。`dotnet build`/`ng build` 全程 0 warning。
 
 ## 風險與未解問題
-- 各診別細微差異（舊變體間）需逐一比對確認可參數化。
+- QuestionAnswers 硬刪除不查歷史引用（使用者已拍板接受）：若未來要補救，需先讓 `MemberQuestionAnswers` 有 FK（待 schema 核准）。
+- 前端瀏覽器互動點擊驗證未做（無 chrome-devtools/Playwright 可用），僅驗證 `ng build` + SPA 路由 200 回應 + 後端 API 完整端對端。
 
 ## 對應舊系統
 - [old/blueprints/backend-admin.md](../old/blueprints/backend-admin.md) §BasicMs、[old/design/frontend-backend.md](../old/design/frontend-backend.md)

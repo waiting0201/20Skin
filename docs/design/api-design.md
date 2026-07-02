@@ -11,7 +11,7 @@ related_docs:
   - ../old/design/api-design.md
   - ../old/blueprints/customer-booking.md
 keywords: [api, endpoint, custom-router, azure-functions, mvc, rest, apiresponse, jwt]
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 status: draft
 ---
 
@@ -71,8 +71,8 @@ status: draft
 ### 認證（[blueprints/member-auth.md](../blueprints/member-auth.md) / [admin-auth-authority.md](../blueprints/admin-auth-authority.md)）
 | 端點 | Method | 說明 |
 |---|---|---|
-| `/api/auth/member/login` | POST | 身分證+生日+reCAPTCHA → JWT（status 1/2/3：成功/新客/黑名單） |
-| `/api/auth/member/register` | POST | 初診建檔（JoinUs）→ JWT 直接登入態；身分證+生日已存在則回既有不重複建檔；Allergy/MedicalHistory 存 CSV。**Done 2026-07-01** |
+| `/api/auth/member/login` | POST | 身分證+生日+reCAPTCHA → JWT（status 1/2/3：成功/新客/黑名單）；成功固定回 `isFirstVisit:false`（複診）。**Done 2026-07-02** |
+| `/api/auth/member/register` | POST | 初診建檔（JoinUs）→ JWT 直接登入態；身分證+生日已存在則回既有不重複建檔；Allergy/MedicalHistory 存 CSV；回傳 `isFirstVisit`（是否新建會員，供前端初診/複診麵包屑）。**Done 2026-07-02** |
 | `/api/zipcodes` | GET | 郵遞區號（城市→區→ZipcodeID，公開，供註冊連動）。**Done 2026-07-01** |
 | `/api/auth/admin/login` | POST | 帳號+密碼+reCAPTCHA → JWT（`is_super_admin`+攤平 `perms`）。**Done 2026-07-01** |
 | `/api/auth/refresh` | POST | refresh token → 新 access token（狀態存 reused DB 之外） |
@@ -82,7 +82,7 @@ status: draft
 | 端點 | Method | 說明 |
 |---|---|---|
 | `/api/branches` | GET | 啟用分院列表 |
-| `/api/categories?clinic=` | GET | 某診別項目 |
+| `/api/categories?branchId=&clinic=` | GET | 某診別項目（含 `isAmountLocked`：依 `branchId` 解析分院別名對照舊 `IsOnly/ChIsOnly/ChDentistIsOnly`，2026-07-02） |
 | `/api/rosters?branch=&clinic=&category=&date=&doctorId=` | GET | 可預約時段（JSON）。**帶 `doctorId` → 該指定醫師時段（IsAppointment=1）；不帶 → 不指定（IsAppointment=0）**。2026-07-01 |
 | `/api/rosters/doctors?...` | GET | 該日可指定醫師 |
 | `/api/rosters/check-availability` | POST | 重複預約檢查 |
@@ -104,7 +104,17 @@ status: draft
 - `/api/uploads`（POST，需會員登入，multipart：`file`[+`folder`，預設 appointments]）→ Blob `upload/{folder}/{guid}{ext}`，回 `{ filename, folder, url }`。目錄白名單/型別/大小驗證；`Appointments.Photo` 存檔名。見 [blueprints/file-upload.md](../blueprints/file-upload.md)。**Done 2026-07-01**
 
 ### 後台（各 admin blueprint）
-基礎資料 `/api/branches|doctors|periods|categories|question-types|questions`（皆 `?clinic=` 參數化）；班表 `/api/rosters`；預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`。
+**基礎資料（已實作 Done 2026-07-02，[blueprints/admin-basic-data.md](../blueprints/admin-basic-data.md)）**：客戶前台已用 `Roles.Member` 鎖住 `/api/branches`、`/api/categories?clinic=`、`/api/question-types`，同 method+同段數路由不可重複註冊，故後台一律走 **`admin/` 前綴**（比照既有 `AdminController` 慣例）：
+- `admin/branches`(GET/POST)、`admin/branches/{id}`(GET/PUT/DELETE)、`admin/branches/sort`(POST) — `Resource="Branchs"`
+- `admin/doctors`(GET/POST)、`admin/doctors/{id}`(GET/PUT/DELETE) — `Resource="Doctors"`（無 Sort：`Doctors` 表無 `Sort`/`IsEnabled` 欄位）
+- `admin/outpatient-times`(GET) — 門診時段字典（上午/下午/晚上），供時段表單下拉選單
+- `admin/periods/{ta-skin|ch-skin|ta-cosmetic|ch-cosmetic|ch-dentist}`(+`/{id}`+`/sort`) — Service 層完全參數化（`branchId`+`clinic`），但 Controller 保留 5 組「瘦」proxy action，因為真實 `Lims` 權限仍是變體粒度（`TaPeriods`/`ChPeriods`/…，見 [admin-auth-authority.md](../blueprints/admin-auth-authority.md)），而 router 的 `[Authorize(Resource,Op)]` 是啟動時綁死在單一 method 上的靜態屬性，無法依 query 參數動態換 Resource key
+- `admin/categories/{skin|cosmetic}`(+`/{id}`+`/sort`) — 同理 2 組 proxy，`Resource="Skins"|"Cosmetics"`
+- `admin/question-types`(?categoryId=)、`admin/question-types/{id}`、`admin/question-types/sort`、`admin/question-types/{questionTypeId}/questions`、`admin/questions`(POST)、`admin/questions/{id}`(PUT/DELETE)、`admin/questions/sort` — 真實 `Lims` 無獨立 `Questions` key，全掛 `Resource="QuestionTypes"`
+
+**班表（已實作 Done 2026-07-02，[blueprints/admin-roster.md](../blueprints/admin-roster.md)）**：`admin/rosters/{ta-skin|ta-cosmetic|ch-skin|ch-cosmetic|ch-dentist}`(GET 列表`?date=&doctorId=&page=`/POST 建立含展開)、`admin/rosters/{變體}/{id}`(GET/PUT/DELETE) — 同 Periods 設計理由，5 組瘦 proxy 對應 `TaRosters`/`ChRosters`/`TaCosmeticRosters`/`ChCosmeticRosters`/`ChDentistRosters`，分院別名解析重用 `PeriodsOptions`。建立回應含 `skippedDates`（重複展開時因當日既有排班科別重疊而跳過的日期，明確回報取代舊系統靜默跳過）。
+
+預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`（尚未實作，沿用同樣的 `admin/` 前綴 + 變體 proxy 慣例）。
 
 **後台認證與權限（已實作 Done 2026-07-01，`AdminController`）**：
 

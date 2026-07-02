@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Http;
 using Skin.Api.Routing;
 using Skin.Core;
-using Skin.Core.Constants;
 using Skin.Services.Storage;
 
 namespace Skin.Api.Controllers;
 
 /// <summary>
-/// 檔案上傳（Azure Blob）。取代舊系統 ~/Upload 本機磁碟。需會員登入。
-/// 容器 upload 下以舊資料夾名分類（預設 appointments）。見 docs/blueprints/file-upload.md。
+/// 檔案上傳（Azure Blob）。取代舊系統 ~/Upload 本機磁碟。需已登入（會員或後台管理員皆可）；
+/// 資料夾層級白名單（StorageOptions.AllowedFolders）把關，寫入 DB 的端點仍各自鎖對應角色。
+/// 容器 upload 下以舊資料夾名分類（預設 appointments）。見 docs/blueprints/file-upload.md、admin-basic-data.md。
 /// </summary>
 [ApiController]
-[Authorize(Roles.Member)]
+[Authorize]
 public sealed class UploadsController(IFileStorage storage)
 {
     /// <summary>POST /api/uploads（multipart：file[+folder]）→ 回 { filename, folder, url }。</summary>

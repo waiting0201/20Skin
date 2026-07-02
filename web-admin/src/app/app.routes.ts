@@ -37,10 +37,140 @@ export const routes: Routes = [
         data: { perm: { key: 'Admins', op: 'update' } },
       },
 
-      // 未建模組佔位（basic/roster/reserve/member 逐一補齊）
+      // 基礎資料（對應舊 BasicMs）— 分院/醫師（Phase 1）；Periods/Categorys/QuestionTypes 依後續 Phase 補齊
+      {
+        path: 'basic/branches',
+        loadComponent: () => import('./pages/basic/branches-list').then((m) => m.BranchesListComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Branchs', op: 'read' } },
+      },
+      {
+        path: 'basic/branches/new',
+        loadComponent: () => import('./pages/basic/branch-form').then((m) => m.BranchFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Branchs', op: 'add' } },
+      },
+      {
+        path: 'basic/branches/:id/edit',
+        loadComponent: () => import('./pages/basic/branch-form').then((m) => m.BranchFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Branchs', op: 'update' } },
+      },
+      {
+        path: 'basic/doctors',
+        loadComponent: () => import('./pages/basic/doctors-list').then((m) => m.DoctorsListComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Doctors', op: 'read' } },
+      },
+      {
+        path: 'basic/doctors/new',
+        loadComponent: () => import('./pages/basic/doctor-form').then((m) => m.DoctorFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Doctors', op: 'add' } },
+      },
+      {
+        path: 'basic/doctors/:id/edit',
+        loadComponent: () => import('./pages/basic/doctor-form').then((m) => m.DoctorFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Doctors', op: 'update' } },
+      },
+
+      // 時段（對應舊 Ta/TaCosmetic/Ch/ChCosmetic/ChDentistPeriods，clinic 參數化收斂為單一元件，見 basic-data-api.service.ts）。
+      // 5 個舊變體權限粒度不同，資源 key 依 ?branch=&clinic= 動態決定，故不掛靜態 data.perm；
+      // 前端只做登入檢查 + 依 auth.can(resourceKey) 控制按鈕顯示，授權真相仍在 API（見 admin-auth-authority.md）。
+      {
+        path: 'basic/periods',
+        loadComponent: () => import('./pages/basic/periods-list').then((m) => m.PeriodsListComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'basic/periods/new',
+        loadComponent: () => import('./pages/basic/period-form').then((m) => m.PeriodFormComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'basic/periods/:id/edit',
+        loadComponent: () => import('./pages/basic/period-form').then((m) => m.PeriodFormComponent),
+        canActivate: [permGuard],
+      },
+
+      // 科別項目（對應舊 Skins/Cosmetics，clinic 參數化收斂為單一元件；資源 key 動態，同 Periods 不掛靜態 data.perm）
+      {
+        path: 'basic/categories',
+        loadComponent: () => import('./pages/basic/categories-list').then((m) => m.CategoriesListComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'basic/categories/new',
+        loadComponent: () => import('./pages/basic/category-form').then((m) => m.CategoryFormComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'basic/categories/:id/edit',
+        loadComponent: () => import('./pages/basic/category-form').then((m) => m.CategoryFormComponent),
+        canActivate: [permGuard],
+      },
+
+      // 問卷類型 + 題目（對應舊 QuestionTypes/Questions；真實 Lims 無獨立 Questions key，
+      // 兩者皆用 auth.can('QuestionTypes', op)，data.perm 統一指向 QuestionTypes）
+      {
+        path: 'basic/question-types',
+        loadComponent: () => import('./pages/basic/question-types-list').then((m) => m.QuestionTypesListComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'read' } },
+      },
+      {
+        path: 'basic/question-types/new',
+        loadComponent: () => import('./pages/basic/question-type-form').then((m) => m.QuestionTypeFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'add' } },
+      },
+      {
+        path: 'basic/question-types/:id/edit',
+        loadComponent: () => import('./pages/basic/question-type-form').then((m) => m.QuestionTypeFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'update' } },
+      },
+      {
+        path: 'basic/question-types/:questionTypeId/questions',
+        loadComponent: () => import('./pages/basic/questions-list').then((m) => m.QuestionsListComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'read' } },
+      },
+      {
+        path: 'basic/question-types/:questionTypeId/questions/new',
+        loadComponent: () => import('./pages/basic/question-form').then((m) => m.QuestionFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'add' } },
+      },
+      {
+        path: 'basic/question-types/:questionTypeId/questions/:id/edit',
+        loadComponent: () => import('./pages/basic/question-form').then((m) => m.QuestionFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'QuestionTypes', op: 'update' } },
+      },
+
+      // 排班（對應舊 ShiftMs；資源 key 動態決定，同 Periods/Categorys 不掛靜態 data.perm）
+      {
+        path: 'roster',
+        loadComponent: () => import('./pages/roster/rosters-list').then((m) => m.RostersListComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'roster/new',
+        loadComponent: () => import('./pages/roster/roster-form').then((m) => m.RosterFormComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'roster/:id/edit',
+        loadComponent: () => import('./pages/roster/roster-form').then((m) => m.RosterFormComponent),
+        canActivate: [permGuard],
+      },
+
+      // 未建模組佔位（reserve/member 逐一補齊）
       { path: 'coming-soon', loadComponent: () => import('./pages/coming-soon').then((m) => m.ComingSoonComponent) },
       { path: 'forbidden', loadComponent: () => import('./pages/forbidden').then((m) => m.ForbiddenComponent) },
-      // TODO: basic / roster / reserve / member 模組（見 admin-*.md），各帶 data.perm
+      // TODO: reserve / member 模組，各帶 data.perm
     ],
   },
   { path: '**', redirectTo: '' },
