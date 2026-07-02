@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { BookingService } from '../../core/services/booking.service';
 import { ReservationStore } from '../../store/reservation.store';
+import { AuthService } from '../../core/services/auth.service';
 import { Category } from '../../core/models';
 
 /** 選擇就診項目。對應舊 Category.cshtml。 */
@@ -17,7 +18,7 @@ import { Category } from '../../core/models';
             <div class="btn"><a routerLink="/booking/clinic">回上一頁</a></div>
             <div class="btn"><a routerLink="/appointments">預約查詢</a></div>
             <div class="stitle-choose">
-              <a routerLink="/">．{{ store.branch()?.title }}</a>
+              {{ auth.visitTitle() }} <a routerLink="/">．{{ store.branch()?.title }}</a>
               <a routerLink="/booking/clinic">．{{ store.clinicTitle() }}</a>．選擇預約類別
             </div>
           </div>
@@ -47,6 +48,7 @@ import { Category } from '../../core/models';
 export class CategoryComponent {
   private readonly booking = inject(BookingService);
   readonly store = inject(ReservationStore);
+  readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly categories = signal<Category[]>([]);
@@ -54,9 +56,9 @@ export class CategoryComponent {
   readonly notice = signal<string | null>(null);
 
   constructor() {
-    const clinic = this.store.clinic();
-    if (!this.store.branch() || !clinic) { this.router.navigate(['/']); return; }
-    this.booking.categories(clinic).subscribe({
+    const branch = this.store.branch(), clinic = this.store.clinic();
+    if (!branch || !clinic) { this.router.navigate(['/']); return; }
+    this.booking.categories(branch.branchId, clinic).subscribe({
       next: (c) => { this.categories.set(c); this.loading.set(false); },
       error: () => { this.notice.set('載入項目失敗'); this.loading.set(false); },
     });

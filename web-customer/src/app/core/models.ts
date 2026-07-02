@@ -29,6 +29,8 @@ export interface Category {
   intro: string | null;
   photo: string;
   isQuestion: boolean;
+  /** 對應舊 Categorys.IsOnly/ChIsOnly/ChDentistIsOnly（依分院解析）：鎖定預約人數固定 1 人。 */
+  isAmountLocked: boolean;
 }
 
 export interface TimeSlot {
@@ -79,6 +81,7 @@ export interface AppointmentDetail {
   appointmentId: string;
   appointmentDate: string;
   clinic: string;
+  branchId: string | null;
   branchTitle: string | null;
   categoryTitle: string | null;
   doctorName: string | null;
@@ -88,6 +91,10 @@ export interface AppointmentDetail {
   isFirstVisit: boolean;
   status: number;
   questionTypeId: string | null;
+  /** 該預約項目是否需填問卷（對應 Categorys.IsQuestion）。 */
+  isQuestion: boolean;
+  /** 是否已填答（僅 isQuestion=true 時有意義）。 */
+  questionAnswered: boolean;
   photo: string | null;
 }
 

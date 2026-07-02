@@ -21,8 +21,8 @@ export class BookingService {
     return this.http.get<ApiResponse<Branch[]>>(`${this.base}/branches`).pipe(this.unwrap<Branch[]>());
   }
 
-  categories(clinic: string): Observable<Category[]> {
-    const params = new HttpParams().set('clinic', clinic);
+  categories(branchId: string, clinic: string): Observable<Category[]> {
+    const params = new HttpParams().set('branchId', branchId).set('clinic', clinic);
     return this.http.get<ApiResponse<Category[]>>(`${this.base}/categories`, { params }).pipe(this.unwrap<Category[]>());
   }
 

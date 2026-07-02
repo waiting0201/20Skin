@@ -12,7 +12,10 @@ import { Branch } from '../../core/models';
     <main id="main">
       <div class="online-clinic-choose-block">
         <div class="item-block">
-          <div class="title-block">選擇預約診所</div>
+          <div class="title-block">
+            選擇預約診所
+            <a class="logout-link" href="javascript:;" (click)="auth.logout()">登出</a>
+          </div>
           <div class="choose-item-block">
             @if (error()) { <p style="color:red; text-align:center;">{{ error() }}</p> }
             <ul>
@@ -32,6 +35,19 @@ import { Branch } from '../../core/models';
         </div>
       </div>
     </main>
+  `,
+  styles: `
+    .title-block { position: relative; }
+    .title-block .logout-link {
+      position: absolute;
+      right: .5em;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: .5em;
+      color: #999;
+      text-decoration: none;
+    }
+    .title-block .logout-link:hover { color: #333; }
   `,
 })
 export class IndexComponent {

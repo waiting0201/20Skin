@@ -60,6 +60,18 @@ import { AppointmentDetail, clinicTitle } from '../../core/models';
                 <div class="from-title blue-text">預約狀態：</div>
                 <div class="form-box left">{{ a.status === 1 ? '預約成功' : '已取消' }}</div>
               </div>
+              <div class="form-block">
+                <div class="from-title blue-text">問卷填寫狀態：</div>
+                <div class="form-box left">
+                  @if (!a.isQuestion) {
+                    不需填寫問卷
+                  } @else if (a.questionAnswered) {
+                    已填寫
+                  } @else {
+                    未填寫　<a routerLink="/questionnaire">前往填寫</a>
+                  }
+                </div>
+              </div>
               @if (uploads.photoUrl(a.photo); as url) {
                 <div class="form-block">
                   <div class="from-title blue-text">上傳圖片：</div>

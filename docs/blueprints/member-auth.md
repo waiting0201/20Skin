@@ -13,7 +13,7 @@ related_docs:
   - ../design/api-design.md
   - ../design/database-design.md
 keywords: [member, auth, login, register, jwt, recaptcha, blacklist, joinus, zipcode]
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 ---
 
 ## 實作狀態
@@ -26,6 +26,7 @@ last_updated: 2026-07-01
   - 選項值（沿用舊）：血型 O/A/B/AB/NO(不清楚)；性別 1男/2女；過敏史 無/磺胺劑/青黴素/Pyrine匹林類/其他；病史 無/糖尿病/高血壓/其他。
   - **實測**（測試身分證建檔 → 驗欄位/CSV/大寫 → `/me` → 同證登入 status 1 → 重複註冊不產生 dup → 格式負向 → 硬刪零殘留）全通過；`dotnet build` 0 warn、`ng build` 通過。
 - **reCAPTCHA v3 前端（2026-07-01 完成）**：`RecaptchaService` 動態載入 script，登入/註冊 `execute('login')` 取 token 附於請求；dev（site key 空）→ 空 token + 後端 secret 空放行。以 mock grecaptcha 驗證 token 確實流入登入/註冊請求。
+- **初診/複診麵包屑（2026-07-02 完成）**：`LoginResult.IsFirstVisit`（登入固定 `false`＝複診；註冊依 `MemberService.RegisterAsync` 的 `IsNew` 判斷，沿用舊 `Reserve.UpdateVisit`）。前端 `AuthService` 存 `localStorage`（`skin_first_visit`，隨 `logout()` 一併清除）並暴露 `visitTitle()` computed（'初診'/'複診'/空字串）；`ClinicComponent`/`CategoryComponent`/`AppointmentFormComponent` 的 `.stitle-choose` 麵包屑補回前綴（對應舊 `Clinic.cshtml`/`Category.cshtml`/`AppointmentForm.cshtml` 的 `@ViewBag.VisitTitle`）。
 - **未做**：登入 rate-limit；refresh token 持久化（待 schema 核准）。
 
 ## 背景與動機
@@ -51,7 +52,7 @@ last_updated: 2026-07-01
 ## 設計決策
 - **憑證沿用身分證+生日**：相容營運中 DB 與既有病患習慣；以 reCAPTCHA(後端驗 score>0.5) + 登入 rate-limit 緩解枚舉。
 - **JWT 短效**（如 1h）+ refresh（狀態存 reused DB 之外，見 [security.md](../design/security.md)）。
-- `is_first_visit` 由登入回傳供前端流程使用。
+- `IsFirstVisit` 由登入/註冊回傳供前端流程使用（見「初診/複診麵包屑」）。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |

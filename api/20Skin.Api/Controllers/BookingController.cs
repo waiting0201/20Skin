@@ -19,9 +19,9 @@ public sealed class BookingController(IBookingService booking, RequestContext ct
     [ApiRoute("GET", "branches")]
     public Task<IReadOnlyList<BranchDto>> Branches() => booking.GetEnabledBranchesAsync();
 
-    /// <summary>GET /api/categories?clinic=Skin — 某診別項目。</summary>
+    /// <summary>GET /api/categories?branchId=&amp;clinic=Skin — 某診別項目（IsAmountLocked 依 branchId 解析）。</summary>
     [ApiRoute("GET", "categories")]
-    public Task<IReadOnlyList<CategoryDto>> Categories(string clinic) => booking.GetCategoriesByClinicAsync(clinic);
+    public Task<IReadOnlyList<CategoryDto>> Categories(Guid branchId, string clinic) => booking.GetCategoriesByClinicAsync(branchId, clinic);
 
     /// <summary>
     /// GET /api/rosters?branchId=&amp;clinic=&amp;categoryId=&amp;date=&amp;doctorId= — 可預約時段。

@@ -13,7 +13,7 @@ related_docs:
   - ../design/database-design.md
   - customer-booking.md
 keywords: [questionnaire, question, answer, member-question, option-type, is-question]
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 ---
 
 ## 實作狀態（2026-07-01 完成，真實 DB 端對端驗證）
@@ -35,8 +35,8 @@ last_updated: 2026-07-01
 ## 範圍
 ### 做什麼
 - 取問卷定義（依 Category）+ 會員既有答案。
-- 作答儲存到 `MemberQuestions` + `MemberQuestionAnswers`（含「其他」自填、檔案）。
-- 題型：OptionType 0=單選 / 1=複選 / 2=文字 / 3=檔案。
+- 作答儲存到 `MemberQuestions` + `MemberQuestionAnswers`（含「其他」自填）。
+- 題型：真實 DB `OptionType` 只有 **1=單選 / 2=複選**（無文字/檔案題型，見下方「實作狀態」關鍵事實修正）。
 - `Category.IsQuestion=true` → 預約前強制完成。
 ### 不做什麼
 - 不改問卷表 schema；不做問卷編輯（後台功能，見 admin-basic-data）。
@@ -44,14 +44,16 @@ last_updated: 2026-07-01
 ## 使用者流程
 ```
 選項目(IsQuestion) → /booking/questionnaire?questionTypeID= → 依題型渲染
-  → 填答(可帶「其他」/上傳) → POST /api/member-questions → 回預約表單
+  → 填答(可帶「其他」自填) → POST /api/member-questions → 回預約表單
 ```
 
 ## 設計決策
-- **題型渲染**：0 radio / 1 checkbox / 2 text(`Other`) / 3 file(`Filename` via 上傳，見 [file-upload.md](file-upload.md))。
+- **題型渲染**：`OptionType` 1=radio(單選) / 2=checkbox(複選)；`IsOther` 時額外顯示「其他」自填文字欄（存 `MemberQuestions.Other`）。真實 DB 無文字/檔案題型（`OptionType 3=檔案` 未實作，見「未做」）。
 - **多選**：寫多筆 `MemberQuestionAnswers`；注意該表**無 FK 到 QuestionAnswers**（[database-design.md](../design/database-design.md)），應用層確保有效 answerID。
 - **既有答案 pre-fill**：取會員該 QuestionType 已答帶入。
 - 表單索引化改 Angular signal 陣列（取代舊手動遞增 name，較不易錯位）。
+- **單題必填驗證（新增，2026-07-02 audit 記錄）**：前端要求所有題目須有答案或其他文字才可送出。舊系統 `Questions.cshtml` 完全無必填驗證（`$("#form").valid()` 恆為 true），此為新系統刻意加嚴，避免空白作答污染病歷資料。
+- **IsQuestion 強制比舊系統更嚴格（新增，2026-07-02 audit 記錄）**：舊系統 `AjaxController.SelectCategory` 只找「第一份」未答問卷就導頁，送出後不再檢查同分類其餘問卷（實務上只強制填第一份）。新系統 `QuestionnaireListComponent.allAnswered()` 要求該分類**全部**問卷皆已作答才可回預約表單，屬刻意加嚴。目前真實 DB 無任何 `Categorys.IsQuestion=true` 的分類（見 [gotchas.md](../gotchas.md)），此差異暫無法於正式環境觸發。`continueBooking()` 回填 `QuestionTypeID` 固定取第一份（依 Sort），舊系統從未真正處理過「多份問卷都填完後選哪份代表」的情境，非嚴格對等，屬新系統自訂規則。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |
@@ -63,11 +65,11 @@ last_updated: 2026-07-01
 | 安全 | 是 | 作答綁定 JWT 會員 |
 
 ## 驗收標準
-- [ ] 四種題型正確渲染與儲存
-- [ ] 「其他」自填、檔案上傳可存
-- [ ] 既有答案 pre-fill
-- [ ] IsQuestion 強制：未填不可完成預約
-- [ ] 多選不產生孤兒 answerID
+- [x] 兩種題型（單選/複選）正確渲染與儲存（2026-07-01）
+- [x] 「其他」自填可存（2026-07-01；檔案題型真實資料不存在，不實作）
+- [x] 既有答案 pre-fill（2026-07-01）
+- [x] IsQuestion 強制：未填不可完成預約（2026-07-01；比舊系統「僅擋第一份」更嚴格，見上方設計決策）
+- [x] 多選不產生孤兒 answerID（2026-07-01，偽造 answerID 應用層濾除）
 
 ## 風險與未解問題
 - `MemberQuestionAnswers` 無 FK → 需應用層驗證。

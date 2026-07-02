@@ -45,6 +45,7 @@ export interface RegisterMemberRequest {
 }
 
 const TOKEN_KEY = 'skin_token';
+const FIRST_VISIT_KEY = 'skin_first_visit';
 
 /**
  * 會員認證。token 存 localStorage，登入狀態以 signal 暴露。
@@ -59,11 +60,19 @@ export class AuthService {
   readonly token = this._token.asReadonly();
   readonly isLoggedIn = computed(() => !!this._token());
 
+  /** 初診/複診（對應舊 Session VisitTitle），登入/註冊時設定，供預約流程麵包屑顯示。 */
+  private readonly _isFirstVisit = signal<boolean | null>(readFirstVisit());
+  readonly visitTitle = computed(() => {
+    if (!this.isLoggedIn() || this._isFirstVisit() === null) return '';
+    return this._isFirstVisit() ? '初診' : '複診';
+  });
+
   login(req: MemberLoginRequest): Observable<ApiResponse<LoginResult>> {
     return this.http
       .post<ApiResponse<LoginResult>>(`${environment.apiBase}/auth/member/login`, req)
       .pipe(tap((res) => {
         if (res.success && res.data?.token) this.setToken(res.data.token);
+        if (res.success && res.data?.isFirstVisit !== undefined) this.setFirstVisit(res.data.isFirstVisit);
       }));
   }
 
@@ -73,6 +82,7 @@ export class AuthService {
       .post<ApiResponse<LoginResult>>(`${environment.apiBase}/auth/member/register`, req)
       .pipe(tap((res) => {
         if (res.success && res.data?.token) this.setToken(res.data.token);
+        if (res.success && res.data?.isFirstVisit !== undefined) this.setFirstVisit(res.data.isFirstVisit);
       }));
   }
 
@@ -81,9 +91,21 @@ export class AuthService {
     this._token.set(token);
   }
 
+  private setFirstVisit(value: boolean): void {
+    localStorage.setItem(FIRST_VISIT_KEY, JSON.stringify(value));
+    this._isFirstVisit.set(value);
+  }
+
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(FIRST_VISIT_KEY);
     this._token.set(null);
+    this._isFirstVisit.set(null);
     this.router.navigate(['/login']);
   }
+}
+
+function readFirstVisit(): boolean | null {
+  const raw = localStorage.getItem(FIRST_VISIT_KEY);
+  return raw === null ? null : (JSON.parse(raw) as boolean);
 }

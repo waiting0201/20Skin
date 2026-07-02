@@ -30,8 +30,8 @@ public sealed class AuthController(
     public sealed record MemberLoginRequest(string Number, int Yyyy, int Mm, int Dd, string GoogleCaptchaToken);
     public sealed record AdminLoginRequest(string Username, string Password, string GoogleCaptchaToken);
 
-    /// <summary>1=成功 / 2=新客（導註冊）/ 3=黑名單（沿用舊系統語意）。</summary>
-    public sealed record LoginResult(int Status, string? Token = null, Guid? MemberId = null, string? Message = null);
+    /// <summary>1=成功 / 2=新客（導註冊）/ 3=黑名單（沿用舊系統語意）。IsFirstVisit：初診/複診（見舊 Reserve.UpdateVisit），供前台麵包屑顯示。</summary>
+    public sealed record LoginResult(int Status, string? Token = null, Guid? MemberId = null, string? Message = null, bool? IsFirstVisit = null);
 
     /// <summary>POST /api/auth/member/login — 身分證+生日 → JWT。</summary>
     [ApiRoute("POST", "auth/member/login")]
@@ -55,7 +55,8 @@ public sealed class AuthController(
             new Claim(ClaimTypes.Name, member.Name ?? ""),
             new Claim(ClaimTypes.Role, Roles.Member),
         ]);
-        return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID));
+        // 既有會員登入一律為複診（沿用舊 Login POST 固定 UpdateVisit("N")）。
+        return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID, IsFirstVisit: false));
     }
 
     /// <summary>
@@ -78,7 +79,7 @@ public sealed class AuthController(
         if (!TryBuildDate(req.Yyyy, req.Mm, req.Dd, out var birthday))
             return ApiResponse<LoginResult>.Fail("生日格式錯誤", "INVALID_BIRTHDAY");
 
-        var (member, _) = await members.RegisterAsync(req, birthday);
+        var (member, isNew) = await members.RegisterAsync(req, birthday);
 
         if (member.IsBlackList)
             return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 3, Message: "您的帳號已被限制預約，請洽診所"));
@@ -88,7 +89,8 @@ public sealed class AuthController(
             new Claim(ClaimTypes.Name, member.Name ?? ""),
             new Claim(ClaimTypes.Role, Roles.Member),
         ]);
-        return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID));
+        // isNew：新建會員→初診；身分證+生日已存在→複診（沿用舊 JoinUs POST 邏輯）。
+        return ApiResponse<LoginResult>.Ok(new LoginResult(Status: 1, Token: token, MemberId: member.MemberID, IsFirstVisit: isNew));
     }
 
     /// <summary>

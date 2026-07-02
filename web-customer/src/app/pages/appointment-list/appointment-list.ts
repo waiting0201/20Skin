@@ -1,7 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AppointmentService } from '../../core/services/appointment.service';
 import { AppointmentListItem, clinicTitle } from '../../core/models';
+
+const PAGE_SIZE = 15;
 
 /** 我的預約清單（對應舊 Appointment.cshtml）。 */
 @Component({
@@ -54,6 +56,25 @@ import { AppointmentListItem, clinicTitle } from '../../core/models';
                 </tbody>
               </table>
             </div>
+            @if (!loading() && totalPages() > 1) {
+              <div class="page-wrapper">
+                <div class="page-block">
+                  <ul>
+                    <li>
+                      <a href="javascript:;" [style.opacity]="hasPrev() ? '1' : '0.4'"
+                         [style.cursor]="hasPrev() ? 'pointer' : 'not-allowed'"
+                         (click)="hasPrev() && goToPage(currentPage() - 1)">上一頁</a>
+                    </li>
+                    <li class="active"><a href="javascript:;">{{ currentPage() }} / {{ totalPages() }}</a></li>
+                    <li>
+                      <a href="javascript:;" [style.opacity]="hasNext() ? '1' : '0.4'"
+                         [style.cursor]="hasNext() ? 'pointer' : 'not-allowed'"
+                         (click)="hasNext() && goToPage(currentPage() + 1)">下一頁</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -66,10 +87,31 @@ export class AppointmentListComponent {
   readonly loading = signal(true);
   readonly ct = clinicTitle;
 
+  readonly currentPage = signal(1);
+  readonly total = signal(0);
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
+  readonly hasPrev = computed(() => this.currentPage() > 1);
+  readonly hasNext = computed(() => this.currentPage() < this.totalPages());
+
   constructor() {
-    this.appointments.mine().subscribe({
-      next: (r) => { this.items.set(r.items ?? []); this.loading.set(false); },
-      error: () => this.loading.set(false),
+    this.load(1);
+  }
+
+  goToPage(page: number) {
+    if (page < 1 || page > this.totalPages() || page === this.currentPage()) return;
+    this.load(page);
+  }
+
+  private load(page: number) {
+    this.loading.set(true);
+    this.appointments.mine(page, PAGE_SIZE).subscribe({
+      next: (r) => {
+        this.items.set(r.items ?? []);
+        this.total.set(r.total ?? 0);
+        this.currentPage.set(r.page ?? page);
+        this.loading.set(false);
+      },
+      error: () => { this.loading.set(false); },
     });
   }
 }

@@ -10,7 +10,8 @@ public interface IBookingService
 {
     Task<IReadOnlyList<BranchDto>> GetEnabledBranchesAsync(CancellationToken ct = default);
 
-    Task<IReadOnlyList<CategoryDto>> GetCategoriesByClinicAsync(string clinic, CancellationToken ct = default);
+    /// <summary>IsAmountLocked 依 branchId 解析分院別名對照 IsOnly/ChIsOnly/ChDentistIsOnly（設定驅動，取代舊硬編碼 GUID）。</summary>
+    Task<IReadOnlyList<CategoryDto>> GetCategoriesByClinicAsync(Guid branchId, string clinic, CancellationToken ct = default);
 
     /// <summary>
     /// 可預約時段（含容量）。容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。

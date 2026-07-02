@@ -1,5 +1,7 @@
 using System.Data;
+using System.Text.RegularExpressions;
 using Dapper;
+using Microsoft.Extensions.Logging;
 using Skin.Core;
 using Skin.Core.Constants;
 using Skin.Core.Dtos;
@@ -8,7 +10,7 @@ using Skin.Services.Sms;
 
 namespace Skin.Services.Booking;
 
-public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions options, ISmsSender sms)
+public sealed partial class AppointmentService(IDbConnectionFactory db, BookingOptions options, ISmsSender sms, ILogger<AppointmentService> logger)
     : IAppointmentService
 {
     private static DateTime TaiwanNow => DateTime.UtcNow.AddHours(8);
@@ -178,16 +180,24 @@ public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions o
     public async Task<AppointmentDetailDto?> GetByIdAsync(Guid memberId, Guid appointmentId, CancellationToken ct = default)
     {
         using var conn = db.Create();
-        // 歸屬檢查：MemberID 條件，非本人查不到（修 IDOR）
+        // 歸屬檢查：MemberID 條件，非本人查不到（修 IDOR）。
+        // PeriodTitle：LEFT JOIN OutpatientTimes 資料驅動判斷早晚診標題（比照 BookingService.GetTimeSlotsAsync 同一套邏輯，
+        // 不寫死分院 GUID）——有 OutpatientTimeID 對應設定時用該標題，否則用原始 Periods.Title。
+        // QuestionAnswered：比照舊系統 Complete.cshtml／AppointmentDetail.cshtml，以 Appointments.QuestionTypeID 是否已寫入判斷已填/未填。
         return await conn.QueryFirstOrDefaultAsync<AppointmentDetailDto>(new CommandDefinition("""
             SELECT a.AppointmentID AS AppointmentId, a.AppointmentDate, a.Clinic,
-                   b.Title AS BranchTitle, c.Title AS CategoryTitle, d.Name AS DoctorName,
-                   p.Title AS PeriodTitle, a.Amount, a.OutpatientNum, a.IsFirstVisit, a.Status, a.QuestionTypeID AS QuestionTypeId, a.Photo
+                   b.BranchID AS BranchId, b.Title AS BranchTitle,
+                   c.Title AS CategoryTitle, d.Name AS DoctorName,
+                   COALESCE(ot.Title, p.Title) AS PeriodTitle,
+                   a.Amount, a.OutpatientNum, a.IsFirstVisit, a.Status, a.QuestionTypeID AS QuestionTypeId, a.Photo,
+                   COALESCE(c.IsQuestion, 0) AS IsQuestion,
+                   CAST(CASE WHEN a.QuestionTypeID IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS QuestionAnswered
             FROM Appointments a
             LEFT JOIN Branchs b   ON b.BranchID = a.BranchID
             LEFT JOIN Categorys c ON c.CategoryID = a.CategoryID
             LEFT JOIN Doctors d   ON d.DoctorID = a.DoctorID
             LEFT JOIN Periods p   ON p.PeriodID = a.PeriodID
+            LEFT JOIN OutpatientTimes ot ON ot.OutpatientTimeID = p.OutpatientTimeID
             WHERE a.AppointmentID = @appointmentId AND a.MemberID = @memberId
             """, new { appointmentId, memberId }, cancellationToken: ct));
     }
@@ -197,14 +207,33 @@ public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions o
         using var conn = db.Create();
         conn.Open();
 
-        var appt = await conn.QueryFirstOrDefaultAsync<CancelRow>(new CommandDefinition(
-            "SELECT AppointmentDate, Status FROM Appointments WHERE AppointmentID = @appointmentId AND MemberID = @memberId",
-            new { appointmentId, memberId }, cancellationToken: ct));
+        var appt = await conn.QueryFirstOrDefaultAsync<CancelRow>(new CommandDefinition("""
+            SELECT a.AppointmentDate, a.Status, p.Title AS PeriodTitle
+            FROM Appointments a
+            LEFT JOIN Periods p ON p.PeriodID = a.PeriodID
+            WHERE a.AppointmentID = @appointmentId AND a.MemberID = @memberId
+            """, new { appointmentId, memberId }, cancellationToken: ct));
         if (appt is null)
             return (false, "找不到預約");
         if (appt.Status != AppointmentStatus.Active)
             return (false, "此預約無法取消");
-        if (appt.AppointmentDate <= TaiwanNow.AddHours(1))
+
+        var now = TaiwanNow;
+        DateTime visitTime;
+        if (appt.PeriodTitle is not null && TryGetSlotStart(appt.PeriodTitle, out var slotStart))
+        {
+            // 依 Periods.Title（如 "9:00~9:30"）解析出的實際看診時刻判斷（取代 AppointmentDate+1hr 簡化版）
+            visitTime = appt.AppointmentDate.Date + slotStart;
+        }
+        else
+        {
+            // 防禦性 fallback：解析失敗（資料格式異常）不可讓例外往外拋，退回舊有「當天禁止取消」簡化規則並記警告 log
+            logger.LogWarning(
+                "取消預約時無法解析時段起始時間，退回 AppointmentDate+1hr 簡化規則。appointmentId={AppointmentId} periodTitle={PeriodTitle}",
+                appointmentId, appt.PeriodTitle);
+            visitTime = appt.AppointmentDate;
+        }
+        if (visitTime <= now.AddHours(1))
             return (false, "預約前 1 小時內無法取消");
 
         using var tx = conn.BeginTransaction();
@@ -227,6 +256,27 @@ public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions o
             throw;
         }
     }
+
+    /// <summary>
+    /// Periods.Title 形如 "9:00~9:30"，擷取開頭 H:mm/HH:mm 作為看診起始時間；
+    /// 解析失敗回 false（不拋例外——舊系統原始 DateTime.Parse 在多數格式下會直接拋例外，屬舊系統本身 bug，此處不複製）。
+    /// </summary>
+    private static bool TryGetSlotStart(string periodTitle, out TimeSpan start)
+    {
+        var match = SlotStartRegex().Match(periodTitle);
+        if (match.Success
+            && int.TryParse(match.Groups[1].Value, out var hour) && hour is >= 0 and < 24
+            && int.TryParse(match.Groups[2].Value, out var minute) && minute is >= 0 and < 60)
+        {
+            start = new TimeSpan(hour, minute, 0);
+            return true;
+        }
+        start = default;
+        return false;
+    }
+
+    [GeneratedRegex(@"^\s*(\d{1,2}):(\d{2})")]
+    private static partial Regex SlotStartRegex();
 
     /// <summary>從 startNumber 起每次 +2 取偶數，找第一個空缺（沿用舊系統演算法）。</summary>
     internal static int NextOutpatientNumber(int startNumber, IReadOnlyList<int> existingSorted)
@@ -262,5 +312,6 @@ public sealed class AppointmentService(IDbConnectionFactory db, BookingOptions o
     {
         public DateTime AppointmentDate { get; set; }
         public int Status { get; set; }
+        public string? PeriodTitle { get; set; }
     }
 }
