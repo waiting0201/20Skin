@@ -222,7 +222,7 @@ export interface QuestionUpsertRequest {
   answers: QuestionAnswerInput[];
 }
 
-/** 排班列表項（對應後端 RosterListItemDto）。 */
+/** 排班列表項（對應後端 RosterListItemDto）。categoryTitles 為開放科別項目標題逗號串接，對應舊系統「項目」欄。 */
 export interface RosterListItem {
   rosterId: string;
   rosterDate: string;
@@ -231,6 +231,7 @@ export interface RosterListItem {
   outpatientTimeId: number | null;
   outpatientTimeTitle: string | null;
   isAppointment: boolean;
+  categoryTitles: string;
 }
 
 /** 排班的單一時段容量覆蓋（對應後端 RosterPeriodAdminDto）。 */
@@ -276,10 +277,11 @@ export interface RosterCreateRequest {
   expireDate: string | null;
 }
 
-/** 編輯排班請求（不含 rosterDate/重複設定）。 */
+/** 編輯排班請求（不含重複設定；rosterDate 可修改，忠於舊系統）。 */
 export interface RosterUpdateRequest {
   doctorId: string | null;
   outpatientTimeId: number | null;
+  rosterDate: string;
   isAppointment: boolean;
   categoryIds: string[];
   periods: RosterPeriodInput[];

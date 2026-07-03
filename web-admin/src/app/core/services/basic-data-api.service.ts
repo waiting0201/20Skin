@@ -37,6 +37,13 @@ export function categoryResourceKey(clinic: string): string {
   return CATEGORY_RESOURCE[clinic] ?? '';
 }
 
+/** 診別 → 舊系統頁面標題（「新增皮膚主治」等），完全沿用舊 View 用詞。 */
+const CATEGORY_LABEL: Record<string, string> = { Skin: '皮膚主治', Cosmetic: '美容醫學' };
+
+export function categoryLabel(clinic: string): string {
+  return CATEGORY_LABEL[clinic] ?? '科別項目';
+}
+
 /**
  * 時段分院別名 + 診別 → 後端路由段（對應 5 個舊變體：Ta/TaCosmetic/Ch/ChCosmetic/ChDentist）。
  * 注意 chDentist 是「二林．齒科」獨立分院，非「ch 分院的 Dentist 診別」，見後端 PeriodsOptions 註解。
@@ -66,6 +73,19 @@ const PERIOD_RESOURCE: Record<string, string> = {
 
 export function periodResourceKey(branch: string, clinic: string): string {
   return PERIOD_RESOURCE[`${branch}:${clinic}`] ?? '';
+}
+
+/** 分院別名+診別 → 舊系統頁面標題（如「新增台中健保時段」的變體名稱部分），完全沿用舊 View 用詞。 */
+const PERIOD_LABEL: Record<string, string> = {
+  'ta:Skin': '台中健保時段',
+  'ta:Cosmetic': '台中美容時段',
+  'ch:Skin': '二林健保時段',
+  'ch:Cosmetic': '二林美容時段',
+  'chDentist:Dentist': '二林齒科時段',
+};
+
+export function periodLabel(branch: string, clinic: string): string {
+  return PERIOD_LABEL[`${branch}:${clinic}`] ?? '時段';
 }
 
 /**

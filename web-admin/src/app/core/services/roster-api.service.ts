@@ -42,6 +42,19 @@ export function rosterResourceKey(branch: string, clinic: string): string {
   return ROSTER_RESOURCE[`${branch}:${clinic}`] ?? '';
 }
 
+/** 分院別名+診別 → 舊系統頁面標題（「新增台中健保門診」等），完全沿用舊 View 用詞。 */
+const ROSTER_LABEL: Record<string, string> = {
+  'ta:Skin': '台中健保門診',
+  'ta:Cosmetic': '台中美容門診',
+  'ch:Skin': '二林健保門診',
+  'ch:Cosmetic': '二林美容門診',
+  'chDentist:Dentist': '二林齒科門診',
+};
+
+export function rosterLabel(branch: string, clinic: string): string {
+  return ROSTER_LABEL[`${branch}:${clinic}`] ?? '排班';
+}
+
 /** 後台排班 API（分院/醫師/時段/科別項目沿用 BasicDataApiService）。見 docs/blueprints/admin-roster.md。 */
 @Injectable({ providedIn: 'root' })
 export class RosterApiService {

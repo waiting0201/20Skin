@@ -14,7 +14,7 @@ related_docs:
   - ../design/database-design.md
   - customer-booking.md
 keywords: [admin, roster, shift, repeat, roster-period, capacity, clinic]
-last_updated: 2026-07-02
+last_updated: 2026-07-04T01:00+08:00
 ---
 
 ## 背景與動機
@@ -45,6 +45,14 @@ last_updated: 2026-07-02
 - **刪除守門改更嚴格**：有任何 `Appointments.RosterID` 引用（不論 `Status`）即擋，不像舊系統「無有效(Status=1)預約就先硬刪已取消的預約再刪排班」（該邏輯是因 `Appointments→Rosters` 為 `NO_ACTION` FK 不清就會被 DB 擋）。新做法保留歷史取消記錄完整性，與 [admin-basic-data.md](admin-basic-data.md) 已建立的 Branchs/Doctors/Periods/Categorys 刪除守門風格一致（使用者已拍板）。
 - **修正舊系統兩個欄位遺漏 bug**：(1) 展開產生的 `RosterPeriods` 原本沒複製 `StartNumber`（只有第一天有值）；(2) 編輯 `RosterPeriods` 原本只更新 `Patients` 沒更新 `StartNumber`。新系統兩處皆正確處理（使用者已拍板為非破壞性修正）。
 - **並發**：無 `RowVersion` 欄位（schema 不可改），維持既有風險（後寫覆蓋），未額外實作樂觀鎖；diff 式寫入本身已比舊系統的「清空重建」更能局部保留未變更資料，一定程度降低衝突影響範圍。
+- **頁面改為忠於舊系統，移除頁籤，並修正 3 處表單/列表落差（2026-07-03 追加，使用者要求「門診管理裡都有同樣的問題，拿掉tab，要跟舊系統對齊表單」）**：與 [admin-basic-data.md](admin-basic-data.md) 的 periods/categories 同一批修正。逐行比對 `TaRosters`/`AddTaRosters`/`EditTaRosters.cshtml`（5 變體結構完全相同）後：
+  1. 移除 `rosters-list.ts` 原自創的 5 頁籤切換列（舊系統 5 變體本是各自獨立頁面）。
+  2. **列表「項目」欄取代「班別」欄**：舊系統顯示 `RosterCategorys`（依 `Categorys.Sort` 排序）逗號串接的科別標題，完全沒有「班別」（`OutpatientTimeTitle`）欄；初版誤用後者。已在 `RosterListItemDto` 加 `CategoryTitles`（`RosterAdminService.ListAsync` 用 `STRING_AGG(...) WITHIN GROUP (ORDER BY c.Sort)` 子查詢取得）。
+  3. **「需預約」只在有選醫師時顯示**：查證舊 `$("#DoctorID").change` 行為（清空醫師會強制取消勾選並隱藏該欄位），初版誤做成常駐顯示。已在 `roster-form.ts` 加 `onDoctorChange()` 條件顯示+重置。
+  4. **「門診日期」新增與編輯皆可改**：查證舊 `EditTaRosters` POST 的 `TryUpdateModel` 白名單明確含 `RosterDate`，初版誤判為編輯不可改日期而整個隱藏。已在 `RosterUpdateRequest` 補上 `RosterDate` 欄位、`RosterAdminService.UpdateAsync` 一併更新該欄位；舊系統編輯時對新日期不重新查衝突，新系統維持同樣寬鬆行為。
+  5. **「起始號碼」改唯讀**：查證舊系統該值一律是 hidden input（直接複製 `Periods.StartNumber` 模板值），從未提供編輯介面；初版誤做成可編輯輸入框。已改為純文字顯示，只有「人數」可編輯。
+  詳見 [design/frontend-backend.md](../design/frontend-backend.md) §rosters-list 不設頁籤。
+- **移除「班別」欄位 + 「重複」用詞/順序改回舊系統（同日追加，使用者回饋「門診表單要參照舊系統」）**：再次逐行核對 `AddTaRosters`/`EditTaRosters.cshtml` 後發現「班別」（`OutpatientTimeID`）下拉整段被 Razor 註解隱藏（第 107–113 行），從未實際渲染，屬死碼——`Rosters.OutpatientTimeID` 因此一律維持建立時預設值不變，且客戶預約真正讀取的時間欄位是 `Periods.OutpatientTimeID`（`BookingService` join 路徑），與 `Rosters.OutpatientTimeID` 無關，拿掉此欄位不影響預約流程。初版誤將此死碼欄位做成可互動下拉，已移除（表單欄位保留但不渲染：新增固定送 `null`，編輯原樣回傳既有值不覆寫）。同時「重複」單選鈕文字/順序改回舊系統原詞「每天/每周/永不」（原「不重複/每日/每週」），「截止日」改回舊 placeholder「重複結束日期」。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |

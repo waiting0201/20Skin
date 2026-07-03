@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-03T22:00+08:00
+last_updated: 2026-07-04T01:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -90,6 +90,30 @@ last_updated: 2026-07-03T22:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **排班頁面（rosters-list/roster-form）移除頁籤，並修正 5 處表單/列表落差（含追加一輪核對）** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §rosters-list 不設頁籤
+  - 使用者裁示：①「門診管理裡都有同樣的問題，拿掉tab，要跟舊系統對齊表單」②追加「門診表單要參照舊系統」，觸發第二輪逐行核對，又抓出「班別」欄位是舊系統死碼被誤實作、「重複」用詞順序不符 2 項。
+  - **追加修正（第二輪）**：「班別」（`OutpatientTimeID`）下拉在舊 `AddTaRosters`/`EditTaRosters.cshtml` 整段被 Razor 註解隱藏、從未渲染，屬死碼——客戶預約真正讀取的時間欄位是 `Periods.OutpatientTimeID`（`BookingService` join 路徑），與 `Rosters.OutpatientTimeID` 無關；初版誤將此死碼做成可互動下拉，已移除（表單欄位保留但不渲染：新增固定送 `null`，編輯原樣回傳既有值不覆寫，不清空歷史資料）。「重複」單選鈕文字/順序改回舊系統原詞「每天/每周/永不」（原「不重複/每日/每週」），「截止日」改回舊 placeholder「重複結束日期」。
+  - **移除頁籤**：`rosters-list.ts` 拿掉 5 頁籤切換列（舊系統 5 變體是各自獨立頁面）；篩選欄「日期」改回舊詞「門診日期」。
+  - **列表欄位修正**：查證舊 `TaRosters.cshtml` 顯示「項目」（開放科別項目標題逗號串接）而非「班別」，初版誤用後者；已補 `RosterListItemDto.CategoryTitles`（後端 `STRING_AGG` 查詢）取代原本顯示的 `OutpatientTimeTitle`。
+  - **表單 3 處邏輯修正**（逐行比對 `AddTaRosters`/`EditTaRosters.cshtml` 發現）：①「需預約」只在有選醫師時顯示、清空醫師自動取消勾選（查證舊系統 `$("#DoctorID").change` 行為）；②「門診日期」新增與編輯皆可修改（查證舊 `EditTaRosters` 的 `TryUpdateModel` 白名單含 `RosterDate`，初版誤判為編輯不可改），已在 `RosterUpdateRequest` 補上此欄位並實作後端更新；③「起始號碼」改為唯讀顯示（查證舊系統該值一律是 hidden input、從未提供編輯介面，只有「人數」可編輯）。
+  - `dotnet build`（0 warning）與 `ng build`（0 error）皆通過。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用），建議下次驗證「清空醫師需預約自動取消」「編輯排班改門診日期成功寫回」。
+- [x] **科別項目頁面（categories-list/category-form）移除頁籤、表單忠於舊系統，並補上「需填問卷」相關業務規則** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §categories-list 不設頁籤
+  - 使用者裁示：「皮膚主治跟美容醫學不要有tab，表單也要完全參照舊系統」。同一批問題比照 periods-list 的修法處理。
+  - **移除頁籤**：`categories-list.ts` 拿掉「皮膚（健保）」/「醫學美容」2 頁籤切換列（舊 `Skins.cshtml`/`Cosmetics.cshtml` 是各自獨立頁面）；`clinic` 仍走 query params，切換交由選單。
+  - **表單忠於舊系統**：逐一比對 `Add·EditSkins`/`Add·EditCosmetics.cshtml`（4 個 View 結構完全相同）後修正 `category-form.ts`：欄名「名稱」→「標題」；「簡介」改單行必填輸入（原多行選填 textarea）；三個「每次一人」checkbox 標籤改回「台中每次一人」/「二林每次一人」/「齒科每次一人」（原自創「台中院限定」等詞）；「代表圖」新增時必填、編輯時選填，補上舊系統提示文字「建議尺寸 : 411 x 298」。
+  - **新發現業務規則並補齊後端**：查證舊 `AddSkins`/`AddCosmetics` 的 `TryUpdateModel` 白名單不含 `IsQuestion`——新增科別項目時完全沒有「需填問卷」欄位，一律預設 `false`；`EditSkins`/`EditCosmetics`（第 951–961 行）規定 `IsQuestion` 從 `false`→`true` 時該項目必須已有至少一筆 `QuestionTypes`，否則擋下「尚未編輯問卷」。原新系統 `CategoryAdminService` 兩條規則都沒實作（新增時照單全收前端傳來的 `IsQuestion`、更新時無此守門）。已修正：`CreateAsync` 忽略前端值強制寫 `false`；`UpdateAsync` 補上 `QuestionTypes` 存在性檢查（`QUESTION_NOT_EDITED`）；`Intro` 也補上非空驗證（舊系統為必填）。前端 `category-form.ts` 的「需填問卷」checkbox 改為只在編輯頁顯示。
+  - `dotnet build`（0 warning）與 `ng build`（0 error）皆通過。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用），建議下次驗證「新增不填代表圖擋下」「編輯開啟需填問卷但無 QuestionTypes 擋下尚未編輯問卷」兩個新業務規則。
+- [x] **時段頁面（periods-list/period-form）移除頁籤、表單忠於舊系統、台中健保時段隱藏新增按鈕** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §periods-list 不設頁籤
+  - 使用者裁示：①「台中健保、二林健保、台中美容、二林美容、二林齒科頁面不需要有tab，表單要完全參照舊程式」②「台中健保時段的新增時段隱藏」。
+  - **移除頁籤**：`periods-list.ts` 拿掉原本自創的 5 頁籤切換列（舊系統 5 變體本是各自獨立頁面，互相間沒有切換 UI）；元件仍維持 branch/clinic 參數化（未拆成 5 個獨立元件，理由見 blueprint），切換交由選單。
+  - **表單忠於舊系統**：逐一比對 `BasicMs/Add·EditTa·Ch·ChDentist·CosmeticPeriods.cshtml`（5 變體結構完全相同，僅標題/URL 不同）後修正：「時段」欄原是自由文字輸入（誤植），改回舊系統的 HH(08–21)/MM(00,05,…,55) 兩個下拉組成 `"HH:MM"`；欄位標籤「門診時段/名稱/起始號碼/容量」改回舊系統原詞「時間/時段/起始編號/人數」；起始編號提示文字改為「若沒填寫，起始編號預設為 2」（查證 `AppointmentService.NextOutpatientNumber` 的 `ctx.StartNumber ?? 2` 已實作此預設值，原提示「留空則不自動配號」與實際行為不符）。列表頁欄名同步修正。
+  - **台中健保時段隱藏新增按鈕**：查證舊 `TaPeriods.cshtml:30` 的「新增台中健保時段」連結整段被 Razor 註解隱藏，其餘 4 變體正常顯示；`periods-list.ts` 加 `isTaSkin()` 判斷比照隱藏，後端 `TaSkinCreate` 端點不受影響（比照舊系統該 action 仍存在、只是沒有 UI 連結）。
+  - `ng build` 0 error。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用）。
+- [x] **修復後台選單「點擊沒反應」bug：`LIMS_ROUTE_MAP` path/query 混成單一字串餵給 `[routerLink]` 導致永遠匹配不到路由** — Done 2026-07-03 [gotchas.md](gotchas.md) §選單資料表把 path?query 烤成單一字串
+  - **緣起**：使用者要求「參照舊程式製作台中健保時段」，經核對發現該功能（`TaPeriods`）其實已在 2026-07-02 Phase 2 完整實作（後端 5 變體 proxy + 前端頁籤 + `BUILT_KEYS`），程式碼、設定、commit 都已存在。追問使用者實際現象後確認是「點左側選單沒反應」——不是功能沒做，是選單連結本身壞了。
+  - **根因**：`menu-route-map.ts` 的 `LIMS_ROUTE_MAP` 原把路徑與 query 烤成一個字串（如 `'/basic/periods?branch=ta&clinic=Skin'`）直接餵給 `[routerLink]`；Angular `RouterLink` 收到純字串只會按 `/` 切路徑片段、不解析 `?`，導致永遠匹配不到路由，靜默落到 `{path:'**', redirectTo:''}`。此 bug 影響所有帶 query 參數的選單項目：時段 5 變體（Ta/Ch/TaCosmetic/ChCosmetic/ChDentistPeriods）、排班 5 變體（*Rosters）、科別項目 2 變體（Skins/Cosmetics），不只台中健保時段一項。
+  - **修法**：`LIMS_ROUTE_MAP` 改為 `{ path, queryParams? }` 結構化型別；`admin-layout.ts` 模板改用 `[routerLink]="route(key).path"` + `[queryParams]="route(key).queryParams"` 雙綁定（比照 `periods-list.ts` 頁籤既有正確寫法）；breadcrumb／自動展開所屬模組的比對邏輯一併改為路徑前綴＋query 子集比對，取代原本脆弱的整串 `startsWith`。
+  - **驗證**：`ng build` 0 error。**未做**：真實瀏覽器點擊選單驗證（本次會話無 Playwright/chrome-devtools 工具可用），建議下次有瀏覽器工具時針對「台中健保時段」等原本壞掉的選單項目逐一點擊確認可正確導頁。
 - [x] **後台 RWD（響應式）：側欄 off-canvas 化 + 13 個 table 頁面加橫向捲動容器 + 一處非響應式 grid 修正** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §RWD
   - **AdminLayoutComponent**（`web-admin/src/app/layout/admin-layout.ts`）：側欄（`w-64`）在 `lg` 以下改為 off-canvas 抽屜（`fixed` + `-translate-x-full`/`translate-x-0` 切換 + 200ms transition），加半透明遮罩（點擊收合）+ 頂欄漢堡選單按鈕（`lg:hidden`）；`lg` 以上維持原本固定顯示（`lg:static lg:translate-x-0`）。路由切換（`NavigationEnd`）時自動收合手機選單，避免導頁後選單仍蓋在內容上。頂欄/Ribbon/主內容/頁尾的水平內距改 `px-4 sm:px-6`、`p-4 sm:p-6`，窄螢幕減少留白；使用者名稱與「登出」文字在 `sm` 以下收成純 icon（`hidden sm:inline`）。
   - **13 個含 `<table>` 的頁面**（8 個列表頁 `branches/doctors/categories/periods/question-types/questions/admins/members-list` + `roster-form`、`admin-form`（權限樹）、`member-questionnaire-view`、`member-questionnaires`（2 個 table））：每個 `<table>` 外加 `<div class="overflow-x-auto">` 包裹，窄螢幕橫向捲動限制在表格自身容器內，不會撐開整頁版面或把側欄推出畫面。列表頁「標題＋新增按鈕」列與分頁頁腳列補上 `flex-wrap gap-2`，避免窄螢幕擠壓變形；5 頁籤切換列（`periods-list`/`categories-list`/`rosters-list`）加 `overflow-x-auto` 允許橫向捲動（頁籤本身用底線樣式不適合換行）。

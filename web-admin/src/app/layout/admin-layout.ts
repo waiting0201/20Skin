@@ -4,7 +4,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
 import { AdminApiService } from '../core/services/admin-api.service';
 import { MenuNode } from '../core/models';
-import { resolveMenuRoute } from '../core/menu-route-map';
+import { MenuRoute, resolveMenuRoute } from '../core/menu-route-map';
 
 /**
  * 後台版型：企業識別重現 —— 深藍左側欄（承接客戶前台品牌色，資料驅動選單）+ 頂欄 + Ribbon 麵包屑 + 內容 + 頁尾。
@@ -49,7 +49,8 @@ import { resolveMenuRoute } from '../core/menu-route-map';
                 <ul class="bg-black/15">
                   @for (child of mod.children; track child.key) {
                     <li>
-                      <a [routerLink]="route(child.key)" routerLinkActive="!text-white before:bg-white bg-white/10"
+                      <a [routerLink]="route(child.key).path" [queryParams]="route(child.key).queryParams"
+                         routerLinkActive="!text-white before:bg-white bg-white/10"
                          (click)="mobileMenuOpen.set(false)"
                          class="relative flex items-center pl-12 pr-4 py-2 text-sm text-white/60 hover:text-white
                                 before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-transparent">
@@ -124,7 +125,7 @@ export class AdminLayoutComponent {
     const url = this.currentUrl();
     for (const mod of this.menu()) {
       for (const child of mod.children) {
-        if (url.startsWith(this.route(child.key)) && this.route(child.key) !== '/coming-soon') {
+        if (this.matchesRoute(url, this.route(child.key))) {
           return `${mod.label || mod.key} / ${child.label || child.key}`;
         }
       }
@@ -147,7 +148,7 @@ export class AdminLayoutComponent {
       // 預設收起；僅展開含當前路由的模組
       const active = new Set<string>();
       for (const mod of res.data) {
-        if (mod.children.some((c) => this.currentUrl().startsWith(this.route(c.key)))) {
+        if (mod.children.some((c) => this.matchesRoute(this.currentUrl(), this.route(c.key)))) {
           active.add(mod.key);
           break;
         }
@@ -156,8 +157,21 @@ export class AdminLayoutComponent {
     });
   }
 
-  route(key: string): string {
+  route(key: string): MenuRoute {
     return resolveMenuRoute(key);
+  }
+
+  /**
+   * 判斷目前網址是否屬於某選單目標：路徑取前綴比對（含新增/編輯子頁），
+   * 若目標帶 query 參數（如時段/排班各變體）則額外要求 query 完全符合，避免多個變體共用同一 path 時互相誤判。
+   */
+  private matchesRoute(url: string, target: MenuRoute): boolean {
+    if (target.path === '/coming-soon') return false;
+    const [path, queryString] = url.split('?');
+    if (!path.startsWith(target.path)) return false;
+    if (!target.queryParams) return true;
+    const params = new URLSearchParams(queryString ?? '');
+    return Object.entries(target.queryParams).every(([k, v]) => params.get(k) === v);
   }
 
   isOpen(key: string): boolean {

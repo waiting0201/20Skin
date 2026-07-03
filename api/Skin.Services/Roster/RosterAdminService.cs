@@ -60,9 +60,15 @@ public sealed class RosterAdminService(IDbConnectionFactory db) : IRosterAdminSe
               AND (@doctorId IS NULL OR r.DoctorID = @doctorId)
             """, new { branchId, clinic, date, doctorId }, cancellationToken: ct));
 
+        // CategoryTitles 對應舊系統列表「項目」欄（entity.RosterCategorys.OrderBy(Categorys.Sort) 逗號串接），相關子查詢用 STRING_AGG。
         var items = await conn.QueryAsync<RosterListItemDto>(new CommandDefinition("""
             SELECT r.RosterID AS RosterId, r.RosterDate, r.DoctorID AS DoctorId, d.Name AS DoctorName,
-                   r.OutpatientTimeID AS OutpatientTimeId, ot.Title AS OutpatientTimeTitle, r.IsAppointment
+                   r.OutpatientTimeID AS OutpatientTimeId, ot.Title AS OutpatientTimeTitle, r.IsAppointment,
+                   ISNULL((
+                       SELECT STRING_AGG(c.Title, ',') WITHIN GROUP (ORDER BY c.Sort)
+                       FROM RosterCategorys rc JOIN Categorys c ON c.CategoryID = rc.CategoryID
+                       WHERE rc.RosterID = r.RosterID
+                   ), '') AS CategoryTitles
             FROM Rosters r
             LEFT JOIN Doctors d ON d.DoctorID = r.DoctorID
             LEFT JOIN OutpatientTimes ot ON ot.OutpatientTimeID = r.OutpatientTimeID
@@ -194,9 +200,10 @@ public sealed class RosterAdminService(IDbConnectionFactory db) : IRosterAdminSe
         try
         {
             var affected = await conn.ExecuteAsync(new CommandDefinition("""
-                UPDATE Rosters SET DoctorID = @DoctorId, OutpatientTimeID = @OutpatientTimeId, IsAppointment = @IsAppointment
+                UPDATE Rosters SET DoctorID = @DoctorId, OutpatientTimeID = @OutpatientTimeId,
+                       RosterDate = @RosterDate, IsAppointment = @IsAppointment
                 WHERE RosterID = @id
-                """, new { id, req.DoctorId, req.OutpatientTimeId, req.IsAppointment }, tx, cancellationToken: ct));
+                """, new { id, req.DoctorId, req.OutpatientTimeId, req.RosterDate, req.IsAppointment }, tx, cancellationToken: ct));
             if (affected == 0)
                 throw new BusinessException("找不到排班", "NOT_FOUND");
 

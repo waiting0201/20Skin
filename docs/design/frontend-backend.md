@@ -16,7 +16,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-03T22:00+08:00
+last_updated: 2026-07-04T01:00+08:00
 status: draft
 ---
 
@@ -33,7 +33,7 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 ### RWD（**已定案並實作 2026-07-03**）
 後台支援 RWD（響應式），取代舊系統 SmartAdmin 固定桌面版面的假設。**範圍**：登入、`AdminLayoutComponent` 側欄/頂欄、8 個列表頁 Grid、各表單頁，皆可在手機/平板寬度正常操作。**做法**：延續 Tailwind 既有慣例，用 `sm:`/`lg:` 斷點漸進調整，不引入額外 RWD 專屬框架：
 - **側欄**：`lg` 以下改為 `fixed` off-canvas 抽屜（`-translate-x-full`/`translate-x-0` 切換 + transition），頂欄加漢堡按鈕（`lg:hidden`）開關、半透明遮罩點擊收合、路由切換自動收合；`lg` 以上維持原本固定顯示（`lg:static lg:translate-x-0`）。主內容/頂欄/Ribbon/頁尾內距改 `px-4 sm:px-6`／`p-4 sm:p-6`。
-- **Grid 表格**：全部 `<table>`（8 個列表頁 + `roster-form` 容量表 + `admin-form` 權限樹 + `member-questionnaires`/`member-questionnaire-view`）外層加 `<div class="overflow-x-auto">`，橫向捲動限制在表格自身容器內，不撐開整頁版面。列表頁標題列/分頁頁腳加 `flex-wrap gap-2`；5 頁籤切換列（`periods-list`/`categories-list`/`rosters-list`）加 `overflow-x-auto`（頁籤為底線樣式不適合換行）。
+- **Grid 表格**：全部 `<table>`（8 個列表頁 + `roster-form` 容量表 + `admin-form` 權限樹 + `member-questionnaires`/`member-questionnaire-view`）外層加 `<div class="overflow-x-auto">`，橫向捲動限制在表格自身容器內，不撐開整頁版面。列表頁標題列/分頁頁腳加 `flex-wrap gap-2`。`periods-list`/`categories-list`/`rosters-list` 三頁原本各有頁籤切換列，已於 2026-07-03 全數移除（見下方「periods-list 不設頁籤」「categories-list 不設頁籤」「rosters-list 不設頁籤」），故本專案後台列表頁目前**沒有任何頁籤 UI**。
 - **表單**：延續既有 `grid-cols-1 sm:grid-cols-3`／`grid-cols-1 md:grid-cols-3` 密度慣例（見下方「篩選/操作載入狀態規範」旁的表單 grid 慣例）；本次順手修正 `category-form.ts` 唯一一處遺漏響應式前綴的 `grid-cols-3`。
 - **現況**：`ng build` 0 error，編譯後 CSS 已含全部新用到的響應式 class。**未做**：瀏覽器實機/DevTools 響應式斷點視覺驗證（本次會話無 Playwright/chrome-devtools 工具可用），見 [status.md](../status.md) Recently Done 條目。
 
@@ -68,12 +68,12 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 |---|---|---|---|
 | `basic/branches-list` | `BasicMs/Branchs.cshtml` | 排序、類型、名稱、自動編號、啟用、操作 | 類型：`BranchType===1` → 皮膚／否則 齒科；自動編號：是／否；啟用：是／不啟用 |
 | `basic/doctors-list` | `BasicMs/Doctors.cshtml` | 姓名、操作 | （無） |
-| `basic/categories-list` | `BasicMs/Skins.cshtml`／`Cosmetics.cshtml` | 排序、名稱、需填問卷、台中每次一人、二林每次一人、齒科每次一人、操作 | 需填問卷：需要／不需要；三個「每次一人」（`IsOnly`/`ChIsOnly`/`ChDentistIsOnly`）：是／不是 |
-| `basic/periods-list` | `BasicMs/TaPeriods.cshtml` 等 5 變體 | 排序、門診時段、名稱、起始號碼、容量、操作 | （無布林欄位） |
+| `basic/categories-list` | `BasicMs/Skins.cshtml`／`Cosmetics.cshtml` | 排序、標題、需填問卷、台中每次一人、二林每次一人、齒科每次一人、操作 | 需填問卷：需要／不需要；三個「每次一人」（`IsOnly`/`ChIsOnly`/`ChDentistIsOnly`）：是／不是；欄名 2026-07-03 修正「名稱」為舊系統原詞「標題」，見下方「categories-list 不設頁籤」 |
+| `basic/periods-list` | `BasicMs/TaPeriods.cshtml` 等 5 變體 | 排序、時間、時段、起始編號、人數、操作 | （無布林欄位；欄名 2026-07-03 修正為忠於舊系統用詞，原「門診時段/名稱/起始號碼/容量」為誤植改寫，見下方「periods-list 不設頁籤」） |
 | `basic/question-types-list` | `BasicMs/QuestionTypes.cshtml` | 排序、科別項目、問卷名稱（可點擊進題目頁，取代舊獨立「題目」icon 欄）、狀態、操作 | 狀態：開啟／關閉（**非**「啟用/停用」） |
 | `basic/questions-list` | `BasicMs/Questions.cshtml` | 排序、題目、題型、狀態、操作 | 狀態：開啟／關閉；題型：`OptionType===1` → 單選／否則 **複選**（舊系統原文字為「多選」，新系統統一沿用 [gotchas.md](gotchas.md) 已定案的 `OptionType` 術語「複選」，與 `question-form.ts`／客戶前台問卷用詞一致，此欄位為刻意例外不改回舊字，其餘欄位仍忠於舊系統） |
 | `authority/admins-list` | `AuthorityMs/Admins.cshtml` | 姓名、帳號、操作 | （無） |
-| `roster/rosters-list` | `ShiftMs/TaRosters.cshtml` 等 5 變體 | 醫師、日期、班別、開放指定預約、操作（舊系統另有「分院」欄，新系統以頁籤篩選取代，不需獨立欄位） | 開放指定預約：是／否 |
+| `roster/rosters-list` | `ShiftMs/TaRosters.cshtml` 等 5 變體 | 醫師、日期、項目、需預約、操作（舊系統另有「分院」欄，2026-07-03 改為每個變體是獨立頁面、標題已標示分院/診別，不需要獨立欄位） | 需預約：是／否；欄名 2026-07-03 修正——「項目」（開放科別項目標題逗號串接，取代原本誤植的「班別」欄）、「需預約」（取代原「開放指定預約」），見下方「rosters-list 不設頁籤」 |
 | `member/members-list` | `MemberMs/Members.cshtml` | 初診、分院、身分證號、手機號碼、生日、姓名、黑名單、操作（問卷/編輯/刪除 3 icon，取代舊獨立「問卷」「編輯」「刪除」3 欄） | 初診：是／否；分院：無資料顯示「尚未預約」（沿用舊字串，多筆用逐行顯示取代舊 `<br>` 拼接 HTML）；黑名單：是／不是 |
 
 - **操作欄固定最後一欄**（樣式見下）。
@@ -95,11 +95,11 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `basic/branches-list` | `w-20` `w-24` `w-auto` `w-28` `w-24` `w-20` |
 | `basic/doctors-list` | `w-auto` `w-20` |
 | `basic/categories-list` | `w-20` `w-auto` `w-28` `w-32` `w-32` `w-32` `w-20` |
-| `basic/periods-list` | `w-20` `w-32` `w-auto` `w-24` `w-20` `w-20` |
+| `basic/periods-list` | `w-20` `w-32` `w-auto` `w-24` `w-20` `w-20`（欄位依序：排序/時間/時段/起始編號/人數/操作） |
 | `basic/question-types-list` | `w-20` `w-40` `w-auto` `w-24` `w-20` |
 | `basic/questions-list` | `w-20` `w-auto` `w-24` `w-24` `w-20` |
 | `authority/admins-list` | `w-32` `w-auto` `w-20` |
-| `roster/rosters-list` | `w-32` `w-28` `w-auto` `w-32` `w-20` |
+| `roster/rosters-list` | `w-32` `w-28` `w-auto` `w-24` `w-20`（欄位依序：醫師/日期/項目/需預約/操作） |
 | `member/members-list` | `w-20` `w-32` `w-32` `w-32` `w-28` `w-auto` `w-24` `w-28`（操作欄 3 icon，比其餘頁面 2 icon 的 `w-20` 略寬） |
 
 ### 欄位對齊規範（**已定案 2026-07-03**，忠於舊系統逐欄比對，非統一規則）
@@ -113,12 +113,12 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 |---|---|
 | `basic/branches-list` | 排序C 類型C 名稱L 自動編號C 啟用C 操作C |
 | `basic/doctors-list` | 姓名L 操作C |
-| `basic/categories-list` | 排序C 名稱L 需填問卷C 台中每次一人C 二林每次一人C 齒科每次一人C 操作C |
-| `basic/periods-list` | 排序C 門診時段C 名稱L 起始號碼C 容量C 操作C |
+| `basic/categories-list` | 排序C 標題L 需填問卷C 台中每次一人C 二林每次一人C 齒科每次一人C 操作C |
+| `basic/periods-list` | 排序C 時間C 時段L 起始編號C 人數C 操作C |
 | `basic/question-types-list` | 排序C 科別項目L 問卷名稱L 狀態C 操作C |
 | `basic/questions-list` | 排序C 題目L 題型C 狀態C 操作C |
 | `authority/admins-list` | 姓名L 帳號L 操作C |
-| `roster/rosters-list` | 醫師L 日期L 班別L 開放指定預約C 操作C |
+| `roster/rosters-list` | 醫師L 日期L 項目L 需預約C 操作C |
 | `member/members-list` | 初診C 分院C 身分證號C 手機號碼C 生日C 姓名L 黑名單C 操作C |
 
 ### 操作欄規範（取代原「icon + 文字、靠右對齊」）
@@ -147,6 +147,49 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 ```
 
 **理由**：8 個列表頁操作欄原本「icon+文字」造成欄寬不一、視覺雜訊；圖示已足以傳達動作語意，統一置中亦與排序等其他欄位的置中風格一致。此決策取代所有頁面原本的「icon+文字、靠右對齊」寫法，2026-07-03 已同步套用到全部 8 個既有列表頁。
+
+### periods-list 不設頁籤 + 表單忠於舊系統（**已定案 2026-07-03**，取代前一版頁籤設計）
+
+**背景**：`periods-list.ts` 原實作把時段 5 變體（台中健保/台中美容/二林健保/二林美容/二林齒科）收在同一頁面內用頁籤切換，是本專案自行發明的 UI，**舊系統 5 個變體是各自獨立的 `.cshtml` 頁面，彼此間完全沒有切換頁籤**（只能各自從選單分別進入）。使用者要求「頁面不需要有 tab，表單要完全參照舊程式」後，改為忠於舊系統：
+
+- **移除頁籤 UI**：`periods-list.ts` 拿掉原本的 5 個頁籤切換列；`branch`/`clinic` 仍透過 query params 決定（元件維持參數化，未拆成 5 個獨立元件——舊系統雖是 5 個獨立頁面，但欄位/邏輯 100% 相同，維持單一元件符合 [old/modernization.md](../old/modernization.md) A5「參數化消除重複」原則，只是拿掉頁籤這個舊系統沒有的導覽層），變體間的切換完全交給選單（每個 Lims key 各自的選單項），不在頁面內提供切換入口。
+- **台中健保時段（`branch=ta&clinic=Skin`）隱藏「新增時段」按鈕**：忠實對應舊 `BasicMs/TaPeriods.cshtml` 第 30 行——該頁「新增台中健保時段」連結被 Razor 註解整段隱藏（`@*...*@`），其餘 4 個變體（`ChPeriods`/`TaCosmeticPeriods`/`ChCosmeticPeriods`/`ChDentistPeriods`）皆正常顯示新增連結，非全域規則。後端 `TaSkinCreate` 端點仍保留（比照舊系統 `AddTaPeriods` action 仍存在、只是沒有 UI 連結），只在前端隱藏入口。詳見 [gotchas.md](gotchas.md) §選單資料表把 path?query 烤成單一字串（同次修復發現此功能實際已完整實作，只是選單連結壞掉）。
+- **表單欄位/用詞改為完全比照舊 View**（`period-form.ts`）：
+  - 「時間」（`OutpatientTimeID` 下拉，原新系統誤標為「門診時段」）
+  - 「時段」（`Title`）**不是自由輸入文字**，舊系統是兩個 `<select>`（時 08–21、分 00/05/…/55）由前端 JS 組成 `"HH:MM"` 字串存入 `Title`（原新系統誤做成「名稱」自由文字輸入框，已修正為忠實復刻兩個下拉）
+  - 「起始編號」提示文字改為「若沒填寫，起始編號預設為 2」（忠於舊系統文案；此預設值已由 `AppointmentService.NextOutpatientNumber`（`ctx.StartNumber ?? 2`）在後端實作，原新系統前端提示文字「留空則不自動配號」與實際行為不符，已一併修正）
+  - 「人數」（`Patients`，原新系統誤標為「容量」）
+- 對應列表頁欄名（時間/時段/起始編號/人數）同步修正，見上方「欄位順序」「欄位對齊」表格。
+- `ng build` 0 error。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用）。
+
+### categories-list 不設頁籤 + 表單忠於舊系統（**已定案 2026-07-03**，取代前一版頁籤設計）
+
+**背景**：與 periods-list 同樣的問題——`categories-list.ts` 原把「皮膚主治」（`Skin`）「美容醫學」（`Cosmetic`）2 變體收在同一頁用頁籤切換，但**舊系統 `Skins.cshtml`／`Cosmetics.cshtml` 是各自獨立頁面，彼此沒有切換頁籤**。使用者要求「皮膚主治跟美容醫學不要有 tab，表單也要完全參照舊系統」後，比照 periods-list 的修法：
+
+- **移除頁籤 UI**：`categories-list.ts` 拿掉原本的 2 個頁籤切換列；`clinic` 仍透過 query params 決定（元件維持參數化，理由同 periods-list），變體切換交給選單。
+- **表單欄位/用詞/顯示邏輯改為完全比照舊 View**（`category-form.ts`，逐行比對 `AddSkins`/`EditSkins`/`AddCosmetics`/`EditCosmetics.cshtml`，4 個 View 結構完全相同，僅標題/URL 不同）：
+  - 欄名「名稱」→「**標題**」（列表頁與表單皆同步）
+  - 「簡介」原是多行 `<textarea>` 且選填，舊系統是**單行文字輸入且必填**（`TextBoxFor` + `data-bv-notempty`），已改為單行 `<input>` + `Validators.required`，後端 `CategoryAdminService.Validate` 同步加上非空檢查
+  - 「代表圖」（`Photo`）**新增時必填、編輯時選填**（已有既有圖可不換），舊系統的 `data-bv-notempty` 只出現在 `AddSkins`/`AddCosmetics`，`EditSkins`/`EditCosmetics` 沒有此限制；已於 `submit()` 依 `isEdit()` 判斷手動擋下並補上舊系統的提示文字「建議尺寸 : 411 x 298」
+  - 三個「每次一人」checkbox 標籤原寫「台中院限定」/「二林院限定」/「二林齒科限定」，改回舊系統原詞「**台中每次一人**」/「**二林每次一人**」/「**齒科每次一人**」（與列表頁欄名一致）
+  - 「需填問卷」（`IsQuestion`）**只在編輯頁顯示，新增表單完全沒有此欄位**——查證舊 `AddSkins`/`AddCosmetics` 的 `TryUpdateModel` 白名單本來就不含 `IsQuestion`（只有 `Title`/`Intro`/`IsOnly`/`ChIsOnly`/`ChDentistIsOnly`），新建項目一律 `IsQuestion=false`，只能之後在 `EditSkins`/`EditCosmetics` 開啟。前端已改為 `@if (isEdit())` 才顯示此欄位、新增時固定送 `isQuestion:false`；後端 `CategoryAdminService.CreateAsync` 同步修正為**忽略前端傳入值、一律強制寫入 `false`**（原本會照單全收，屬於初版遺漏的業務規則）。
+  - **新發現的業務規則**（`BasicMsController.EditSkins`/`EditCosmetics` 第 951–961 行）：`IsQuestion` 從 `false` 改為 `true` 時，該科別項目**必須已有至少一筆 `QuestionTypes`**，否則擋下並顯示「尚未編輯問卷」。原新系統完全沒有這條規則（後端 `UpdateAsync` 照單全收）。已在 `CategoryAdminService.UpdateAsync` 補上：先查目前 `IsQuestion` 是否為 `false`、送入值是否為 `true`，是則檢查 `COUNT(*) FROM QuestionTypes WHERE CategoryID=@id`，為 0 則拋 `BusinessException("尚未編輯問卷", "QUESTION_NOT_EDITED")`。
+- `dotnet build`（0 warning）與 `ng build`（0 error）皆通過。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用），建議下次驗證「新增皮膚主治不填代表圖擋下」「編輯時 IsQuestion 開啟但無 QuestionTypes 擋下尚未編輯問卷」兩個新增的業務規則。
+
+### rosters-list 不設頁籤 + 表單忠於舊系統（**已定案 2026-07-03**，取代前一版頁籤設計）
+
+**背景**：使用者接著指出「門診管理裡都有同樣的問題」，`rosters-list.ts`/`roster-form.ts` 確實與 periods/categories 同一類問題，且排班表單本身還多出 3 處欄位/邏輯落差（逐行比對 `TaRosters`/`AddTaRosters`/`EditTaRosters.cshtml`，5 變體 254/233/184 行完全一致，僅標題/URL 不同）：
+
+- **移除頁籤 UI**：`rosters-list.ts` 拿掉原本的 5 個頁籤切換列（舊系統 5 變體是各自獨立頁面）；`branch`/`clinic` 仍走 query params，變體切換交給選單；篩選欄「日期」改回舊系統用詞「**門診日期**」。
+- **列表「項目」欄取代「班別」欄**：舊 `TaRosters.cshtml` 的欄位是分院/醫師/日期/**項目**（`RosterCategorys` 依 `Categorys.Sort` 排序後的標題逗號串接）/需預約/編輯/刪除，**完全沒有「班別」欄**；初版新系統誤植成顯示 `OutpatientTimeTitle`（班別），漏掉了「項目」這個舊系統實際呈現的欄位。已修正：後端 `RosterListItemDto` 新增 `CategoryTitles`（`RosterAdminService.ListAsync` 用 `STRING_AGG(...) WITHIN GROUP (ORDER BY c.Sort)` 子查詢取得），前端欄名「項目」/「需預約」（原「開放指定預約」）。
+- **表單欄位/邏輯改為完全比照舊 View**（`roster-form.ts`）：
+  - 「需預約」（`IsAppointment`）**只在有選醫師時顯示**，清空醫師會自動取消勾選——查證舊 `AddTaRosters`/`EditTaRosters.cshtml` 的 `$("#DoctorID").change` 行為：`divAppointments` 預設 `hide`，選了醫師才 `removeClass('hide')`，清空醫師則強制 `$("#IsAppointment").prop("checked", false)` 並重新隱藏。初版新系統該 checkbox 不論是否選醫師都常駐顯示，已修正為 `@if (form.controls.doctorId.value)` + `onDoctorChange()` 重置。
+  - 「門診日期」（`RosterDate`）**新增與編輯皆可填寫**——查證舊 `EditTaRosters` POST 的 `TryUpdateModel` 白名單明確包含 `"RosterDate"`，並非不可改；初版新系統誤判為「編輯僅含單一天、不含 RosterDate」，把日期欄整個藏在 `@if (!isEdit())` 底下。已修正：`RosterUpdateRequest` 補上 `RosterDate` 欄位（`RosterAdminService.UpdateAsync` 一併 `UPDATE Rosters SET RosterDate=...`），表單日期欄兩種模式皆顯示。舊系統編輯時對新日期**不會**重新檢查衝突（純欄位覆寫），新系統維持同樣寬鬆行為，不額外加驗證。
+  - 「起始號碼」欄改為**唯讀顯示**（純文字，非 `<input>`）——查證舊系統該值一律是 `<input type="hidden">`，直接複製自 `Periods.StartNumber` 模板值，**未提供任何編輯介面**；初版新系統誤做成可編輯的數字輸入框。修正後只有「人數」（`Patients`）可編輯，欄名「開放科別項目」→「**項目**」、「容量」→「**人數**」對齊舊系統用詞。
+  - 分院欄位（`BranchID`）維持不在表單顯示（舊系統雖有一個停用的 `<select>` + JS 在送出前才重新啟用的技巧性寫法，純屬 ASP.NET MVC disabled-select 不會 POST 值的技術繞道，無實質使用者互動價值，新系統以 query params 隱含帶入分院，不新增無意義的停用下拉）。
+  - **「班別」（`OutpatientTimeID`）欄位整個移除**（追加修正，使用者回饋「門診表單要參照舊系統」後再次逐行核對發現）：查證 `AddTaRosters`/`EditTaRosters.cshtml` 第 107–113 行，該下拉整段被 Razor 註解包住（`@*<div class="form-group">...OutpatientTimeID...</div>*@`），**從未實際渲染過**，屬死碼；`Rosters.OutpatientTimeID` 因此在真實資料中一律維持建立時的預設值不變，且新系統 `BookingService` 真正拿時段時間是 join `Periods.OutpatientTimeID`（透過 `Periods`→`OutpatientTimes`），**與 `Rosters.OutpatientTimeID` 完全無關**，故拿掉此欄位不影響客戶預約流程。初版誤將此死碼欄位做成可互動下拉。已移除 UI（`<select>` 連同 `outpatientTimes` 下拉資料一併移除，改為不必要的 API 呼叫也一併拿掉），表單 `outpatientTimeId` 欄位保留但不渲染：新增固定送 `null`（比照舊系統新建一律未設定），編輯原樣回傳既有值不覆寫（比照舊系統白名單含此欄位、但表單從未提交對應輸入時 model binder 不會清空既有值的行為）。
+  - **「重複」用詞與順序改回舊系統**：舊 `<select id="Repeat">` 選項依序是「每天」(1)／「每周」(2)／「永不」(3)；初版新系統用 3 個 radio 且文字/順序皆不同（「不重複」／「每日」／「每週」）。已改為單選鈕文字「每天」/「每周」/「永不」、順序與舊系統一致（僅內部數值仍用 0/1/2，屬實作細節不影響行為）；「截止日」欄名改回舊系統 placeholder「**重複結束日期**」。
+- `dotnet build`（0 warning）與 `ng build`（0 error）皆通過。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用），建議下次驗證「清空醫師『需預約』自動取消勾選」「編輯排班改門診日期成功寫回」「編輯既有排班的班別欄位值維持不變」三個修正後的行為。
 
 ### 分頁規範（**已定案 2026-07-03**，忠於舊系統 `IPagedList` + `Html.PagedListPager`）
 

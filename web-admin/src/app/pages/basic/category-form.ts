@@ -1,13 +1,19 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { BasicDataApiService } from '../../core/services/basic-data-api.service';
+import { BasicDataApiService, categoryLabel } from '../../core/services/basic-data-api.service';
 import { BasicUploadService } from '../../core/services/basic-upload.service';
 import { CategoryUpsertRequest } from '../../core/models';
 
 /**
  * 後台基礎資料 — 新增/編輯科別項目（對應舊 BasicMs/Add·EditSkins、Cosmetics）。
  * clinic 由 query params 帶入，編輯時不可改。
+ * 表單欄位/用詞/顯示邏輯完全比照舊 View：
+ * - 「需填問卷」（IsQuestion）**只在編輯頁顯示**，新增表單沒有此欄位（舊 AddSkins/AddCosmetics 的
+ *   TryUpdateModel 白名單本來就不含 IsQuestion，新建項目一律 IsQuestion=false，只能之後在編輯頁開啟，
+ *   且後端會檢查該項目是否已有 QuestionTypes，沒有則擋下「尚未編輯問卷」）。
+ * - 「代表圖」新增時必填、編輯時選填（已有既有圖）。
+ * - 「簡介」為必填單行文字（舊系統是 `TextBoxFor`，不是多行 textarea）。
  */
 @Component({
   selector: 'app-category-form',
@@ -16,7 +22,7 @@ import { CategoryUpsertRequest } from '../../core/models';
     <div class="bg-white rounded shadow-sm border border-hairline max-w-2xl">
       <div class="px-5 py-3 border-b border-hairline">
         <h1 class="text-base font-semibold text-ink">
-          <i class="fa fa-stethoscope text-muted mr-2"></i>{{ isEdit() ? '編輯項目' : '新增項目' }}
+          <i class="fa fa-stethoscope text-muted mr-2"></i>{{ isEdit() ? '編輯' : '新增' }}{{ pageLabel }}
         </h1>
       </div>
 
@@ -26,39 +32,42 @@ import { CategoryUpsertRequest } from '../../core/models';
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-ink mb-1">名稱 <span class="text-red-400">*</span></label>
-          <input formControlName="title"
-                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink mb-1">簡介</label>
-          <textarea formControlName="intro" rows="3"
-                    class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"></textarea>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink mb-1">圖片</label>
+          <label class="block text-sm font-medium text-ink mb-1">代表圖 <span class="text-red-400">*</span></label>
           @if (photoUrl(); as url) {
             <img [src]="url" class="w-24 h-24 object-cover rounded mb-2" />
           }
           <input type="file" accept="image/*" (change)="onFileSelected($event)" />
           @if (uploading()) { <span class="text-xs text-muted ml-2">上傳中…</span> }
+          <p class="text-xs text-muted mt-1">建議尺寸 : 411 x 298</p>
         </div>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="isQuestion" formControlName="isQuestion" />
-          <label for="isQuestion" class="text-sm text-ink">預約前需填問卷（IsQuestion）</label>
+        <div>
+          <label class="block text-sm font-medium text-ink mb-1">標題 <span class="text-red-400">*</span></label>
+          <input formControlName="title"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
+        <div>
+          <label class="block text-sm font-medium text-ink mb-1">簡介 <span class="text-red-400">*</span></label>
+          <input formControlName="intro"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        </div>
+        @if (isEdit()) {
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="isQuestion" formControlName="isQuestion" />
+            <label for="isQuestion" class="text-sm text-ink">需填問卷</label>
+          </div>
+        }
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="flex items-center gap-2">
             <input type="checkbox" id="isOnly" formControlName="isOnly" />
-            <label for="isOnly" class="text-sm text-ink">台中院限定</label>
+            <label for="isOnly" class="text-sm text-ink">台中每次一人</label>
           </div>
           <div class="flex items-center gap-2">
             <input type="checkbox" id="chIsOnly" formControlName="chIsOnly" />
-            <label for="chIsOnly" class="text-sm text-ink">二林院限定</label>
+            <label for="chIsOnly" class="text-sm text-ink">二林每次一人</label>
           </div>
           <div class="flex items-center gap-2">
             <input type="checkbox" id="chDentistIsOnly" formControlName="chDentistIsOnly" />
-            <label for="chDentistIsOnly" class="text-sm text-ink">二林齒科限定</label>
+            <label for="chDentistIsOnly" class="text-sm text-ink">齒科每次一人</label>
           </div>
         </div>
 
@@ -83,6 +92,7 @@ export class CategoryFormComponent {
 
   private readonly categoryId = this.route.snapshot.paramMap.get('id');
   readonly clinic = this.route.snapshot.queryParamMap.get('clinic') ?? 'Skin';
+  readonly pageLabel = categoryLabel(this.clinic);
   readonly isEdit = signal(!!this.categoryId);
   readonly saving = signal(false);
   readonly uploading = signal(false);
@@ -91,7 +101,7 @@ export class CategoryFormComponent {
 
   readonly form = this.fb.nonNullable.group({
     title: ['', Validators.required],
-    intro: [''],
+    intro: ['', Validators.required],
     isQuestion: [false],
     isOnly: [false],
     chIsOnly: [false],
@@ -143,12 +153,18 @@ export class CategoryFormComponent {
       this.form.markAllAsTouched();
       return;
     }
+    // 新增時代表圖必填（舊 AddSkins/AddCosmetics 的 data-bv-notempty）；編輯時已有既有圖，可不換。
+    if (!this.isEdit() && !this.photoFilename()) {
+      this.error.set('請選擇圖');
+      return;
+    }
     const raw = this.form.getRawValue();
     const req: CategoryUpsertRequest = {
       title: raw.title.trim(),
-      intro: raw.intro.trim() || null,
+      intro: raw.intro.trim(),
       photo: this.photoFilename(),
-      isQuestion: raw.isQuestion,
+      // 新增時 IsQuestion 一律 false（舊 AddSkins/AddCosmetics 沒有此欄位，後端也會強制忽略）。
+      isQuestion: this.isEdit() ? raw.isQuestion : false,
       isOnly: raw.isOnly,
       chIsOnly: raw.chIsOnly,
       chDentistIsOnly: raw.chDentistIsOnly,

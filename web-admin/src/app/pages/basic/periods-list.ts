@@ -1,21 +1,14 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BasicDataApiService, periodResourceKey } from '../../core/services/basic-data-api.service';
+import { BasicDataApiService, periodLabel, periodResourceKey } from '../../core/services/basic-data-api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PeriodAdmin } from '../../core/models';
 
-/** 5 個舊變體切換頁籤（對應 Lims TaPeriods/TaCosmeticPeriods/ChPeriods/ChCosmeticPeriods/ChDentistPeriods）。 */
-const TABS = [
-  { branch: 'ta', clinic: 'Skin', label: '台中．健保' },
-  { branch: 'ta', clinic: 'Cosmetic', label: '台中．美容' },
-  { branch: 'ch', clinic: 'Skin', label: '二林．健保' },
-  { branch: 'ch', clinic: 'Cosmetic', label: '二林．美容' },
-  { branch: 'chDentist', clinic: 'Dentist', label: '二林．齒科' },
-];
-
 /**
  * 後台基礎資料 — 時段列表（對應舊 BasicMs/Ta·Ch·ChDentist·CosmeticPeriods，clinic 參數化收斂為單一元件）。
+ * 舊系統 5 個變體是各自獨立頁面、彼此間沒有切換頁籤（只能透過選單分別進入），故本頁不內建頁籤 UI，
+ * branch/clinic 完全由選單連結的 query params 決定（見 core/menu-route-map.ts）。
  * 排序沿用舊做法：每列數字輸入框 + 整批「儲存排序」（見 docs/blueprints/admin-basic-data.md）。
  */
 @Component({
@@ -24,24 +17,11 @@ const TABS = [
   template: `
     <div class="bg-white rounded shadow-sm border border-hairline">
       <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-hairline">
-        <h1 class="text-base font-semibold text-ink"><i class="fa fa-clock-o text-muted mr-2"></i>時段</h1>
-        @if (auth.can(resourceKey(), 'add')) {
+        <h1 class="text-base font-semibold text-ink"><i class="fa fa-clock-o text-muted mr-2"></i>{{ pageLabel() }}</h1>
+        @if (!isTaSkin() && auth.can(resourceKey(), 'add')) {
           <a [routerLink]="['/basic/periods/new']" [queryParams]="{ branch: branch(), clinic: clinic() }"
              class="inline-flex items-center gap-1.5 bg-brand text-white text-sm rounded px-3 py-1.5 hover:bg-brand-deep">
-            <i class="fa fa-plus"></i> 新增時段
-          </a>
-        }
-      </div>
-
-      <div class="flex gap-1 px-5 pt-3 border-b border-hairline overflow-x-auto">
-        @for (tab of tabs; track tab.branch + tab.clinic) {
-          <a [routerLink]="['/basic/periods']" [queryParams]="{ branch: tab.branch, clinic: tab.clinic }"
-             class="px-3 py-1.5 text-sm rounded-t border-b-2"
-             [class.border-brand]="tab.branch === branch() && tab.clinic === clinic()"
-             [class.text-brand]="tab.branch === branch() && tab.clinic === clinic()"
-             [class.border-transparent]="!(tab.branch === branch() && tab.clinic === clinic())"
-             [class.text-muted]="!(tab.branch === branch() && tab.clinic === clinic())">
-            {{ tab.label }}
+            <i class="fa fa-plus"></i> 新增{{ pageLabel() }}
           </a>
         }
       </div>
@@ -55,10 +35,10 @@ const TABS = [
         <thead>
           <tr class="text-left text-muted border-b border-hairline bg-surface">
             <th class="px-5 py-2.5 font-medium text-center w-20">排序</th>
-            <th class="px-5 py-2.5 font-medium text-center w-32">門診時段</th>
-            <th class="px-5 py-2.5 font-medium w-auto">名稱</th>
-            <th class="px-5 py-2.5 font-medium text-center w-24">起始號碼</th>
-            <th class="px-5 py-2.5 font-medium text-center w-20">容量</th>
+            <th class="px-5 py-2.5 font-medium text-center w-32">時間</th>
+            <th class="px-5 py-2.5 font-medium w-auto">時段</th>
+            <th class="px-5 py-2.5 font-medium text-center w-24">起始編號</th>
+            <th class="px-5 py-2.5 font-medium text-center w-20">人數</th>
             <th class="px-5 py-2.5 font-medium text-center w-20">操作</th>
           </tr>
         </thead>
@@ -109,11 +89,13 @@ export class PeriodsListComponent {
   private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthService);
 
-  readonly tabs = TABS;
   private readonly queryParams = toSignal(this.route.queryParamMap);
   readonly branch = computed(() => this.queryParams()?.get('branch') ?? 'ta');
   readonly clinic = computed(() => this.queryParams()?.get('clinic') ?? 'Skin');
   readonly resourceKey = computed(() => periodResourceKey(this.branch(), this.clinic()));
+  readonly pageLabel = computed(() => periodLabel(this.branch(), this.clinic()));
+  /** 舊系統 TaPeriods.cshtml 的「新增」連結被註解隱藏（見 docs/gotchas.md），沿用此行為。 */
+  readonly isTaSkin = computed(() => this.branch() === 'ta' && this.clinic() === 'Skin');
 
   readonly periods = signal<PeriodAdmin[]>([]);
   readonly sorts = signal<Record<string, number>>({});
@@ -122,7 +104,7 @@ export class PeriodsListComponent {
   readonly error = signal<string | null>(null);
 
   constructor() {
-    // branch()/clinic() 隨頁籤切換（同元件不同 query params）而變，effect 自動重新載入。
+    // branch()/clinic() 隨選單導頁（同元件不同 query params）而變，effect 自動重新載入。
     effect(() => {
       this.branch();
       this.clinic();

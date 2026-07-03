@@ -13,7 +13,7 @@ related_docs:
   - ../design/database-design.md
   - questionnaire.md
 keywords: [admin, basic-data, master-data, branch, doctor, period, category, question, crud]
-last_updated: 2026-07-03
+last_updated: 2026-07-04T00:10+08:00
 ---
 
 ## 背景與動機
@@ -39,6 +39,8 @@ last_updated: 2026-07-03
 - **刪除前置檢查**：改為正確的 `COUNT(...)==0` 引用檢查（修正舊系統死碼 bug：`if (entity.Rosters==null)` 因 EF6 lazy-loading 集合永不為 null 而完全失效）。真實 DB 已查證 CASCADE 鏈：`Branchs→Periods`、`Periods→RosterPeriods`、`Categorys→QuestionTypes`/`RosterCategorys`、`QuestionTypes→Questions`、`Questions→QuestionAnswers`/`MemberQuestions` 皆為 `CASCADE`；`Appointments`/`Rosters` 對 `Branchs`/`Doctors`/`Categorys`/`Periods` 皆為 `NO_ACTION`（DB 會擋，但仍需應用層給出明確訊息，不能只靠 DB 丟例外）。Category 刪除需檢查 **QuestionTypes 全表 COUNT（含已軟刪 IsEnabled=false 的列）**，因為 QuestionTypes 從不硬刪，任何殘留列都代表 CASCADE 會波及到 Questions/QuestionAnswers/MemberQuestions（含會員歷史問卷記錄）。
 - **問卷選項（QuestionAnswers）編輯**：純沿用舊系統行為——比對新舊 answerID 做增/改/**硬刪**，不查 `MemberQuestionAnswers` 引用（該表對 QuestionAnswers 無 FK 保護，已知孤兒資料風險，使用者已拍板接受以維持舊行為相容性）。
 - **列表頁分頁（2026-07-03 追加）**：分院、科別項目兩個列表補回分頁（舊 `Branchs.cshtml`/`Skins.cshtml`/`Cosmetics.cshtml` 皆為 `ToPagedList(pageSize: 20)`，先前重寫時遺漏）；醫師/時段/問卷類型/問卷題目列表維持不分頁（對應舊 View 本來就沒有分頁）。詳細規範見 [design/frontend-backend.md](../design/frontend-backend.md) §分頁規範。因科別項目在排班表單/問卷類型表單的下拉還需要「全部清單」，另外加了不分頁的 `GET admin/categories/{clinic}/all` 端點供這些表單改呼叫，避免誤用分頁端點只拿到第一頁。
+- **時段頁面改為忠於舊系統，取代前一版頁籤設計（2026-07-03 追加）**：初版 `periods-list.ts` 把 5 變體收在同一頁用頁籤切換，是本專案自創、舊系統沒有的 UI（舊系統 5 變體是各自獨立的 `.cshtml` 頁面，彼此不能互相切換，只能各自從選單進入）。使用者要求「頁面不需要有 tab，表單要完全參照舊程式」後已改正：① 移除頁籤 UI（Service/元件仍維持參數化，只是拿掉頁籤這層多餘導覽，變體切換交給選單）；② 忠實還原表單欄位——「時段」（`Title`）在舊系統是 HH(08–21)/MM(00,05,…,55) 兩個下拉由前端 JS 組成 `"HH:MM"`，不是自由文字輸入（初版誤做成「名稱」文字框）；欄位標籤改回舊系統用詞「時間」（`OutpatientTimeID`）/「時段」（`Title`）/「起始編號」/「人數」（初版誤用「門診時段」/「名稱」/「起始號碼」/「容量」）；③ 台中健保時段（`TaPeriods`）比照舊 `TaPeriods.cshtml` 隱藏「新增時段」按鈕（該連結在舊 View 被 Razor 註解整段隱藏，其餘 4 變體正常顯示），僅前端隱藏入口，後端 `TaSkinCreate` 端點不變。詳見 [design/frontend-backend.md](../design/frontend-backend.md) §periods-list 不設頁籤。
+- **科別項目頁面比照同樣修正（2026-07-03 追加）**：使用者接著要求「皮膚主治跟美容醫學不要有 tab，表單也要完全參照舊系統」，`categories-list.ts`/`category-form.ts` 有一樣的頁籤問題與表單欄位落差，修法同上：① 移除頁籤；② 欄名「名稱」改回舊系統「標題」；「簡介」改為單行必填（原多行選填 textarea）；三個「每次一人」checkbox 標籤改回「台中每次一人」/「二林每次一人」/「齒科每次一人」（原「台中院限定」等自創詞）；「代表圖」新增時必填、編輯時選填（比照舊 `AddSkins`/`EditSkins` 的 `data-bv-notempty` 差異）。③ **新發現業務規則**：「需填問卷」（`IsQuestion`）在舊系統**只出現在編輯頁**，新增表單完全沒有此欄位（`AddSkins`/`AddCosmetics` 的 `TryUpdateModel` 白名單不含 `IsQuestion`，新建一律 `false`）；且從 `false` 改為 `true` 時，舊 `EditSkins`/`EditCosmetics`（第 951–961 行）要求該項目**必須已有至少一筆 `QuestionTypes`**，否則擋下「尚未編輯問卷」——這條規則原新系統完全沒有實作（`CategoryAdminService.CreateAsync`/`UpdateAsync` 原本照單全收前端傳入的 `IsQuestion`），已補上：`CreateAsync` 忽略前端值強制寫 `false`，`UpdateAsync` 在 `false→true` 時查 `QuestionTypes` 是否存在。詳見 [design/frontend-backend.md](../design/frontend-backend.md) §categories-list 不設頁籤。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |

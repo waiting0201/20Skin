@@ -1,12 +1,18 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { BasicDataApiService } from '../../core/services/basic-data-api.service';
+import { BasicDataApiService, periodLabel } from '../../core/services/basic-data-api.service';
 import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
+
+/** 舊系統時段表單「時段」欄位是 HH:MM 兩個下拉（非自由輸入文字），見 BasicMs/AddTaPeriods.cshtml。 */
+const HOURS = Array.from({ length: 14 }, (_, i) => String(i + 8).padStart(2, '0')); // 08–21
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')); // 00–55，step 5
 
 /**
  * 後台基礎資料 — 新增/編輯時段（對應舊 BasicMs/Add·EditTa·Ch·ChDentist·CosmeticPeriods）。
  * branch/clinic 由 query params 帶入（決定呼叫哪組後端變體 proxy），編輯時不可改。
+ * 表單欄位/用詞完全比照舊 View：時間（OutpatientTimeID 下拉）、時段（HH:MM 兩個下拉組成）、
+ * 起始編號（選填，留空預設 2，見 AppointmentService.NextOutpatientNumber）、人數（必填）。
  */
 @Component({
   selector: 'app-period-form',
@@ -15,7 +21,7 @@ import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
     <div class="bg-white rounded shadow-sm border border-hairline max-w-lg">
       <div class="px-5 py-3 border-b border-hairline">
         <h1 class="text-base font-semibold text-ink">
-          <i class="fa fa-clock-o text-muted mr-2"></i>{{ isEdit() ? '編輯時段' : '新增時段' }}
+          <i class="fa fa-clock-o text-muted mr-2"></i>{{ isEdit() ? '編輯' : '新增' }}{{ pageLabel }}
         </h1>
       </div>
 
@@ -25,12 +31,7 @@ import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-ink mb-1">名稱 <span class="text-red-400">*</span></label>
-          <input formControlName="title"
-                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-ink mb-1">門診時段 <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-ink mb-1">時間 <span class="text-red-400">*</span></label>
           <select formControlName="outpatientTimeId"
                   class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
             @for (o of outpatientTimes(); track o.outpatientTimeId) {
@@ -39,12 +40,27 @@ import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-ink mb-1">起始號碼（留空則不自動配號）</label>
-          <input type="number" formControlName="startNumber"
-                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+          <label class="block text-sm font-medium text-ink mb-1">時段 <span class="text-red-400">*</span></label>
+          <div class="flex items-center gap-2">
+            <select [value]="hour()" (change)="setHour($any($event.target).value)"
+                    class="border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
+              @for (h of hours; track h) { <option [value]="h">{{ h }}</option> }
+            </select>
+            <span class="text-muted">:</span>
+            <select [value]="minute()" (change)="setMinute($any($event.target).value)"
+                    class="border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
+              @for (m of minutes; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-ink mb-1">容量 <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-ink mb-1">起始編號</label>
+          <input type="number" formControlName="startNumber"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+          <p class="text-xs text-muted mt-1">若沒填寫，起始編號預設為 2</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-ink mb-1">人數 <span class="text-red-400">*</span></label>
           <input type="number" formControlName="patients"
                  class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
@@ -70,13 +86,19 @@ export class PeriodFormComponent {
   private readonly periodId = this.route.snapshot.paramMap.get('id');
   readonly branch = this.route.snapshot.queryParamMap.get('branch') ?? 'ta';
   readonly clinic = this.route.snapshot.queryParamMap.get('clinic') ?? 'Skin';
+  readonly pageLabel = periodLabel(this.branch, this.clinic);
   readonly isEdit = signal(!!this.periodId);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly outpatientTimes = signal<OutpatientTime[]>([]);
 
+  readonly hours = HOURS;
+  readonly minutes = MINUTES;
+  readonly hour = signal('08');
+  readonly minute = signal('00');
+
   readonly form = this.fb.nonNullable.group({
-    title: ['', Validators.required],
+    title: ['08:00', Validators.required],
     outpatientTimeId: [1, Validators.required],
     startNumber: [null as number | null],
     patients: [0, Validators.required],
@@ -89,11 +111,28 @@ export class PeriodFormComponent {
     if (this.periodId) this.loadEdit(this.periodId);
   }
 
+  setHour(value: string): void {
+    this.hour.set(value);
+    this.syncTitle();
+  }
+
+  setMinute(value: string): void {
+    this.minute.set(value);
+    this.syncTitle();
+  }
+
+  private syncTitle(): void {
+    this.form.patchValue({ title: `${this.hour()}:${this.minute()}` });
+  }
+
   private loadEdit(id: string): void {
     this.api.listPeriods(this.branch, this.clinic).subscribe({
       next: (res) => {
         const p = res.success ? res.data?.find((x) => x.periodId === id) : undefined;
         if (p) {
+          const [h, m] = p.title.split(':');
+          this.hour.set(h ?? '08');
+          this.minute.set(m ?? '00');
           this.form.patchValue({
             title: p.title,
             outpatientTimeId: p.outpatientTimeId,

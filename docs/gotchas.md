@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-03
+last_updated: 2026-07-03T23:30+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -76,6 +76,12 @@ last_updated: 2026-07-03
 - **症狀**：`appointment-form` 的預約人數/日期 `<input [ngModel]="...">` 包在 `<form>` 內、且無 `name` 也無 `[ngModelOptions]="{standalone:true}"` → 執行時瀏覽器丟 `NG01352`，**日期輸入失效 → 無法載入時段 → 無法預約**。`ng build` 不會報錯（僅執行期才炸），故只有實際跑起前端才會發現。
 - **修法**：所有 `<form>` 內的 `[ngModel]` 一律加 `[ngModelOptions]="{ standalone: true }"`（本專案表單狀態走 signals，不需 Angular form control 註冊）。
 - **預防**：新頁面若在 `<form>` 內用 `[ngModel]`，務必加 `standalone`；**每個前端頁面至少用瀏覽器（Playwright headless）跑過一次**，別只信 `ng build`。可用 scratchpad 的 Playwright E2E（登入→分院→診別→項目→日期/時段/指定醫師→送出→查詢/詳情→JoinUs 城市區連動）當回歸。
+
+### 選單資料表把 `path?query` 烤成單一字串餵給 `[routerLink]` → 點擊沒反應（已修 2026-07-03）
+- **症狀**：後台左側選單點擊「台中健保時段」（及所有帶 query 參數的變體項目：時段 5 變體、排班 5 變體、科別項目 2 變體）完全沒反應，畫面不會導頁，也沒有任何錯誤訊息。使用者回報為「新系統還沒做此功能」，但實際上後端 API、前端頁面、選單資料全部都已存在且已 commit——問題出在選單本身的連結壞了，跟功能有沒有做無關。
+- **原因**：`menu-route-map.ts` 的 `LIMS_ROUTE_MAP` 原本把路徑與 query 參數烤進同一個字串，例如 `TaPeriods: '/basic/periods?branch=ta&clinic=Skin'`，直接整串餵給 `<a [routerLink]="route(child.key)">`。Angular `RouterLink` 收到**純字串**時，只會用 `/` 切割成路徑片段（`computeNavigation`），完全不解析 `?`——`periods?branch=ta&clinic=Skin` 被當成單一路徑片段去匹配路由樹，永遠匹配不到任何已定義路由，最終落到 `{ path: '**', redirectTo: '' }` 靜默重導回首頁；若使用者本來就在首頁點擊，畫面看起來就是「完全沒反應」。沒有靜態編譯錯誤、`ng build` 也測不出來，因為這是 runtime 才會發生的路由匹配問題。
+- **修法**：`LIMS_ROUTE_MAP` 值改成 `{ path, queryParams? }` 結構（`MenuRoute` 型別），路徑與 query 參數分開存放；模板同時綁定 `[routerLink]="route(key).path"` 與 `[queryParams]="route(key).queryParams"`（比照 `periods-list.ts` 內部頁籤切換原本就採用的正確寫法）。`admin-layout.ts` 判斷「目前網址屬於哪個選單項」的邏輯（breadcrumb、自動展開所屬模組）一併改為手動切開 `url.split('?')` 比對路徑前綴 + query 參數子集，取代原本對整串字串 `startsWith` 的脆弱比對。
+- **預防**：**任何要餵給 `[routerLink]` 的動態路由字串，若包含 query 參數，一律拆成 `{ path, queryParams }` 兩份資料**，不可以拼字串方式組出 `path?a=1&b=2` 再整包丟給 `[routerLink]`（陣列語法 `[routerLink]="['/a','b']"` 同樣不會解析內含 `?` 的片段，問題一樣存在）。這類 bug 因為不影響型別檢查、也不影響直接用網址列輸入 URL 或頁面內部產生的正確 `[routerLink]+[queryParams]` 組合連結（如本案例 `periods-list.ts` 分頁籤本身可正常切換），只有「透過壞掉的選單連結進入」才會發現，排查時容易被誤判成「功能沒做」而非「連結壞了」——先查連結的 `routerLink` 是否為純字串且含 `?`，再懷疑功能本身。
 
 ### 動態選項 `<select [value]="signal()">` 首次渲染即帶入既有值 → 值套用失敗且永不自我修正（已修 2026-07-03）
 - **症狀**：`member-form`（後台會員編輯頁）城市/區下拉在編輯既有會員時顯示空白（「請選擇縣市」placeholder），即使 API 回傳的 `city`/`zipcodeId` 正確、且下游 `areas()` computed 也證實訊號值正確（區下拉選項數量符合該城市的鄉鎮數）——問題只在 `<select>` 元素本身「看起來沒選中任何值」，且**放著等幾秒也不會自己修正**（並非 race condition，而是決定性的渲染順序問題）。

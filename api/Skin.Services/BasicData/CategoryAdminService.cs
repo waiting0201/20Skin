@@ -23,6 +23,8 @@ public sealed class CategoryAdminService(IDbConnectionFactory db) : ICategoryAdm
             throw new BusinessException("項目名稱不可空白", "INVALID_TITLE");
         if (req.Title.Trim().Length > TitleMaxLength)
             throw new BusinessException($"項目名稱不可超過 {TitleMaxLength} 字", "TITLE_TOO_LONG");
+        if (string.IsNullOrWhiteSpace(req.Intro))
+            throw new BusinessException("簡介不可空白", "INVALID_INTRO");
         if ((req.Intro?.Length ?? 0) > IntroMaxLength)
             throw new BusinessException($"簡介不可超過 {IntroMaxLength} 字", "INTRO_TOO_LONG");
         if ((req.Photo?.Length ?? 0) > PhotoMaxLength)
@@ -70,13 +72,15 @@ public sealed class CategoryAdminService(IDbConnectionFactory db) : ICategoryAdm
         var nextSort = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             "SELECT ISNULL(MAX(Sort), 0) + 1 FROM Categorys WHERE Clinic = @clinic",
             new { clinic }, cancellationToken: ct));
+        // IsQuestion 一律強制 false：舊系統 AddSkins/AddCosmetics 的 TryUpdateModel 白名單本來就不含 IsQuestion，
+        // 新增時無從勾選，只能之後在 EditSkins/EditCosmetics 開啟（且需先有 QuestionTypes，見 UpdateAsync）。
         await conn.ExecuteAsync(new CommandDefinition("""
             INSERT INTO Categorys (CategoryID, Clinic, Title, Intro, Photo, IsQuestion, IsOnly, ChIsOnly, ChDentistIsOnly, Sort)
-            VALUES (@id, @clinic, @Title, @Intro, @Photo, @IsQuestion, @IsOnly, @ChIsOnly, @ChDentistIsOnly, @nextSort)
+            VALUES (@id, @clinic, @Title, @Intro, @Photo, 0, @IsOnly, @ChIsOnly, @ChDentistIsOnly, @nextSort)
             """, new
         {
             id, clinic, req.Title, req.Intro, Photo = req.Photo ?? "",
-            req.IsQuestion, req.IsOnly, req.ChIsOnly, req.ChDentistIsOnly, nextSort,
+            req.IsOnly, req.ChIsOnly, req.ChDentistIsOnly, nextSort,
         }, cancellationToken: ct));
         return id;
     }
@@ -86,6 +90,21 @@ public sealed class CategoryAdminService(IDbConnectionFactory db) : ICategoryAdm
         Validate(req);
 
         using var conn = db.Create();
+        // 舊系統 EditSkins/EditCosmetics 規則：IsQuestion 從 false 改為 true 時，該科別項目必須已有至少一筆
+        // QuestionTypes，否則擋下並回「尚未編輯問卷」（見 BasicMsController.EditSkins/EditCosmetics）。
+        if (req.IsQuestion)
+        {
+            var current = await conn.ExecuteScalarAsync<bool?>(new CommandDefinition(
+                "SELECT IsQuestion FROM Categorys WHERE CategoryID = @id", new { id }, cancellationToken: ct));
+            if (current is false)
+            {
+                var hasQuestionType = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                    "SELECT COUNT(*) FROM QuestionTypes WHERE CategoryID = @id", new { id }, cancellationToken: ct));
+                if (hasQuestionType == 0)
+                    throw new BusinessException("尚未編輯問卷", "QUESTION_NOT_EDITED");
+            }
+        }
+
         var affected = await conn.ExecuteAsync(new CommandDefinition("""
             UPDATE Categorys
             SET Title = @Title, Intro = @Intro, Photo = @Photo,

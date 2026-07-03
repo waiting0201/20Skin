@@ -1,17 +1,14 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BasicDataApiService, categoryResourceKey } from '../../core/services/basic-data-api.service';
+import { BasicDataApiService, categoryLabel, categoryResourceKey } from '../../core/services/basic-data-api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { CategoryAdmin } from '../../core/models';
 
-const TABS = [
-  { clinic: 'Skin', label: '皮膚（健保）' },
-  { clinic: 'Cosmetic', label: '醫學美容' },
-];
-
 /**
  * 後台基礎資料 — 科別項目列表（對應舊 BasicMs/Skins·Cosmetics，clinic 參數化收斂為單一元件）。
+ * 舊系統 2 個變體是各自獨立頁面、彼此間沒有切換頁籤（只能透過選單分別進入），故本頁不內建頁籤 UI，
+ * clinic 完全由選單連結的 query params 決定（見 core/menu-route-map.ts）。
  * 排序沿用舊做法：每列數字輸入框 + 整批「儲存排序」（見 docs/blueprints/admin-basic-data.md）。
  * 分頁沿用舊做法：pageSize 固定 20（見 docs/design/frontend-backend.md §分頁規範）；「儲存排序」僅送出當頁資料。
  */
@@ -21,24 +18,11 @@ const TABS = [
   template: `
     <div class="bg-white rounded shadow-sm border border-hairline">
       <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-hairline">
-        <h1 class="text-base font-semibold text-ink"><i class="fa fa-stethoscope text-muted mr-2"></i>科別項目</h1>
+        <h1 class="text-base font-semibold text-ink"><i class="fa fa-stethoscope text-muted mr-2"></i>{{ pageLabel() }}</h1>
         @if (auth.can(resourceKey(), 'add')) {
           <a [routerLink]="['/basic/categories/new']" [queryParams]="{ clinic: clinic() }"
              class="inline-flex items-center gap-1.5 bg-brand text-white text-sm rounded px-3 py-1.5 hover:bg-brand-deep">
-            <i class="fa fa-plus"></i> 新增項目
-          </a>
-        }
-      </div>
-
-      <div class="flex gap-1 px-5 pt-3 border-b border-hairline overflow-x-auto">
-        @for (tab of tabs; track tab.clinic) {
-          <a [routerLink]="['/basic/categories']" [queryParams]="{ clinic: tab.clinic }"
-             class="px-3 py-1.5 text-sm rounded-t border-b-2"
-             [class.border-brand]="tab.clinic === clinic()"
-             [class.text-brand]="tab.clinic === clinic()"
-             [class.border-transparent]="tab.clinic !== clinic()"
-             [class.text-muted]="tab.clinic !== clinic()">
-            {{ tab.label }}
+            <i class="fa fa-plus"></i> 新增{{ pageLabel() }}
           </a>
         }
       </div>
@@ -52,7 +36,7 @@ const TABS = [
         <thead>
           <tr class="text-left text-muted border-b border-hairline bg-surface">
             <th class="px-5 py-2.5 font-medium text-center w-20">排序</th>
-            <th class="px-5 py-2.5 font-medium w-auto">名稱</th>
+            <th class="px-5 py-2.5 font-medium w-auto">標題</th>
             <th class="px-5 py-2.5 font-medium text-center w-28">需填問卷</th>
             <th class="px-5 py-2.5 font-medium text-center w-32">台中每次一人</th>
             <th class="px-5 py-2.5 font-medium text-center w-32">二林每次一人</th>
@@ -121,10 +105,10 @@ export class CategoriesListComponent {
   private readonly route = inject(ActivatedRoute);
   readonly auth = inject(AuthService);
 
-  readonly tabs = TABS;
   private readonly queryParams = toSignal(this.route.queryParamMap);
   readonly clinic = computed(() => this.queryParams()?.get('clinic') ?? 'Skin');
   readonly resourceKey = computed(() => categoryResourceKey(this.clinic()));
+  readonly pageLabel = computed(() => categoryLabel(this.clinic()));
 
   readonly pageSize = 20;
   readonly categories = signal<CategoryAdmin[]>([]);
