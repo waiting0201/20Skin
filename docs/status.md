@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-02T20:00+08:00
+last_updated: 2026-07-03T22:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -20,7 +20,7 @@ last_updated: 2026-07-02T20:00+08:00
 
 > 一次最多 3–5 項
 
-（目前無 — 後台排班管理已完成，見下方 Recently Done；下一步為後台剩餘 2 模組：預約管理/會員管理）
+（目前無 — 後台會員管理已完成，見下方 Recently Done；下一步為後台剩餘 1 模組：預約管理）
 
 ## 📋 Backlog
 
@@ -69,7 +69,8 @@ last_updated: 2026-07-02T20:00+08:00
 - [x] **後台基礎資料** ✅ Done 2026-07-02（分院/醫師/時段/科別項目/問卷主檔，真實 DB 驗證，見 Recently Done） [blueprints/admin-basic-data.md](blueprints/admin-basic-data.md)
 - [x] **後台排班** ✅ Done 2026-07-02（排班 CRUD + 重複展開 + RosterCategorys/RosterPeriods diff，真實 DB 驗證，見 Recently Done） [blueprints/admin-roster.md](blueprints/admin-roster.md)
 - [ ] **後台預約管理 + 匯出** [blueprints/admin-reserve.md](blueprints/admin-reserve.md)
-- [ ] **後台會員管理** [blueprints/admin-member.md](blueprints/admin-member.md)
+- [x] **後台會員管理** ✅ Done 2026-07-03（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證，見 Recently Done） [blueprints/admin-member.md](blueprints/admin-member.md)
+- [x] **後台 RWD（響應式）** ✅ Done 2026-07-03（見 Recently Done） [design/frontend-backend.md](design/frontend-backend.md) §RWD
 
 ### P2 — 部署與品質
 - [ ] **CI/CD**：兩 SPA → Static Web Apps、API → Functions（[design/infrastructure.md](design/infrastructure.md)）
@@ -88,6 +89,58 @@ last_updated: 2026-07-02T20:00+08:00
 （目前無）
 
 ## ✅ Recently Done
+
+- [x] **後台 RWD（響應式）：側欄 off-canvas 化 + 13 個 table 頁面加橫向捲動容器 + 一處非響應式 grid 修正** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §RWD
+  - **AdminLayoutComponent**（`web-admin/src/app/layout/admin-layout.ts`）：側欄（`w-64`）在 `lg` 以下改為 off-canvas 抽屜（`fixed` + `-translate-x-full`/`translate-x-0` 切換 + 200ms transition），加半透明遮罩（點擊收合）+ 頂欄漢堡選單按鈕（`lg:hidden`）；`lg` 以上維持原本固定顯示（`lg:static lg:translate-x-0`）。路由切換（`NavigationEnd`）時自動收合手機選單，避免導頁後選單仍蓋在內容上。頂欄/Ribbon/主內容/頁尾的水平內距改 `px-4 sm:px-6`、`p-4 sm:p-6`，窄螢幕減少留白；使用者名稱與「登出」文字在 `sm` 以下收成純 icon（`hidden sm:inline`）。
+  - **13 個含 `<table>` 的頁面**（8 個列表頁 `branches/doctors/categories/periods/question-types/questions/admins/members-list` + `roster-form`、`admin-form`（權限樹）、`member-questionnaire-view`、`member-questionnaires`（2 個 table））：每個 `<table>` 外加 `<div class="overflow-x-auto">` 包裹，窄螢幕橫向捲動限制在表格自身容器內，不會撐開整頁版面或把側欄推出畫面。列表頁「標題＋新增按鈕」列與分頁頁腳列補上 `flex-wrap gap-2`，避免窄螢幕擠壓變形；5 頁籤切換列（`periods-list`/`categories-list`/`rosters-list`）加 `overflow-x-auto` 允許橫向捲動（頁籤本身用底線樣式不適合換行）。
+  - **`category-form.ts`**：3 個「每次一人」核取方塊原用 `grid-cols-3`（無響應式前綴），改 `grid-cols-1 sm:grid-cols-3`，比照其餘表單頁既有慣例。
+  - **範圍判斷**：其餘表單頁（`branch-form`/`doctor-form`/`period-form`/`admin-form`/`member-form`/`question-form`/`question-type-form`/`member-questionnaire-form`）原本已採用 `grid-cols-1 sm:grid-cols-3` 或 `grid-cols-1 md:grid-cols-3` 慣例，逐一比對後確認無需改動；`question-form.ts` 選項標題列（短文字+短按鈕）評估後判定窄螢幕不致溢出，未動。
+  - **驗證**：`ng build` 0 error；比對編譯後 `styles-*.css` 確認所有新用到的 Tailwind class（`overflow-x-auto`、`flex-wrap`、`-translate-x-full`、`translate-x-0`、`lg:translate-x-0`、`lg:static`、`lg:hidden`）皆已正確產生對應規則。**未做**：瀏覽器實機/DevTools 響應式斷點視覺驗證（本次會話無 Playwright/chrome-devtools 工具可用，僅型別檢查 + 編譯後 CSS 比對；建議下次有瀏覽器工具時針對登入頁、後台列表頁、表單頁在手機寬度各截圖驗證一次）。
+- [x] **後台會員管理：列表/編輯/刪除/黑名單 + 問卷掃描檔上傳維護完整實作（真實 DB 端對端驗證）** — Done 2026-07-03 [blueprints/admin-member.md](blueprints/admin-member.md)
+  - **範圍決策（使用者拍板）**：問卷維護完整比照舊系統，含掃描檔上傳/編輯/刪除（非僅唯讀檢視）。研究確認 `MemberQuestions.Filename` 欄位與 Blob `memberquestions` 資料夾白名單雖已就緒，但新系統原本完全沒有寫入路徑（`QuestionService.SubmitAsync` 寫死 `Filename=NULL`），本次補上此缺口。
+  - **後端**：`MemberAdminDtos.cs`（6 個 DTO）+ `Skin.Services.Member.MemberAdminService`（Dapper，會員列表含初診判斷 + 曾就診分院批次查詢避免 N+1、編輯、刪除、問卷掃描檔 CRUD 含查重）+ `MembersAdminController`（`admin/members` 系列 9 端點，Resource 固定 `"Members"`，沿用舊系統 `MemberQAs→Members` 特殊映射）。`IFileStorage` 新增 `DeleteAsync`（換檔/刪除連動刪 Blob）。`IQuestionService.GetFormAsync` 新增 `includeDisabled` 參數供後台唯讀檢視已停用問卷類型的歷史作答（客戶前台預設行為不變）。
+  - **前端**：`pages/member/`（members-list、member-form、member-questionnaires、member-questionnaire-form、member-questionnaire-view）+ `member-api.service.ts` + `lookup.service.ts`（城市/區連動，仿 web-customer 同名服務各自獨立一份）；`members-list` 依 Grid 規範補入 [design/frontend-backend.md](design/frontend-backend.md) 欄位順序/寬度/對齊/分頁對照表（第 9 頁）；路由 + `BUILT_KEYS` 加 `Members`。
+  - **真實 DB 端對端實測（測試會員 `B121583140`，事後零殘留）**：列表篩選（分院/身分證號/生日，53,610 筆會員驗證）+ 分頁；編輯（黑名單/過敏史病史 CSV/地址）更新後還原；問卷掃描檔上傳（真實 Blob 讀寫）→ 編輯換檔（驗證舊 Blob 確實刪除、新 Blob 可讀）→ 刪除（DB+Blob 皆清除）→ 查重擋下重複新增；唯讀檢視已停用問卷類型的歷史數位作答（含發現並修正 `includeDisabled` 缺陷後）；授權邊界（測試管理員僅 `Members` `read+add`：GET/POST 200、PUT/DELETE 403）。`dotnet build`/`ng build` 皆 0 warning。
+  - **追加修正（同日，使用者回饋「會員沒有做到刪除」）**：初版誤沿用一份**已存在但錯誤**的 blueprint 草稿敘述「不新增/刪除會員」，未核對已讀過的舊 `MemberMsController.DeleteMembers` action（該 action 確實存在，且無任何前置檢查即硬刪）。已查證 `Appointments`/`MemberQuestions` 對 `Members` 皆為 **CASCADE**，故補上 `DeleteAsync`（`MembersAdminController` DELETE `admin/members/{id}`）時**刻意加前置檢查**（有預約或問卷紀錄即擋 `MEMBER_IN_USE`），比照本系統其餘 CASCADE 風險實體的既有慣例，而非照搬舊系統的無檢查硬刪。真實 DB 驗證：① 對有歷史紀錄的會員（`B121583140`）刪除正確擋下；② 新建零紀錄的拋棄式測試會員可正常刪除且零殘留；③ 授權邊界（僅 `read+update` 權限呼叫 DELETE 正確 403）。`admin-member.md`/`frontend-backend.md`/`api-design.md` 同步更正。
+  - **踩雷修復**：後台問卷清單 SQL 原用 `SELECT DISTINCT` + `ORDER BY qt.Sort`（Sort 不在 SELECT 清單）觸發 SQL Server 語法錯誤（500）；因來源即為 `QuestionTypes` 主表本無重複列，移除多餘 `DISTINCT` 修正。
+  - **追加修正（同日，使用者回饋「1. 分院的下拉要參照舊程式 2. 排序要參照舊程式」）**：① `members-list` 分院篩選下拉原用既有分頁端點（含停用分院），舊 `MemberMsController.Members` 只列 `IsEnabled` 分院——真實 DB 驗證「二林．齒科」確實 `IsEnabled=false`，修正為新增 `IBranchAdminService.ListEnabledAsync`（`BranchesAdminController.List` 加 `enabledOnly` 參數，沿用同路由避免與自訂 router 的 `{id}` 路由衝突，見 `admin-member.md` 風險段落記錄的 router 限制：`RouteTable.Match` 無 literal 優先於 `{param}` 的機制）；② `member-questionnaire-form` 問卷下拉原用全域 `ORDER BY qt.Sort`，舊 `AddMemberQAs`/`EditMemberQAs` 是 `.OrderBy(CategoryID).ThenBy(Sort)`（依科別分組），已在前端補排序，未動共用後端 `QuestionTypeAdminService`（避免影響既有 `basic/question-types-list` 頁面既定行為）。`dotnet build`/`ng build` 皆通過。
+  - **追加修正（同日，使用者回饋「點篩選的體驗不是很好 沒反應」）**：`members-list` 篩選按鈕原本沒有任何載入態回饋（不 disable、文字不變、表格資料在請求期間不變暗），快速的 API 回應（本機實測 ~150ms）配合零視覺提示，讓使用者誤以為點擊沒反應。修正：按鈕載入中顯示「篩選中…」+ disable + `fa-spinner fa-spin` 圖示、表格於載入中套 `opacity-50`、上一頁/下一頁按鈕同步 disable 避免競態。**本次首次動用 Playwright 實際跑瀏覽器端對端**（此前所有模組皆僅型別檢查+編譯驗證，未做真實瀏覽器互動）：啟動 `ng serve --port 4300` + `func start`（reCAPTCHA 暫時 bypass）→ 登入 → 進會員列表 → 輸入身分證號 → 點篩選 → 確認 50ms 內按鈕即顯示「篩選中…」且 disabled、~150ms 後結果正確過濾為 1 筆、全程無 console 錯誤 → 截圖存證。測畢已還原 reCAPTCHA 設定、關閉測試用 dev server。
+  - **追加修正（同日，使用者回饋「維護頁的地址沒有帶入預設 這個問題要紀錄到規範」）**：`member-form` 編輯既有會員時城市/區下拉顯示空白。用 Playwright 逐時間點輪詢排除是 race condition（放 3 秒仍不會恢復；且下游 `areas()` computed 用 30 筆選項證明訊號值其實正確）後，查明真因是 **Angular 樣板指令依宣告順序執行**：同一元素「先套用自身屬性繫結（`[value]`）、才建立子節點（`@for` 的 `<option>`）」，而本頁把整段表單包在 `@if(loaded())`，`loaded.set(true)` 與 `selectedCity`/`zipcodeId` 賦非空值又在同一輪 callback 內同步發生，等同「`<select>` 第一次掛載到 DOM 那一刻，對應的 `<option>` 都還沒建出來」，賦值被瀏覽器靜默忽略且之後不會自我修正；區的巢狀連動（`areas()` 依賴 `selectedCity`）會在下一層再犯一次。修法：`setTimeout`（區再巢狀一層）把「表單掛載」與「回填既有城市/區值」拆到不同輪 render。**已記錄為通用踩雷**（非本模組特例）：[gotchas.md](gotchas.md) §動態選項 `<select>` 首次渲染即帶入既有值、[design/frontend-coding-style.md](design/frontend-coding-style.md) 核心慣例補充一條，強調任何「原生 `[value]` + async 選項 + 需預帶入既有值」的下拉都要假設有此問題，且不會被 `ng build` 或看訊號值發現，改用 Reactive Forms 也無法倖免。Playwright 端對端驗證：城市/區皆正確預選、送出後資料完整保留（`zipcodeId=112`/`city=台中市` 不變）、全程無 console 錯誤。
+  - **追加修正（同日，使用者回饋「表單的設計不要太浪費空間，不然會一直往下延伸」）**：`member-form` 原本 12 個欄位逐一獨占一整列（`space-y-4` 單欄堆疊），表單過長需捲動。改為短欄位每列塞 3 欄（`grid grid-cols-1 sm:grid-cols-3 gap-4`：身分證號/手機號碼/生日、姓名/性別/血型、Email/緊急聯絡人/緊急聯絡電話）、過敏史/病史改 2 欄並排，地址（含城市/區下拉）維持獨占一列。Playwright 截圖驗證：表單高度從需捲動縮短為 535px，1280×900 視窗可完整顯示。**已記錄為通用規範**（非本頁特例）：[design/frontend-coding-style.md](design/frontend-coding-style.md) §Tailwind 新增一條，未來任何多欄位表單都應比照此 grid 密度，不逐欄堆疊；既有欄位少的表單（branch/category/period/admin/roster-form）本來就短，非本次範圍不回溯。
+  - **未做**：完整瀏覽器互動實測（僅會員列表篩選流程有 Playwright 端對端覆蓋，見上方；編輯/刪除/問卷維護等其餘頁面仍只有型別檢查+編譯驗證+真實 API 端對端，未跑瀏覽器點擊操作）。
+- [x] **後台列表頁欄位對齊（置中/靠左）逐頁修正 + 對齊規範定案** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §欄位對齊規範
+  - 使用者裁示：「grid 標題跟內容是否需要置中，也要紀錄到規範」。逐一重新比對 8 個舊 `.cshtml` 的 `class="text-center"` 標記（非憑印象），發現先前實作只有操作欄置中，其餘欄位全部預設靠左，與舊系統不符。
+  - **判斷標準**：不是「短內容/數字置中、長文字靠左」這種啟發式，而是逐欄核對舊系統該欄是否真的有 `text-center` class；例如排班「日期」欄雖短但舊系統靠左（維持靠左）、時段「門診時段」欄是短分類文字但舊系統置中（改為置中）。
+  - **修正**：`branches-list`（排序/類型/自動編號/啟用改置中，名稱維持靠左）、`categories-list`（排序/需填問卷/三個每次一人旗標改置中）、`periods-list`（排序/門診時段/起始號碼/容量改置中）、`question-types-list`（排序/狀態改置中，科別項目/問卷名稱維持靠左）、`questions-list`（排序/題型/狀態改置中）、`roster/rosters-list`（開放指定預約改置中）；`doctors-list`/`admins-list` 本來就與舊系統一致未變動。排序欄的數字輸入框連同 `td` 一起置中（非只置中文字）。
+  - [design/frontend-backend.md](design/frontend-backend.md) 新增「欄位對齊規範」章節（逐頁 L/C 對照表 + 判斷標準說明，強調不可用長度/型別等啟發式規則取代逐欄核對）。
+  - `ng build` 通過。**未做**：瀏覽器互動實測（僅型別檢查+編譯驗證，未實際截圖比對視覺效果）。
+- [x] **後台列表頁補回分頁（分院/科別項目/管理員）+ 分頁規範定案** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §分頁規範
+  - 使用者裁示：「要有分頁，加入規範」。逐一比對舊系統發現：`Branchs.cshtml`/`Skins.cshtml`/`Cosmetics.cshtml`/`Admins.cshtml` 皆為 `ToPagedList(pageSize: 20)`，先前重寫這 3 個列表頁（分院/科別項目/管理員）時漏掉分頁（僅 `roster/rosters-list` 先前已有）；`Doctors.cshtml`/`TaPeriods.cshtml`/`QuestionTypes.cshtml`/`Questions.cshtml` 舊系統本來就沒有分頁，故對應新頁面維持不分頁。
+  - **後端**：`IBranchAdminService`/`ICategoryAdminService`/`IAdminService` 的 `ListAsync` 改為分頁簽章（`page,pageSize` → `(Items, Total)` tuple，COUNT + `OFFSET/FETCH`，比照既有 `RosterAdminService` 範本）；對應 3 個 Controller 的 GET 端點回傳 `{ items, total, page, pageSize }`（pageSize 固定 20，不開放前端調整）。
+  - **踩雷修復**：`CategoryAdminService.ListAsync` 分頁後，發現 `category-form.ts`（編輯回填）、`question-type-form.ts`（科別下拉）、`roster-form.ts`（科別多選）三處表單也在呼叫同一支 API 取得「全部科別」，分頁後只會拿到第一頁 20 筆導致資料缺漏。已加獨立不分頁端點 `GET admin/categories/{clinic}/all`（`ICategoryAdminService.ListAllAsync`，前端 `listAllCategories()`），三個表單改呼叫新端點，`listCategories()`（分頁版）僅供列表頁 grid 使用。
+  - **前端**：`models.ts` 新增共用 `PagedResult<T>` 型別（`roster-api.service.ts` 原本自己宣告的 `RosterListResponse` 一併改用共用型別，消除重複）；`branches-list.ts`/`categories-list.ts`/`admins-list.ts` 加 `page()`/`total()` signal + 分頁頁腳 UI（`共 N 筆` + 上一頁/第 N 頁/下一頁），樣式與既有 `rosters-list.ts` 完全一致；「儲存排序」維持只送出當頁資料（與舊系統 `SortBranchs`/`SortSkins` 表單同樣只含當頁列一致，非新缺陷）。
+  - [design/frontend-backend.md](design/frontend-backend.md) 新增「分頁規範」章節（逐頁是否分頁對照表 + pageSize 固定 20 + API 信封格式 + 全量端點例外規則）；同步更新 [blueprints/admin-basic-data.md](blueprints/admin-basic-data.md)、[blueprints/admin-auth-authority.md](blueprints/admin-auth-authority.md) 設計決策段落記錄此追加變更。
+  - `dotnet build`（0 warning）與 `ng build` 皆通過。**未做**：瀏覽器互動實測（僅型別檢查+編譯驗證，未跑 `func start`/`ng serve` 端對端驗證分頁翻頁行為）。
+- [x] **後台列表頁 Grid 欄位規範定案 + 全 8 頁操作欄改為純 icon 置中，欄位順序改回忠於舊系統** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §列表頁 Grid 欄位規範
+  - 使用者裁示：① 分院等各主檔列表頁欄位順序需一致、操作欄只需 icon 並置中，且要有規範文件供其他頁面參照；② 欄位順序需參照舊系統（第一版自訂順序不算數）。
+  - **修正**：實際逐一比對 `reference/old/20SkinBackend/Views/{BasicMs,AuthorityMs,ShiftMs}/*.cshtml`，發現舊系統「排序」欄一律在**最前面**（非緊鄰操作欄），且各頁業務欄位順序需依舊 View 實際序（如 Periods 舊系統「門診時段」在「名稱」之前、Rosters「醫師」在「日期」之前）。已改寫 [design/frontend-backend.md](design/frontend-backend.md) 為逐頁對照表，取代原先自訂的通用排序規則。
+  - 套用到全部 8 個既有列表頁：`authority/admins-list`、`basic/{branches,doctors,categories,periods,question-types,questions}-list`、`roster/rosters-list`（doctors/admins 因無排序欄且舊順序本已相符，未變動；其餘 6 頁重排）。操作欄仍為純 icon + 置中（`text-center`、`title` tooltip，取代原 icon+文字/靠右）。
+  - **追加修正（同日）**：使用者再裁示「顯示的欄位跟內容也要參照舊系統」——補回先前遺漏的舊欄位：分院「自動編號」、科別「台中/二林/齒科每次一人」三旗標；並修正內容文字對齊舊系統（分院類型改顯示「皮膚/齒科」文字而非原始數字、啟用改「是/不啟用」、需填問卷改「需要/不需要」、問卷類型與題目「狀態」改「開啟/關閉」，取代原統一套用的「啟用/停用」樣板）。唯一刻意保留的例外：題目「題型」欄沿用系統既有術語「複選」，不改回舊系統原文字「多選」，因為 `question-form.ts` 與客戶前台問卷已一致採用「複選」（見 [gotchas.md](gotchas.md) `OptionType` 定案），改回會造成同一系統內用詞不一致。
+  - [design/frontend-backend.md](design/frontend-backend.md) 表格已擴充為「欄位順序＋布林/列舉欄位顯示文字」逐頁對照，含各文字對照的具體理由。
+  - **再追加修正（同日）**：使用者裁示①「舊系統沒顯示的欄位新系統也不要有」②「每個欄位設計一個合理的寬度」。移除先前新增但舊系統沒有的 2 個欄位：分院/科別項目列表的「圖片」縮圖欄（含移除 `BasicUploadService` 依賴）、問卷題目列表新增的「選項」（答案文字清單）欄。全部 8 頁每個 `<th>` 補上明確寬度 class（`w-20`/`w-24`/`w-28`/`w-32`/`w-40` 依內容長度分級，唯一主要辨識文字欄用 `w-auto` 明示為彈性欄），取代原本部分欄位無寬度、交由瀏覽器自行分配的寫法。
+  - [design/frontend-backend.md](design/frontend-backend.md) 新增「欄位寬度規範」章節（寬度分級 + 逐頁對照表），並將「不新增舊系統沒有的欄位」列為明文規則。
+  - `ng build` 0 error。**未做**：瀏覽器互動實測（僅型別檢查+編譯驗證）。
+- [x] **修復後台登入 reCAPTCHA bug：補上真實 `RecaptchaService`（原寫死空字串 token）** — Done 2026-07-03 [design/security.md](design/security.md)
+  - **成因**：`api/20Skin.Api/local.settings.json` 的 `Recaptcha:SecretKey` 已設定非空值，dev bypass 因此失效；但 `web-admin/login.ts` 仍寫死送空字串 `googleCaptchaToken`，導致 `RecaptchaVerifier` 對空 token 一律回 `false` → 後台登入必定回 `RECAPTCHA_FAILED`（使用者實測重現）。
+  - **修復**：新增 `web-admin/src/app/core/services/recaptcha.service.ts`（比照客戶前台同名服務，各自獨立一份，不共用程式碼）；`login.ts` 送出前呼叫 `recaptcha.execute('login')` 取真實 token；`environment.ts` 補上 site key（沿用客戶前台同一把，dev 用 `localhost` 不受網域白名單限制）。
+  - **正式環境待辦**（記錄於 [design/security.md](design/security.md)）：後台部署為獨立網域，`environment.prod.ts` 的 site key 留空，須先把後台正式網域加入該 key 在 Google reCAPTCHA 後台的允許網域清單，再填入部署，否則會被判定 domain mismatch。
+  - 驗證：`ng build` 0 error。
+  - **追加診斷 + 真正根因確認（2026-07-03 同日）**：使用者重測後仍回報 `RECAPTCHA_FAILED`，`RecaptchaVerifier.VerifyAsync` 補上 `ILogger` 失敗診斷後，log 顯示 `success=true score=0.3 action=login errorCodes=""`——token 完全正常，純粹是 **score 0.3 低於門檻 0.5**。查明是 Firefox 隱私/防指紋保護打亂裝置指紋訊號導致 reCAPTCHA v3 評分偏低（非程式 bug）。**決策**：正式環境門檻維持 0.5（沿用舊系統）；本機 `local.settings.json` 的 `Recaptcha:MinScore` 調降為 `0.3` 方便隱私保護瀏覽器測試。詳見 [gotchas.md](gotchas.md) §認證/reCAPTCHA、[design/security.md](design/security.md) `MinScore` 門檻段落。
+- [x] **後台視覺改採企業識別品牌 token（取代初版 SmartAdmin 通用配色），全 19 個頁面套用** — Done 2026-07-03 [design/visual-design.md](design/visual-design.md) §後台視覺策略 / [design/frontend-backend.md](design/frontend-backend.md)
+  - `web-admin/src/styles.css` 新增 `@theme` token（`brand`/`brand-deep`/`brand-deeper`/`brand-tint`/`ink`/`muted`/`line`/`hairline`/`surface`），取代 `teal-*`/`blue-600`/`gray-{300..900}` 通用色。
+  - 已套用：`dashboard.ts`/`forbidden.ts`/`coming-soon.ts`、`authority/*`（admins-list、admin-form）、`basic/*`（branches/categories/doctors/periods/question-types/questions 各 list+form，共 12 檔）、`roster/*`（rosters-list、roster-form）；`admin-layout.ts`/`login.html` 為前一版已完成的參考範例。
+  - 次要深色按鈕（「儲存排序」）改 `bg-ink hover:bg-black`；所有 input/select/textarea 統一補 `focus:ring-2 focus:ring-brand/30 focus:border-brand`；功能語意色（紅/綠/琥珀）維持不變。
+  - 驗證：`ng build` 0 error，編譯後 CSS 已含全部 token class。
 
 - [x] **客戶前台全頁面重新對齊舊系統（第三輪 audit）：5 組並行比對 11 頁 + 修復 8 項缺口 + 3 項業務決策** — Done 2026-07-02 [blueprints/customer-booking.md](blueprints/customer-booking.md) / [blueprints/questionnaire.md](blueprints/questionnaire.md) / [design/frontend-customer.md](design/frontend-customer.md)
   - **審查**：5 組 frontend-architect agent 並行重新逐行比對全部 11 個新頁面對應的 14 個舊 View（含 MainMsController/AjaxController 邏輯），非僅比對文件。
@@ -167,7 +220,7 @@ last_updated: 2026-07-02T20:00+08:00
   - **API 逐操作授權**：`[Authorize(Resource,Op)]` + router 比對 JWT `perms`（超管 `is_super_admin` 放行），取代舊 `CheckSession` 字串 Contains。
   - **超管去硬編碼**：`weypro` 改設定驅動（`SuperAdmin:Username/Password`，local.settings，不入原始碼）。密碼沿用明碼比對（schema 不可改，雜湊待核准）。
   - **真實 DB 實測（零殘留）**：超管登入→選單顯示 5 模組（BasicMs/ShiftMs/MemberMs/ReserveMs/AuthorityMs，圖示 fa-cogs/calendar/list/hospital-o/key，實資料）；建立限權管理員（Admins 只給 add）→ 以其登入 perms 正確 + 選單只剩「權限管理/Admins」；授權 `GET 200 / PUT 403 / DELETE 403`；帳號唯一性；超管刪除後 `exists=false` 清乾淨。`dotnet build` 0 warn、`ng build` 通過。
-  - **未做/後續**：basic/roster/reserve/member 4 模組（選單可見導 `/coming-soon`）；reCAPTCHA 前端 token（dev bypass）；rate-limit / 帳號鎖定；JWT perms 過大時改 `/me` 補細項。
+  - **未做/後續**：basic/roster/reserve/member 4 模組（選單可見導 `/coming-soon`）；rate-limit / 帳號鎖定；JWT perms 過大時改 `/me` 補細項。reCAPTCHA 前端 token 已於 2026-07-03 補上（見上方 Recently Done）。
   - 本機：API `func start`(:7071)；web-admin `ng serve --port 4300`（避與客戶前台 :4200 衝突；CORS 已加 :4300）。超管帳號 `weypro`/`weypro12ab`（於 local.settings）。
 - [x] **舊 `/MainMs/*` URL 後方相容 redirect（客戶前台）** — Done 2026-07-01
   - 需求：舊系統登入頁是 `/MainMs/Login`，怕使用者用舊書籤連不到新登入頁。

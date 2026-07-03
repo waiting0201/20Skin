@@ -1,7 +1,7 @@
 ---
-title: 視覺設計（視覺不改，客戶前台直接套用舊 main.css）
-purpose: 規範「視覺不改」原則下，客戶前台直接載入舊 main.css 原檔、後台以 Tailwind 重現 SmartAdmin 外觀的策略與決策紀錄
-applicable_when: 要修改客戶前台視覺策略、或建立後台 SPA design token 時
+title: 視覺設計（客戶前台視覺不改 + 後台企業識別品牌 token）
+purpose: 規範「視覺不改」原則下，客戶前台直接載入舊 main.css 原檔；後台改採承接客戶前台的企業識別品牌 token（取代初版 SmartAdmin 通用重現）的策略與決策紀錄
+applicable_when: 要修改客戶前台視覺策略、或修改後台 design token / 頁面配色時
 related_agents:
   - visual-design-architect
   - frontend-architect
@@ -9,8 +9,8 @@ related_docs:
   - frontend-customer.md
   - frontend-backend.md
   - ../old/design/visual-design.md
-keywords: [visual, design, tailwind, smartadmin, main.css, 視覺不改]
-last_updated: 2026-06-30
+keywords: [visual, design, tailwind, smartadmin, main.css, 視覺不改, 品牌識別, brand token]
+last_updated: 2026-07-03
 status: draft
 ---
 
@@ -42,17 +42,32 @@ status: draft
 
 > 行銷外框（`_Header` 導覽 + `_Sidebar` 手機滑出 + `_Footer`）實作於 `app.html` / `app.ts`，連結指向 `www.20skin.tw`；手機漢堡開合右側滑出選單（`專業服務`/`臻美分享` 可展開）。
 
-## 後台：SmartAdmin → Tailwind
+## 後台視覺策略（2026-07-03 決策，取代舊「SmartAdmin → Tailwind」通用重現）
 
-| 元素 | Bootstrap3/SmartAdmin | Tailwind |
-|---|---|---|
-| 側欄 | `.left-panel` | `fixed h-screen w-64 bg-gray-900 text-white overflow-y-auto` |
-| 主內容 | `#main` | `flex-1 ml-64 p-6` |
-| 頂欄 | `.navbar` | `fixed top-0 right-0 h-16 bg-white border-b` |
-| 卡片 | `.jarviswidget` | `bg-white rounded-lg shadow p-4` |
-| 表格 | `.table-bordered` | `w-full border-collapse border` |
-| 按鈕 | `.btn-primary` | `px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700` |
-| 禁用 | — | `opacity-50 cursor-not-allowed` |
+**策略：後台改採企業識別（承接客戶前台品牌色），不再重現 SmartAdmin 通用樣板配色**
+
+- **理由**：初版後台以 Tailwind 重現 SmartAdmin 外觀（深灰側欄 `#31353d`、teal-600 按鈕、blue-600 連結），視覺與品牌無關、與客戶前台（`web-customer`，品牌深藍 `#00538d`）不一致。使用者裁示：後台應與客戶前台共用同一套企業識別（品牌深藍 emblem「20 SKIN」logo），而非通用管理後台配色。
+- **做法**：`web-admin/src/styles.css` 新增 `@theme` design token（見下表），取代所有 `teal-*`/`blue-600`/`gray-{300,400,500,600,700,800,900}` 等通用色 class；全站頁面（layout、login、dashboard、authority/basic/roster 各 CRUD 頁）逐一替換。
+- **範圍**：`admin-layout.ts`（側欄/Ribbon 麵包屑）、`login.html`、`dashboard.ts`、`forbidden.ts`、`coming-soon.ts`、`authority/*`、`basic/*`（branches/categories/doctors/periods/question-types/questions）、`roster/*` 全數套用，已於 2026-07-03 完成（`ng build` 0 error）。
+- **保留不換**：功能語意色維持原樣——刪除/錯誤 `text-red-500`/`text-red-400`、啟用狀態 `text-green-600`、超級管理員徽章 `bg-amber-100 text-amber-700`、排班「已跳過日期」提示 `text-amber-600`。
+
+### 後台 design token（`web-admin/src/styles.css` `@theme`，已落地）
+
+| token | 值 | 用途 | Tailwind 用法 |
+|---|---|---|---|
+| `--color-brand` | `#00538d` | 品牌主色（同客戶前台），按鈕/連結/active 狀態 | `bg-brand` / `text-brand` / `border-brand` |
+| `--color-brand-deep` | `#013f6b` | 側欄底色 / 主要按鈕 hover 深色 | `bg-brand-deep` / `hover:bg-brand-deep` |
+| `--color-brand-deeper` | `#012b4a` | 側欄品牌列底色 / 登入頁背景 | `bg-brand-deeper` |
+| `--color-brand-tint` | `#eaf2f8` | 選中/hover 淺色底（保留給未來用途） | `bg-brand-tint` |
+| `--color-ink` | `#333333` | 主要內文/標題（取代 `text-gray-700`/`800`） | `text-ink` |
+| `--color-muted` | `#7c8796` | 次要文字/圖示/table 表頭（取代 `text-gray-400/500/600`，含淡色 `text-gray-300` 裝飾圖示） | `text-muted` |
+| `--color-line` | `#798593` | 次要分隔線（保留給未來用途） | `border-line` |
+| `--color-hairline` | `#e5e5e5` | 表格列/卡片/input 邊框（取代 `border-gray-{50,100,200,300}`） | `border-hairline` |
+| `--color-surface` | `#f5f7f9` | 表頭/次要底色（取代 `bg-gray-50`/`bg-gray-100`） | `bg-surface` |
+
+- 次要深色按鈕（如各列表頁「儲存排序」）改 `bg-ink hover:bg-black`（取代舊 `bg-gray-700 hover:bg-gray-800`）。
+- 所有可編輯 input/select/textarea 統一補 `focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand`（比照 `login.html`），取代無 focus 樣式的舊版本。
+- 值同步取自 `web-customer` 量測色（`--color-brand`/`--color-ink`/`--color-muted`/`--color-hairline` 分別對應客戶前台 `skin-blue`/`skin-ink`/`skin-gray`/`skin-border`），確保兩 SPA 企業識別一致。
 
 ## 共用 design token（客戶前台，已落地）
 

@@ -9,6 +9,7 @@ import {
   ApiResponse,
   LimNode,
   MenuNode,
+  PagedResult,
 } from '../models';
 
 /**
@@ -25,8 +26,9 @@ export class AdminApiService {
     return this.http.get<ApiResponse<MenuNode[]>>(`${this.base}/admin/menu`);
   }
 
-  listAdmins(): Observable<ApiResponse<AdminListItem[]>> {
-    return this.http.get<ApiResponse<AdminListItem[]>>(`${this.base}/admins`);
+  /** 分頁列表（pageSize 固定 20，見 docs/design/frontend-backend.md §分頁規範）。 */
+  listAdmins(page = 1): Observable<ApiResponse<PagedResult<AdminListItem>>> {
+    return this.http.get<ApiResponse<PagedResult<AdminListItem>>>(`${this.base}/admins?page=${page}`);
   }
 
   getAdmin(id: string): Observable<ApiResponse<AdminDetail>> {

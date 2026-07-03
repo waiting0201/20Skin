@@ -11,7 +11,7 @@ related_docs:
   - ../old/README.md
   - ../old/modernization.md
 keywords: [design, index, 新系統, angular, azure-functions]
-last_updated: 2026-06-30
+last_updated: 2026-07-03
 status: draft
 ---
 
@@ -26,7 +26,7 @@ status: draft
 | [backend-design.md](backend-design.md) | Functions 專案結構、分層、Domain services、交易 |
 | [security.md](security.md) | JWT 認證授權、claims、密碼/refresh 限制與緩解 |
 | [frontend-customer.md](frontend-customer.md) | 客戶前台 Angular（signals/Tailwind/reservation store） |
-| [frontend-backend.md](frontend-backend.md) | 後台 Angular（權限選單、clinic 參數化、匯出） |
+| [frontend-backend.md](frontend-backend.md) | 後台 Angular（權限選單、clinic 參數化、匯出、**列表頁 Grid 欄位/寬度/對齊/分頁規範**） |
 | [visual-design.md](visual-design.md) | 視覺不改：main.css / SmartAdmin → Tailwind 對應 |
 | [infrastructure.md](infrastructure.md) | 部署（Static Web Apps + Functions）、Blob/Key Vault/排程/CI-CD |
 | [frontend-coding-style.md](frontend-coding-style.md) | Angular 編碼慣例 |

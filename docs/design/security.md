@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/security.md
   - ../old/modernization.md
 keywords: [security, jwt, auth, authorization, claims, lims, recaptcha, refresh-token]
-last_updated: 2026-07-01
+last_updated: 2026-07-03T21:00+08:00
 status: draft
 ---
 
@@ -27,8 +27,11 @@ status: draft
 
 - 全面 **HTTPS**；登入加 **rate-limit** 與帳號鎖定。
 - reCAPTCHA：**後端確實驗證** token（`success` + `score ≥ MinScore` + `action == "login"`），修正舊系統「載入卻未驗」。
-- **reCAPTCHA v3 前端（2026-07-01 已實作）**：`RecaptchaService` 動態載入 `google/recaptcha/api.js?render={siteKey}`，登入/註冊送出前 `grecaptcha.execute(siteKey,{action:'login'})` 取 token 附於請求。
-  - `environment.recaptchaSiteKey` 為空（dev）→ 前端回空 token；後端 `Recaptcha:SecretKey` 為空 → 放行。**正式環境兩把金鑰都要設**（site key 前端、secret 後端經 Key Vault）。
+- **reCAPTCHA v3 前端**：`RecaptchaService` 動態載入 `google/recaptcha/api.js?render={siteKey}`，登入/註冊送出前 `grecaptcha.execute(siteKey,{action:'login'})` 取 token 附於請求。客戶前台（2026-07-01）與**後台（2026-07-03 已補上）**皆已實作，兩端各自獨立一份 `RecaptchaService`（不共用程式碼，見 [frontend-backend.md](frontend-backend.md) §不做）。
+  - `environment.recaptchaSiteKey` 為空（dev 未設）→ 前端回空 token；後端 `Recaptcha:SecretKey` 為空 → 放行。**若後端 secret 已設定（如目前 local.settings.json），dev bypass 即失效，前端必須真的送 token**，否則會後端一律回 `RECAPTCHA_FAILED`（2026-07-03 修正：後台登入原本寫死送空字串 token，導致 secret 設定後每次登入必敗，已補上真實 `RecaptchaService` 呼叫）。
+  - **後台 site key 決策**：後台目前沿用客戶前台同一把 site key（`web-admin/src/environments/environment.ts`），因兩端本機/測試皆用 `localhost`，Google 對 localhost 不檢查註冊網域，dev 可正常運作。**正式環境待辦**：後台部署為獨立網域（見 [infrastructure.md](infrastructure.md)），需先把該網域加入此 site key 在 Google reCAPTCHA 後台的允許網域清單，`environment.prod.ts` 才可填入 key，否則 `grecaptcha.execute` 會因網域不符被拒。
+  - **後台適用範圍決策（2026-07-03，使用者確認）**：後台 reCAPTCHA **只需要在登入頁**（`POST auth/admin/login`），不需擴及後台其餘頁面/表單（CRUD、匯出等一律僅靠既有 JWT + 權限檢查把關）。此為現況即已實作的行為（`AuthController` 僅 3 個 `login`/`register` 端點呼叫 `recaptcha.VerifyAsync`，後台只涵蓋 `AdminLogin` 一支），本次為明確定案避免日後誤加到其他後台端點。
+  - **`MinScore` 門檻（2026-07-03 決策）**：後端驗證邏輯（`RecaptchaVerifier`）加上失敗診斷 log 後，實測發現 Firefox 開啟隱私/防指紋保護（`privacy.resistFingerprinting` 或嚴格追蹤保護）會讓 reCAPTCHA v3 拿到的裝置訊號被打亂，導致合法人類操作也只拿到 `score≈0.3`，低於沿用舊系統的門檻 `0.5`（[old/design/security.md](../old/design/security.md) `score > 0.5`）而被拒。**決策**：正式環境維持 `0.5`（與舊系統一致，不降低防護強度）；**本機 dev 環境的 `Recaptcha:MinScore` 調降為 `0.3`**（`local.settings.json`，gitignore 排除，不影響部署設定），方便使用隱私保護瀏覽器（Firefox 等）測試時不被誤擋。**Why**：這是瀏覽器隱私功能的已知副作用，非程式邏輯錯誤；正式環境的分數分佈預期與純 dev 測試不同，維持原門檻較安全。若之後正式環境也大量出現真實使用者被誤擋，需重新評估（見 [gotchas.md](../gotchas.md) §認證/reCAPTCHA）。
 
 ## JWT 設計
 

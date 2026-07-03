@@ -8,10 +8,11 @@ related_agents:
 related_docs:
   - backend-design.md
   - security.md
+  - ../blueprints/admin-member.md
   - ../old/design/api-design.md
   - ../old/blueprints/customer-booking.md
 keywords: [api, endpoint, custom-router, azure-functions, mvc, rest, apiresponse, jwt]
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 status: draft
 ---
 
@@ -114,7 +115,13 @@ status: draft
 
 **班表（已實作 Done 2026-07-02，[blueprints/admin-roster.md](../blueprints/admin-roster.md)）**：`admin/rosters/{ta-skin|ta-cosmetic|ch-skin|ch-cosmetic|ch-dentist}`(GET 列表`?date=&doctorId=&page=`/POST 建立含展開)、`admin/rosters/{變體}/{id}`(GET/PUT/DELETE) — 同 Periods 設計理由，5 組瘦 proxy 對應 `TaRosters`/`ChRosters`/`TaCosmeticRosters`/`ChCosmeticRosters`/`ChDentistRosters`，分院別名解析重用 `PeriodsOptions`。建立回應含 `skippedDates`（重複展開時因當日既有排班科別重疊而跳過的日期，明確回報取代舊系統靜默跳過）。
 
-預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`；會員 `/api/members`（尚未實作，沿用同樣的 `admin/` 前綴 + 變體 proxy 慣例）。
+**會員管理（已實作 Done 2026-07-03，[blueprints/admin-member.md](../blueprints/admin-member.md)）**：無分院/診別變體，故無需 proxy，`Resource` 固定 `"Members"`：
+- `admin/members`(GET`?page=&branchId=&number=&birthday=`)、`admin/members/{id}`(GET/PUT/DELETE) — 列表篩選 + 分頁 20 筆 / 詳情 / 編輯 / 刪除（不含新增會員；刪除有預約或問卷紀錄即擋 `MEMBER_IN_USE`，見 [blueprints/admin-member.md](../blueprints/admin-member.md) 設計決策）
+- `admin/members/{id}/questionnaires`(GET) — 已上傳掃描檔 + 已數位作答問卷兩份清單
+- `admin/members/{id}/questionnaires/{questionTypeId}/view`(GET) — 唯讀檢視數位作答打勾清單，重用 `IQuestionService.GetFormAsync(includeDisabled: true)`（已停用問卷類型的歷史作答仍可查看，與客戶前台預設行為不同）
+- `admin/members/{id}/questionnaires`(POST)、`admin/members/questionnaires/{linkId}`(PUT/DELETE) — 問卷掃描檔上傳/編輯/刪除（`Filename` 存入既有 `memberquestions` Blob 資料夾，重用 `POST /api/uploads`；換檔/刪除連動呼叫 `IFileStorage.DeleteAsync` 清 Blob）
+
+預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`（尚未實作）。
 
 **後台認證與權限（已實作 Done 2026-07-01，`AdminController`）**：
 

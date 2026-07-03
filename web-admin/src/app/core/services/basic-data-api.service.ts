@@ -11,6 +11,7 @@ import {
   DoctorAdmin,
   DoctorUpsertRequest,
   OutpatientTime,
+  PagedResult,
   PeriodAdmin,
   PeriodUpsertRequest,
   QuestionAdmin,
@@ -76,9 +77,14 @@ export class BasicDataApiService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBase;
 
-  // --- 分院 ---
-  listBranches(): Observable<ApiResponse<BranchAdmin[]>> {
-    return this.http.get<ApiResponse<BranchAdmin[]>>(`${this.base}/admin/branches`);
+  // --- 分院（分頁，pageSize 固定 20，見 docs/design/frontend-backend.md §分頁規範）---
+  listBranches(page = 1): Observable<ApiResponse<PagedResult<BranchAdmin>>> {
+    return this.http.get<ApiResponse<PagedResult<BranchAdmin>>>(`${this.base}/admin/branches?page=${page}`);
+  }
+
+  /** 全量已啟用分院（不分頁，依 Sort 排序），供下拉選單使用（如會員列表分院篩選）。 */
+  listEnabledBranches(): Observable<ApiResponse<PagedResult<BranchAdmin>>> {
+    return this.http.get<ApiResponse<PagedResult<BranchAdmin>>>(`${this.base}/admin/branches?enabledOnly=true`);
   }
 
   getBranch(id: string): Observable<ApiResponse<BranchAdmin>> {
@@ -147,9 +153,14 @@ export class BasicDataApiService {
     return this.http.post<ApiResponse<unknown>>(`${this.base}/admin/periods/${periodSlug(branch, clinic)}/sort`, { items });
   }
 
-  // --- 科別項目（clinic: 'Skin'|'Cosmetic'）---
-  listCategories(clinic: string): Observable<ApiResponse<CategoryAdmin[]>> {
-    return this.http.get<ApiResponse<CategoryAdmin[]>>(`${this.base}/admin/categories/${categorySlug(clinic)}`);
+  // --- 科別項目（clinic: 'Skin'|'Cosmetic'，分頁，pageSize 固定 20）---
+  listCategories(clinic: string, page = 1): Observable<ApiResponse<PagedResult<CategoryAdmin>>> {
+    return this.http.get<ApiResponse<PagedResult<CategoryAdmin>>>(`${this.base}/admin/categories/${categorySlug(clinic)}?page=${page}`);
+  }
+
+  /** 全量（不分頁），供其他表單下拉/多選使用（科別項目數量少，非分頁清單場景）。 */
+  listAllCategories(clinic: string): Observable<ApiResponse<CategoryAdmin[]>> {
+    return this.http.get<ApiResponse<CategoryAdmin[]>>(`${this.base}/admin/categories/${categorySlug(clinic)}/all`);
   }
 
   createCategory(clinic: string, req: CategoryUpsertRequest): Observable<ApiResponse<CategoryAdmin>> {

@@ -13,10 +13,10 @@ import { QuestionAnswerInput, QuestionUpsertRequest } from '../../core/models';
   selector: 'app-question-form',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200 max-w-2xl">
-      <div class="px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800">
-          <i class="fa fa-question-circle text-gray-400 mr-2"></i>{{ isEdit() ? '編輯題目' : '新增題目' }}
+    <div class="bg-white rounded shadow-sm border border-hairline max-w-2xl">
+      <div class="px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink">
+          <i class="fa fa-question-circle text-muted mr-2"></i>{{ isEdit() ? '編輯題目' : '新增題目' }}
         </h1>
       </div>
 
@@ -26,61 +26,65 @@ import { QuestionAnswerInput, QuestionUpsertRequest } from '../../core/models';
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">題目 <span class="text-red-400">*</span></label>
-          <input formControlName="title" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">題目 <span class="text-red-400">*</span></label>
+          <input formControlName="title"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">題型 <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-ink mb-1">題型 <span class="text-red-400">*</span></label>
           <div class="flex gap-4">
-            <label class="flex items-center gap-1.5 text-sm text-gray-700">
+            <label class="flex items-center gap-1.5 text-sm text-ink">
               <input type="radio" formControlName="optionType" [value]="1" /> 單選
             </label>
-            <label class="flex items-center gap-1.5 text-sm text-gray-700">
+            <label class="flex items-center gap-1.5 text-sm text-ink">
               <input type="radio" formControlName="optionType" [value]="2" /> 複選
             </label>
           </div>
         </div>
         <div class="flex items-center gap-2">
           <input type="checkbox" id="isOther" formControlName="isOther" />
-          <label for="isOther" class="text-sm text-gray-700">含「其他」自填欄</label>
+          <label for="isOther" class="text-sm text-ink">含「其他」自填欄</label>
         </div>
         @if (form.controls.isOther.value) {
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">「其他」欄位標題</label>
-            <input formControlName="otherTitle" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+            <label class="block text-sm font-medium text-ink mb-1">「其他」欄位標題</label>
+            <input formControlName="otherTitle"
+                   class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
           </div>
         }
 
         <div>
           <div class="flex items-center justify-between mb-2">
-            <label class="block text-sm font-medium text-gray-700">選項 <span class="text-red-400">*</span></label>
-            <button type="button" (click)="addAnswer()" class="text-sm text-teal-600 hover:underline">
+            <label class="block text-sm font-medium text-ink">選項 <span class="text-red-400">*</span></label>
+            <button type="button" (click)="addAnswer()" class="text-sm text-brand hover:underline">
               <i class="fa fa-plus"></i> 新增選項
             </button>
           </div>
           <div class="space-y-2">
             @for (a of answers.controls; track $index) {
               <div [formGroup]="$any(a)" class="flex items-center gap-2">
-                <input formControlName="title" placeholder="選項名稱" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
-                <input type="number" formControlName="sort" class="w-16 border border-gray-300 rounded px-2 py-2 text-sm" />
+                <input formControlName="title" placeholder="選項名稱"
+                       class="flex-1 border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+                <input type="number" formControlName="sort"
+                       class="w-16 border border-hairline rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
                 <button type="button" (click)="removeAnswer($index)" class="text-red-500 hover:underline text-sm">
                   <i class="fa fa-trash"></i>
                 </button>
               </div>
             }
             @if (answers.length === 0) {
-              <p class="text-sm text-gray-400">尚未新增選項</p>
+              <p class="text-sm text-muted">尚未新增選項</p>
             }
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
           <button type="submit" [disabled]="saving()"
-                  class="bg-teal-600 text-white text-sm rounded px-4 py-2 hover:bg-teal-700 disabled:opacity-50">
+                  class="bg-brand text-white text-sm rounded px-4 py-2 hover:bg-brand-deep disabled:opacity-50">
             {{ saving() ? '儲存中…' : '儲存' }}
           </button>
           <a [routerLink]="['/basic/question-types', questionTypeId, 'questions']"
-             class="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">取消</a>
+             class="text-sm text-muted hover:text-ink px-3 py-2">取消</a>
         </div>
       </form>
     </div>

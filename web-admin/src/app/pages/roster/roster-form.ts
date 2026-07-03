@@ -15,10 +15,10 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
   selector: 'app-roster-form',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200 max-w-3xl">
-      <div class="px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800">
-          <i class="fa fa-calendar text-gray-400 mr-2"></i>{{ isEdit() ? '編輯排班' : '新增排班' }}
+    <div class="bg-white rounded shadow-sm border border-hairline max-w-3xl">
+      <div class="px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink">
+          <i class="fa fa-calendar text-muted mr-2"></i>{{ isEdit() ? '編輯排班' : '新增排班' }}
         </h1>
       </div>
 
@@ -33,13 +33,15 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           @if (!isEdit()) {
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">排班日期 <span class="text-red-400">*</span></label>
-              <input type="date" formControlName="rosterDate" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+              <label class="block text-sm font-medium text-ink mb-1">排班日期 <span class="text-red-400">*</span></label>
+              <input type="date" formControlName="rosterDate"
+                     class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             </div>
           }
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">醫師</label>
-            <select formControlName="doctorId" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+            <label class="block text-sm font-medium text-ink mb-1">醫師</label>
+            <select formControlName="doctorId"
+                    class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
               <option [value]="null">不指定</option>
               @for (d of doctors(); track d.doctorId) {
                 <option [value]="d.doctorId">{{ d.name }}</option>
@@ -47,8 +49,9 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">班別</label>
-            <select formControlName="outpatientTimeId" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+            <label class="block text-sm font-medium text-ink mb-1">班別</label>
+            <select formControlName="outpatientTimeId"
+                    class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
               <option [value]="null">未設定</option>
               @for (o of outpatientTimes(); track o.outpatientTimeId) {
                 <option [value]="o.outpatientTimeId">{{ o.title }}</option>
@@ -59,14 +62,14 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
 
         <div class="flex items-center gap-2">
           <input type="checkbox" id="isAppointment" formControlName="isAppointment" />
-          <label for="isAppointment" class="text-sm text-gray-700">開放指定醫師線上預約</label>
+          <label for="isAppointment" class="text-sm text-ink">開放指定醫師線上預約</label>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">開放科別項目 <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-ink mb-2">開放科別項目 <span class="text-red-400">*</span></label>
           <div class="flex flex-wrap gap-3">
             @for (c of categories(); track c.categoryId) {
-              <label class="flex items-center gap-1.5 text-sm text-gray-700">
+              <label class="flex items-center gap-1.5 text-sm text-ink">
                 <input type="checkbox" [checked]="selectedCategoryIds().has(c.categoryId)"
                        (change)="toggleCategory(c.categoryId, $any($event.target).checked)" />
                 {{ c.title }}
@@ -76,10 +79,11 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">各時段容量 <span class="text-red-400">*</span></label>
+          <label class="block text-sm font-medium text-ink mb-2">各時段容量 <span class="text-red-400">*</span></label>
+          <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left text-gray-500 border-b border-gray-100">
+              <tr class="text-left text-muted border-b border-hairline">
                 <th class="py-1.5 font-medium">時段</th>
                 <th class="py-1.5 font-medium w-32">起始號碼</th>
                 <th class="py-1.5 font-medium w-32">容量</th>
@@ -87,37 +91,41 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
             </thead>
             <tbody>
               @for (row of periodRows.controls; track $index) {
-                <tr [formGroup]="$any(row)" class="border-b border-gray-50">
-                  <td class="py-1.5 text-gray-700">{{ row.value.periodTitle }}</td>
+                <tr [formGroup]="$any(row)" class="border-b border-hairline">
+                  <td class="py-1.5 text-ink">{{ row.value.periodTitle }}</td>
                   <td class="py-1.5">
-                    <input type="number" formControlName="startNumber" class="w-24 border border-gray-300 rounded px-2 py-1" />
+                    <input type="number" formControlName="startNumber"
+                           class="w-24 border border-hairline rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
                   </td>
                   <td class="py-1.5">
-                    <input type="number" formControlName="patients" class="w-24 border border-gray-300 rounded px-2 py-1" />
+                    <input type="number" formControlName="patients"
+                           class="w-24 border border-hairline rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
                   </td>
                 </tr>
               }
             </tbody>
           </table>
+          </div>
         </div>
 
         @if (!isEdit()) {
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">重複模式</label>
+            <label class="block text-sm font-medium text-ink mb-1">重複模式</label>
             <div class="flex items-center gap-4">
-              <label class="flex items-center gap-1.5 text-sm text-gray-700">
+              <label class="flex items-center gap-1.5 text-sm text-ink">
                 <input type="radio" formControlName="repeatMode" [value]="0" /> 不重複
               </label>
-              <label class="flex items-center gap-1.5 text-sm text-gray-700">
+              <label class="flex items-center gap-1.5 text-sm text-ink">
                 <input type="radio" formControlName="repeatMode" [value]="1" /> 每日
               </label>
-              <label class="flex items-center gap-1.5 text-sm text-gray-700">
+              <label class="flex items-center gap-1.5 text-sm text-ink">
                 <input type="radio" formControlName="repeatMode" [value]="2" /> 每週
               </label>
               @if (form.controls.repeatMode.value !== 0) {
-                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                <label class="flex items-center gap-1.5 text-sm text-ink">
                   截止日
-                  <input type="date" formControlName="expireDate" class="border border-gray-300 rounded px-2 py-1" />
+                  <input type="date" formControlName="expireDate"
+                         class="border border-hairline rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
                 </label>
               }
             </div>
@@ -126,11 +134,11 @@ import { CategoryAdmin, DoctorAdmin, OutpatientTime, PeriodAdmin, RosterCreateRe
 
         <div class="flex items-center gap-2 pt-2">
           <button type="submit" [disabled]="saving()"
-                  class="bg-teal-600 text-white text-sm rounded px-4 py-2 hover:bg-teal-700 disabled:opacity-50">
+                  class="bg-brand text-white text-sm rounded px-4 py-2 hover:bg-brand-deep disabled:opacity-50">
             {{ saving() ? '儲存中…' : '儲存' }}
           </button>
           <a [routerLink]="['/roster']" [queryParams]="{ branch, clinic }"
-             class="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">取消</a>
+             class="text-sm text-muted hover:text-ink px-3 py-2">取消</a>
         </div>
       </form>
     </div>
@@ -183,7 +191,7 @@ export class RosterFormComponent {
     forkJoin([
       this.basicApi.listDoctors(),
       this.basicApi.listOutpatientTimes(),
-      this.basicApi.listCategories(this.clinic),
+      this.basicApi.listAllCategories(this.clinic),
       this.basicApi.listPeriods(this.branch, this.clinic),
     ]).subscribe({
       next: ([doctorsRes, timesRes, categoriesRes, periodsRes]) => {

@@ -13,7 +13,7 @@ related_docs:
   - ../design/api-design.md
   - ../design/database-design.md
 keywords: [admin, auth, authority, jwt, lims, adminlims, permission, super-admin]
-last_updated: 2026-07-01
+last_updated: 2026-07-03
 ---
 
 ## 背景與動機
@@ -38,6 +38,7 @@ last_updated: 2026-07-01
 - **授權真相在 API**；前端 guard 僅控制選單/進頁體驗（見 [frontend-backend.md](../design/frontend-backend.md)）。
 - **超管**：移除硬編碼 `weypro`；改用 DB 中全權限帳號，登入帶 `is_super_admin=true`，過渡後廢旗標。
 - **密碼**：沿用既有比對 + HTTPS/rate-limit/reCAPTCHA/鎖定緩解；雜湊待 schema 核准。
+- **管理員列表分頁（2026-07-03 追加）**：補回分頁（舊 `Admins.cshtml` 為 `ToPagedList(pageSize: 20)`，先前重寫時遺漏）。詳細規範見 [design/frontend-backend.md](../design/frontend-backend.md) §分頁規範。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |

@@ -2,8 +2,9 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { RecaptchaService } from '../../core/services/recaptcha.service';
 
-/** 後台登入：帳號+密碼(+reCAPTCHA)。見 docs/blueprints/admin-auth-authority.md。 */
+/** 後台登入：帳號+密碼+reCAPTCHA。見 docs/blueprints/admin-auth-authority.md、docs/design/security.md。 */
 @Component({
   selector: 'app-admin-login',
   imports: [ReactiveFormsModule],
@@ -12,6 +13,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  private readonly recaptcha = inject(RecaptchaService);
   private readonly router = inject(Router);
 
   readonly loading = signal(false);
@@ -29,17 +31,18 @@ export class LoginComponent {
     }
     this.loading.set(true);
     this.error.set(null);
-    // TODO: reCAPTCHA token（見 docs/design/security.md）
-    this.auth.login({ ...this.form.getRawValue(), googleCaptchaToken: '' }).subscribe({
-      next: (res) => {
-        this.loading.set(false);
-        if (res.success) this.router.navigate(['/']);
-        else this.error.set(res.message ?? '登入失敗');
-      },
-      error: () => {
-        this.loading.set(false);
-        this.error.set('系統忙線，請稍後再試');
-      },
+    this.recaptcha.execute('login').then((token) => {
+      this.auth.login({ ...this.form.getRawValue(), googleCaptchaToken: token }).subscribe({
+        next: (res) => {
+          this.loading.set(false);
+          if (res.success) this.router.navigate(['/']);
+          else this.error.set(res.message ?? '登入失敗');
+        },
+        error: () => {
+          this.loading.set(false);
+          this.error.set('系統忙線，請稍後再試');
+        },
+      });
     });
   }
 }

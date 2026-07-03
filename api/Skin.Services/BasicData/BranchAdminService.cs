@@ -25,11 +25,27 @@ public sealed class BranchAdminService(IDbConnectionFactory db) : IBranchAdminSe
             throw new BusinessException($"圖片檔名不可超過 {PhotoMaxLength} 字", "PHOTO_TOO_LONG");
     }
 
-    public async Task<IReadOnlyList<BranchAdminDto>> ListAsync(CancellationToken ct = default)
+    public async Task<(IReadOnlyList<BranchAdminDto> Items, int Total)> ListAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var offset = (page - 1) * pageSize;
+
+        using var conn = db.Create();
+        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM Branchs", cancellationToken: ct));
+
+        var rows = await conn.QueryAsync<BranchAdminDto>(new CommandDefinition(
+            $"SELECT {SelectColumns} FROM Branchs ORDER BY Sort OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY",
+            new { offset, pageSize }, cancellationToken: ct));
+        return (rows.AsList(), total);
+    }
+
+    public async Task<IReadOnlyList<BranchAdminDto>> ListEnabledAsync(CancellationToken ct = default)
     {
         using var conn = db.Create();
         var rows = await conn.QueryAsync<BranchAdminDto>(new CommandDefinition(
-            $"SELECT {SelectColumns} FROM Branchs ORDER BY Sort", cancellationToken: ct));
+            $"SELECT {SelectColumns} FROM Branchs WHERE IsEnabled = 1 ORDER BY Sort", cancellationToken: ct));
         return rows.AsList();
     }
 

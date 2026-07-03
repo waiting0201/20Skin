@@ -9,8 +9,8 @@ public interface IAdminService
     /// <summary>依帳號查管理員（登入用）。</summary>
     Task<Admins?> FindByUsernameAsync(string username, CancellationToken ct = default);
 
-    /// <summary>管理員列表。</summary>
-    Task<IReadOnlyList<AdminListItemDto>> ListAsync(CancellationToken ct = default);
+    /// <summary>管理員分頁列表（忠於舊系統 Admins.cshtml 的 pageSize=20 分頁）。</summary>
+    Task<(IReadOnlyList<AdminListItemDto> Items, int Total)> ListAsync(int page, int pageSize, CancellationToken ct = default);
 
     /// <summary>取單一管理員。</summary>
     Task<Admins?> GetByIdAsync(Guid adminId, CancellationToken ct = default);

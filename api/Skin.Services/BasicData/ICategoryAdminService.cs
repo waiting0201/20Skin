@@ -8,7 +8,11 @@ namespace Skin.Services.BasicData;
 /// </summary>
 public interface ICategoryAdminService
 {
-    Task<IReadOnlyList<CategoryAdminDto>> ListAsync(string clinic, CancellationToken ct = default);
+    /// <summary>分頁列表（忠於舊系統 Skins.cshtml/Cosmetics.cshtml 的 pageSize=20 分頁，供列表頁 grid 使用）。</summary>
+    Task<(IReadOnlyList<CategoryAdminDto> Items, int Total)> ListAsync(string clinic, int page, int pageSize, CancellationToken ct = default);
+
+    /// <summary>全量列表（不分頁），供其他表單下拉/多選使用（科別項目數量少，非分頁清單場景）。</summary>
+    Task<IReadOnlyList<CategoryAdminDto>> ListAllAsync(string clinic, CancellationToken ct = default);
     Task<CategoryAdminDto?> GetAsync(Guid id, CancellationToken ct = default);
     Task<Guid> CreateAsync(string clinic, CategoryUpsertRequest req, CancellationToken ct = default);
     Task UpdateAsync(Guid id, CategoryUpsertRequest req, CancellationToken ct = default);

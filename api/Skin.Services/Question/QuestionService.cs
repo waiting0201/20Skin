@@ -44,19 +44,19 @@ public sealed class QuestionService(IDbConnectionFactory db) : IQuestionService
         return result;
     }
 
-    public async Task<QuestionFormDto?> GetFormAsync(Guid memberId, Guid questionTypeId, CancellationToken ct = default)
+    public async Task<QuestionFormDto?> GetFormAsync(Guid memberId, Guid questionTypeId, bool includeDisabled = false, CancellationToken ct = default)
     {
         using var conn = db.Create();
 
-        var qt = await conn.QueryFirstOrDefaultAsync<QuestionTypeRow>(new CommandDefinition("""
+        var qt = await conn.QueryFirstOrDefaultAsync<QuestionTypeRow>(new CommandDefinition($"""
             SELECT QuestionTypeID AS QuestionTypeId, CategoryID AS CategoryId, Title
-            FROM QuestionTypes WHERE QuestionTypeID = @questionTypeId AND IsEnabled = 1
+            FROM QuestionTypes WHERE QuestionTypeID = @questionTypeId {(includeDisabled ? "" : "AND IsEnabled = 1")}
             """, new { questionTypeId }, cancellationToken: ct));
         if (qt is null) return null;
 
-        var questions = (await conn.QueryAsync<QuestionRow>(new CommandDefinition("""
+        var questions = (await conn.QueryAsync<QuestionRow>(new CommandDefinition($"""
             SELECT QuestionID AS QuestionId, Title, OptionType, IsOther, OtherTitle, Sort
-            FROM Questions WHERE QuestionTypeID = @questionTypeId AND IsEnabled = 1 ORDER BY Sort
+            FROM Questions WHERE QuestionTypeID = @questionTypeId {(includeDisabled ? "" : "AND IsEnabled = 1")} ORDER BY Sort
             """, new { questionTypeId }, cancellationToken: ct))).AsList();
 
         var qids = questions.Select(q => q.QuestionId).ToArray();

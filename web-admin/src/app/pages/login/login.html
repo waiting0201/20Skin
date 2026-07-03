@@ -1,24 +1,32 @@
-<main class="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-  <div class="w-full max-w-sm bg-white rounded-lg shadow p-6">
-    <h1 class="text-xl font-bold text-gray-800 mb-6 text-center">20Skin 後台管理</h1>
-
-    @if (error()) {
-      <div class="mb-4 text-red-500 text-sm text-center">{{ error() }}</div>
-    }
-
-    <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
-      <div>
-        <label class="block font-semibold text-gray-700 mb-1">帳號</label>
-        <input formControlName="username" class="w-full border border-gray-300 rounded px-3 py-2" />
+<main class="min-h-screen flex items-center justify-center bg-brand-deeper p-4">
+  <div class="w-full max-w-sm">
+    <div class="bg-white rounded-lg shadow-xl p-8 border-t-4 border-brand">
+      <div class="flex flex-col items-center mb-6">
+        <img src="images/logo.jpg" alt="20SKIN" class="h-10 w-auto mb-3" />
+        <h1 class="text-sm font-medium text-muted tracking-wide">後台管理系統</h1>
       </div>
-      <div>
-        <label class="block font-semibold text-gray-700 mb-1">密碼</label>
-        <input type="password" formControlName="password" class="w-full border border-gray-300 rounded px-3 py-2" />
-      </div>
-      <button type="submit" [disabled]="loading()"
-              class="w-full bg-blue-600 text-white rounded py-2 hover:bg-blue-700 transition-colors disabled:opacity-50">
-        {{ loading() ? '登入中…' : '登入' }}
-      </button>
-    </form>
+
+      @if (error()) {
+        <div class="mb-4 text-red-500 text-sm text-center">{{ error() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+        <div>
+          <label class="block font-semibold text-ink mb-1 text-sm">帳號</label>
+          <input formControlName="username"
+                 class="w-full border border-hairline rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        </div>
+        <div>
+          <label class="block font-semibold text-ink mb-1 text-sm">密碼</label>
+          <input type="password" formControlName="password"
+                 class="w-full border border-hairline rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+        </div>
+        <button type="submit" [disabled]="loading()"
+                class="w-full bg-brand text-white rounded py-2 hover:bg-brand-deep transition-colors disabled:opacity-50">
+          {{ loading() ? '登入中…' : '登入' }}
+        </button>
+      </form>
+    </div>
+    <p class="text-center text-white/40 text-xs mt-4">20SKIN 預約管理系統</p>
   </div>
 </main>

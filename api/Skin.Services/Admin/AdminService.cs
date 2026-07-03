@@ -21,15 +21,23 @@ public sealed class AdminService(IDbConnectionFactory db) : IAdminService
             new { username }, cancellationToken: ct));
     }
 
-    public async Task<IReadOnlyList<AdminListItemDto>> ListAsync(CancellationToken ct = default)
+    public async Task<(IReadOnlyList<AdminListItemDto> Items, int Total)> ListAsync(int page, int pageSize, CancellationToken ct = default)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var offset = (page - 1) * pageSize;
+
         using var conn = db.Create();
+        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM Admins", cancellationToken: ct));
+
         var rows = await conn.QueryAsync<AdminListItemDto>(new CommandDefinition("""
             SELECT AdminID AS AdminId, Username, Name
             FROM Admins
             ORDER BY Username
-            """, cancellationToken: ct));
-        return rows.AsList();
+            OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            """, new { offset, pageSize }, cancellationToken: ct));
+        return (rows.AsList(), total);
     }
 
     public async Task<Admins?> GetByIdAsync(Guid adminId, CancellationToken ct = default)

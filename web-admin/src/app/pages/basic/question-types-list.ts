@@ -13,12 +13,12 @@ import { QuestionTypeAdmin } from '../../core/models';
   selector: 'app-question-types-list',
   imports: [RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800"><i class="fa fa-list-alt text-gray-400 mr-2"></i>問卷類型</h1>
+    <div class="bg-white rounded shadow-sm border border-hairline">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink"><i class="fa fa-list-alt text-muted mr-2"></i>問卷類型</h1>
         @if (auth.can('QuestionTypes', 'add')) {
           <a routerLink="/basic/question-types/new"
-             class="inline-flex items-center gap-1.5 bg-teal-600 text-white text-sm rounded px-3 py-1.5 hover:bg-teal-700">
+             class="inline-flex items-center gap-1.5 bg-brand text-white text-sm rounded px-3 py-1.5 hover:bg-brand-deep">
             <i class="fa fa-plus"></i> 新增問卷
           </a>
         }
@@ -28,55 +28,59 @@ import { QuestionTypeAdmin } from '../../core/models';
         <div class="m-5 text-sm text-red-500">{{ error() }}</div>
       }
 
+      <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-100 bg-gray-50">
-            <th class="px-5 py-2.5 font-medium">科別項目</th>
-            <th class="px-5 py-2.5 font-medium">問卷名稱</th>
-            <th class="px-5 py-2.5 font-medium">狀態</th>
-            <th class="px-5 py-2.5 font-medium w-24">排序</th>
-            <th class="px-5 py-2.5 font-medium text-right">操作</th>
+          <tr class="text-left text-muted border-b border-hairline bg-surface">
+            <th class="px-5 py-2.5 font-medium text-center w-20">排序</th>
+            <th class="px-5 py-2.5 font-medium w-40">科別項目</th>
+            <th class="px-5 py-2.5 font-medium w-auto">問卷名稱</th>
+            <th class="px-5 py-2.5 font-medium text-center w-24">狀態</th>
+            <th class="px-5 py-2.5 font-medium text-center w-20">操作</th>
           </tr>
         </thead>
         <tbody>
           @for (qt of questionTypes(); track qt.questionTypeId) {
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="px-5 py-2.5 text-gray-600">{{ qt.categoryTitle }}</td>
-              <td class="px-5 py-2.5 text-gray-800">
+            <tr class="border-b border-hairline hover:bg-surface">
+              <td class="px-5 py-2.5 text-center">
+                <input type="number" [value]="sorts()[qt.questionTypeId]"
+                       (change)="setSort(qt.questionTypeId, $any($event.target).value)"
+                       class="w-16 border border-hairline rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+              </td>
+              <td class="px-5 py-2.5 text-muted">{{ qt.categoryTitle }}</td>
+              <td class="px-5 py-2.5 text-ink">
                 @if (auth.can('QuestionTypes', 'read')) {
-                  <a [routerLink]="['/basic/question-types', qt.questionTypeId, 'questions']" class="text-blue-600 hover:underline">{{ qt.title }}</a>
+                  <a [routerLink]="['/basic/question-types', qt.questionTypeId, 'questions']" class="text-brand hover:underline">{{ qt.title }}</a>
                 } @else {
                   {{ qt.title }}
                 }
               </td>
-              <td class="px-5 py-2.5">
-                @if (qt.isEnabled) { <span class="text-green-600">啟用</span> } @else { <span class="text-gray-400">停用</span> }
+              <td class="px-5 py-2.5 text-center">
+                @if (qt.isEnabled) { <span class="text-green-600">開啟</span> } @else { <span class="text-muted">關閉</span> }
               </td>
-              <td class="px-5 py-2.5">
-                <input type="number" [value]="sorts()[qt.questionTypeId]"
-                       (change)="setSort(qt.questionTypeId, $any($event.target).value)"
-                       class="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
-              </td>
-              <td class="px-5 py-2.5 text-right space-x-2">
-                @if (auth.can('QuestionTypes', 'update')) {
-                  <a [routerLink]="['/basic/question-types', qt.questionTypeId, 'edit']"
-                     class="text-blue-600 hover:underline"><i class="fa fa-pencil"></i> 編輯</a>
-                }
-                @if (auth.can('QuestionTypes', 'delete') && qt.isEnabled) {
-                  <button (click)="remove(qt)" class="text-red-500 hover:underline"><i class="fa fa-trash"></i> 停用</button>
-                }
+              <td class="px-5 py-2.5 text-center">
+                <span class="inline-flex items-center gap-3">
+                  @if (auth.can('QuestionTypes', 'update')) {
+                    <a [routerLink]="['/basic/question-types', qt.questionTypeId, 'edit']"
+                       class="text-brand hover:text-brand-deep" title="編輯"><i class="fa fa-pencil"></i></a>
+                  }
+                  @if (auth.can('QuestionTypes', 'delete') && qt.isEnabled) {
+                    <button (click)="remove(qt)" class="text-red-500 hover:text-red-700" title="停用"><i class="fa fa-trash"></i></button>
+                  }
+                </span>
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="5" class="px-5 py-6 text-center text-gray-400">{{ loading() ? '載入中…' : '尚無問卷' }}</td></tr>
+            <tr><td colspan="5" class="px-5 py-6 text-center text-muted">{{ loading() ? '載入中…' : '尚無問卷' }}</td></tr>
           }
         </tbody>
       </table>
+      </div>
 
       @if (questionTypes().length > 0 && auth.can('QuestionTypes', 'update')) {
-        <div class="px-5 py-3 border-t border-gray-100">
+        <div class="px-5 py-3 border-t border-hairline">
           <button (click)="saveSort()" [disabled]="savingSort()"
-                  class="bg-gray-700 text-white text-sm rounded px-4 py-2 hover:bg-gray-800 disabled:opacity-50">
+                  class="bg-ink text-white text-sm rounded px-4 py-2 hover:bg-black disabled:opacity-50">
             {{ savingSort() ? '儲存中…' : '儲存排序' }}
           </button>
         </div>

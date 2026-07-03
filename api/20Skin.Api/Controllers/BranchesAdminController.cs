@@ -14,9 +14,24 @@ namespace Skin.Api.Controllers;
 [ApiController]
 public sealed class BranchesAdminController(IBranchAdminService branches)
 {
+    /// <summary>
+    /// `enabledOnly=true`：回傳全量已啟用分院（不分頁，依 Sort 排序），供下拉選單使用
+    /// （如會員列表分院篩選，忠於舊 `MemberMsController.Members` 的 `Where(IsEnabled).OrderBy(Sort)`）。
+    /// 沿用同一路由（不新增路徑段），避免與 `GET admin/branches/{id}` 的自訂 router 比對衝突
+    /// （router 為 first-match、無 literal 優先於 `{param}` 的機制，見 Routing/RouteTable.cs）。
+    /// </summary>
     [ApiRoute("GET", "admin/branches")]
     [Authorize(Roles.Admin, Resource = "Branchs", Op = "read")]
-    public async Task<IReadOnlyList<BranchAdminDto>> List() => await branches.ListAsync();
+    public async Task<object> List(int page = 1, bool enabledOnly = false)
+    {
+        if (enabledOnly)
+        {
+            var enabled = await branches.ListEnabledAsync();
+            return new { items = enabled, total = enabled.Count, page = 1, pageSize = enabled.Count };
+        }
+        var (items, total) = await branches.ListAsync(page, 20);
+        return new { items, total, page, pageSize = 20 };
+    }
 
     [ApiRoute("GET", "admin/branches/{id}")]
     [Authorize(Roles.Admin, Resource = "Branchs", Op = "read")]

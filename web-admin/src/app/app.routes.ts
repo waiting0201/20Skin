@@ -167,10 +167,48 @@ export const routes: Routes = [
         canActivate: [permGuard],
       },
 
-      // 未建模組佔位（reserve/member 逐一補齊）
+      // 會員管理（對應舊 MemberMs）
+      {
+        path: 'member',
+        loadComponent: () => import('./pages/member/members-list').then((m) => m.MembersListComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'read' } },
+      },
+      {
+        path: 'member/:id/edit',
+        loadComponent: () => import('./pages/member/member-form').then((m) => m.MemberFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'update' } },
+      },
+      {
+        path: 'member/:id/questionnaires',
+        loadComponent: () => import('./pages/member/member-questionnaires').then((m) => m.MemberQuestionnairesComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'read' } },
+      },
+      {
+        path: 'member/:id/questionnaires/new',
+        loadComponent: () => import('./pages/member/member-questionnaire-form').then((m) => m.MemberQuestionnaireFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'add' } },
+      },
+      {
+        path: 'member/:id/questionnaires/:linkId/edit',
+        loadComponent: () => import('./pages/member/member-questionnaire-form').then((m) => m.MemberQuestionnaireFormComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'update' } },
+      },
+      {
+        path: 'member/:id/questionnaires/:questionTypeId/view',
+        loadComponent: () => import('./pages/member/member-questionnaire-view').then((m) => m.MemberQuestionnaireViewComponent),
+        canActivate: [permGuard],
+        data: { perm: { key: 'Members', op: 'read' } },
+      },
+
+      // 未建模組佔位（reserve 逐一補齊）
       { path: 'coming-soon', loadComponent: () => import('./pages/coming-soon').then((m) => m.ComingSoonComponent) },
       { path: 'forbidden', loadComponent: () => import('./pages/forbidden').then((m) => m.ForbiddenComponent) },
-      // TODO: reserve / member 模組，各帶 data.perm
+      // TODO: reserve 模組，帶 data.perm
     ],
   },
   { path: '**', redirectTo: '' },

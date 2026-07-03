@@ -9,4 +9,7 @@ public interface IFileStorage
     /// <summary>驗證（目錄白名單/型別/大小）後存到 <c>{container}/{folder}/{guid}{ext}</c>；回檔名+公開 URL。</summary>
     Task<SavedFile> SaveAsync(
         string folder, Stream content, string contentType, string originalFileName, long length, CancellationToken ct = default);
+
+    /// <summary>刪除既有檔案（目錄白名單把關，不存在即靜默略過）。</summary>
+    Task DeleteAsync(string folder, string filename, CancellationToken ct = default);
 }

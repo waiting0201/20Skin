@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ApiResponse,
+  PagedResult,
   RosterAdmin,
   RosterCreateRequest,
   RosterCreateResult,
@@ -41,13 +42,6 @@ export function rosterResourceKey(branch: string, clinic: string): string {
   return ROSTER_RESOURCE[`${branch}:${clinic}`] ?? '';
 }
 
-interface RosterListResponse {
-  items: RosterListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
 /** 後台排班 API（分院/醫師/時段/科別項目沿用 BasicDataApiService）。見 docs/blueprints/admin-roster.md。 */
 @Injectable({ providedIn: 'root' })
 export class RosterApiService {
@@ -60,12 +54,12 @@ export class RosterApiService {
     date: string | null,
     doctorId: string | null,
     page: number,
-  ): Observable<ApiResponse<RosterListResponse>> {
+  ): Observable<ApiResponse<PagedResult<RosterListItem>>> {
     const params = new URLSearchParams();
     if (date) params.set('date', date);
     if (doctorId) params.set('doctorId', doctorId);
     params.set('page', String(page));
-    return this.http.get<ApiResponse<RosterListResponse>>(
+    return this.http.get<ApiResponse<PagedResult<RosterListItem>>>(
       `${this.base}/admin/rosters/${rosterSlug(branch, clinic)}?${params.toString()}`,
     );
   }

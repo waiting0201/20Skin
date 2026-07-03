@@ -88,6 +88,9 @@ builder.Services.AddScoped<Skin.Services.BasicData.IQuestionAdminService, Skin.S
 // 後台排班（分院別名重用 Skin.Services.BasicData.PeriodsOptions，見 docs/blueprints/admin-roster.md）
 builder.Services.AddScoped<Skin.Services.Roster.IRosterAdminService, Skin.Services.Roster.RosterAdminService>();
 
+// 後台會員管理（查詢/編輯/黑名單 + 問卷掃描檔上傳維護，見 docs/blueprints/admin-member.md）
+builder.Services.AddScoped<Skin.Services.Member.IMemberAdminService, Skin.Services.Member.MemberAdminService>();
+
 // 預約規則（設定驅動，取代舊硬編碼分院 GUID）
 builder.Services.AddSingleton(new BookingOptions
 {

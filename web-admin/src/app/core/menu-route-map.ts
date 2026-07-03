@@ -60,6 +60,7 @@ export const BUILT_KEYS = new Set<string>([
   'TaCosmeticRosters',
   'ChCosmeticRosters',
   'ChDentistRosters',
+  'Members',
 ]);
 
 /** 解析選單葉節點的點擊路由；未建模組導佔位頁。 */

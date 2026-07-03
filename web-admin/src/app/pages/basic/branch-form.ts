@@ -10,10 +10,10 @@ import { BranchUpsertRequest } from '../../core/models';
   selector: 'app-branch-form',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200 max-w-2xl">
-      <div class="px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800">
-          <i class="fa fa-hospital-o text-gray-400 mr-2"></i>{{ isEdit() ? '編輯分院' : '新增分院' }}
+    <div class="bg-white rounded shadow-sm border border-hairline max-w-2xl">
+      <div class="px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink">
+          <i class="fa fa-hospital-o text-muted mr-2"></i>{{ isEdit() ? '編輯分院' : '新增分院' }}
         </h1>
       </div>
 
@@ -23,36 +23,38 @@ import { BranchUpsertRequest } from '../../core/models';
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">名稱 <span class="text-red-400">*</span></label>
-          <input formControlName="title" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">名稱 <span class="text-red-400">*</span></label>
+          <input formControlName="title"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">類型（BranchType）</label>
-          <input type="number" formControlName="branchType" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">類型（BranchType）</label>
+          <input type="number" formControlName="branchType"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">圖片</label>
+          <label class="block text-sm font-medium text-ink mb-1">圖片</label>
           @if (photoUrl(); as url) {
             <img [src]="url" class="w-24 h-24 object-cover rounded mb-2" />
           }
           <input type="file" accept="image/*" (change)="onFileSelected($event)" />
-          @if (uploading()) { <span class="text-xs text-gray-400 ml-2">上傳中…</span> }
+          @if (uploading()) { <span class="text-xs text-muted ml-2">上傳中…</span> }
         </div>
         <div class="flex items-center gap-2">
           <input type="checkbox" id="isAutoRowNumber" formControlName="isAutoRowNumber" />
-          <label for="isAutoRowNumber" class="text-sm text-gray-700">自動配號（IsAutoRowNumber）</label>
+          <label for="isAutoRowNumber" class="text-sm text-ink">自動配號（IsAutoRowNumber）</label>
         </div>
         <div class="flex items-center gap-2">
           <input type="checkbox" id="isEnabled" formControlName="isEnabled" />
-          <label for="isEnabled" class="text-sm text-gray-700">啟用</label>
+          <label for="isEnabled" class="text-sm text-ink">啟用</label>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
           <button type="submit" [disabled]="saving()"
-                  class="bg-teal-600 text-white text-sm rounded px-4 py-2 hover:bg-teal-700 disabled:opacity-50">
+                  class="bg-brand text-white text-sm rounded px-4 py-2 hover:bg-brand-deep disabled:opacity-50">
             {{ saving() ? '儲存中…' : '儲存' }}
           </button>
-          <a routerLink="/basic/branches" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">取消</a>
+          <a routerLink="/basic/branches" class="text-sm text-muted hover:text-ink px-3 py-2">取消</a>
         </div>
       </form>
     </div>

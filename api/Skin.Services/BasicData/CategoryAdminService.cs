@@ -29,7 +29,23 @@ public sealed class CategoryAdminService(IDbConnectionFactory db) : ICategoryAdm
             throw new BusinessException($"圖片檔名不可超過 {PhotoMaxLength} 字", "PHOTO_TOO_LONG");
     }
 
-    public async Task<IReadOnlyList<CategoryAdminDto>> ListAsync(string clinic, CancellationToken ct = default)
+    public async Task<(IReadOnlyList<CategoryAdminDto> Items, int Total)> ListAsync(string clinic, int page, int pageSize, CancellationToken ct = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var offset = (page - 1) * pageSize;
+
+        using var conn = db.Create();
+        var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM Categorys WHERE Clinic = @clinic", new { clinic }, cancellationToken: ct));
+
+        var rows = await conn.QueryAsync<CategoryAdminDto>(new CommandDefinition(
+            $"SELECT {SelectColumns} FROM Categorys WHERE Clinic = @clinic ORDER BY Sort OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY",
+            new { clinic, offset, pageSize }, cancellationToken: ct));
+        return (rows.AsList(), total);
+    }
+
+    public async Task<IReadOnlyList<CategoryAdminDto>> ListAllAsync(string clinic, CancellationToken ct = default)
     {
         using var conn = db.Create();
         var rows = await conn.QueryAsync<CategoryAdminDto>(new CommandDefinition(

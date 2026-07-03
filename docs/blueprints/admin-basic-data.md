@@ -13,7 +13,7 @@ related_docs:
   - ../design/database-design.md
   - questionnaire.md
 keywords: [admin, basic-data, master-data, branch, doctor, period, category, question, crud]
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 ---
 
 ## 背景與動機
@@ -38,6 +38,7 @@ last_updated: 2026-07-02
 - **路由 `admin/` 前綴**：客戶前台已用 `Roles.Member` 鎖住 `/api/branches`、`/api/categories?clinic=`、`/api/question-types`，同 method+同段數路由不可重複註冊，後台新端點統一 `admin/` 前綴（見 [api-design.md](../design/api-design.md)）。
 - **刪除前置檢查**：改為正確的 `COUNT(...)==0` 引用檢查（修正舊系統死碼 bug：`if (entity.Rosters==null)` 因 EF6 lazy-loading 集合永不為 null 而完全失效）。真實 DB 已查證 CASCADE 鏈：`Branchs→Periods`、`Periods→RosterPeriods`、`Categorys→QuestionTypes`/`RosterCategorys`、`QuestionTypes→Questions`、`Questions→QuestionAnswers`/`MemberQuestions` 皆為 `CASCADE`；`Appointments`/`Rosters` 對 `Branchs`/`Doctors`/`Categorys`/`Periods` 皆為 `NO_ACTION`（DB 會擋，但仍需應用層給出明確訊息，不能只靠 DB 丟例外）。Category 刪除需檢查 **QuestionTypes 全表 COUNT（含已軟刪 IsEnabled=false 的列）**，因為 QuestionTypes 從不硬刪，任何殘留列都代表 CASCADE 會波及到 Questions/QuestionAnswers/MemberQuestions（含會員歷史問卷記錄）。
 - **問卷選項（QuestionAnswers）編輯**：純沿用舊系統行為——比對新舊 answerID 做增/改/**硬刪**，不查 `MemberQuestionAnswers` 引用（該表對 QuestionAnswers 無 FK 保護，已知孤兒資料風險，使用者已拍板接受以維持舊行為相容性）。
+- **列表頁分頁（2026-07-03 追加）**：分院、科別項目兩個列表補回分頁（舊 `Branchs.cshtml`/`Skins.cshtml`/`Cosmetics.cshtml` 皆為 `ToPagedList(pageSize: 20)`，先前重寫時遺漏）；醫師/時段/問卷類型/問卷題目列表維持不分頁（對應舊 View 本來就沒有分頁）。詳細規範見 [design/frontend-backend.md](../design/frontend-backend.md) §分頁規範。因科別項目在排班表單/問卷類型表單的下拉還需要「全部清單」，另外加了不分頁的 `GET admin/categories/{clinic}/all` 端點供這些表單改呼叫，避免誤用分頁端點只拿到第一頁。
 
 ## 跨層影響
 | 層級 | 影響 | 摘要 |

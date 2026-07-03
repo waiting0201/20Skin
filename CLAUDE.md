@@ -4,7 +4,7 @@
 
 ## 必要規則
 
-0. **一律以繁體中文回應使用者**（程式碼、識別字、原文引用除外）
+0. **一律以繁體中文回應使用者**（程式碼、識別字、原文引用除外），涵蓋所有輸出文字，包含工具呼叫前後的說明/進度文字，不可混用其他語言（如英文、韓文）
 1. **本檔（CLAUDE.md）保持精簡（≤ 200 行）**：只放路由 + 同步規則 + 索引，細節寫到對應 doc
 2. **每份 doc 必須含 YAML frontmatter**（schema 見 [docs/old/architecture.md](docs/old/architecture.md) §Frontmatter Schema）
 3. **動 code 必動 doc**：依下方「文件同步規則」執行

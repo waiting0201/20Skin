@@ -5,6 +5,14 @@ export interface ApiResponse<T> {
   code?: string;
 }
 
+/** 分頁清單回應信封（後端 `{ items, total, page, pageSize }`，pageSize 固定 20，見 docs/design/frontend-backend.md §分頁規範）。 */
+export interface PagedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 /** 攤平的權限項（對應舊 Lims+AdminLims，見 docs/design/security.md）。 */
 export interface AdminPerm {
   key: string;      // 資源 key，如 "TaAppointments"
@@ -281,4 +289,118 @@ export interface RosterUpdateRequest {
 export interface RosterCreateResult {
   createdDates: string[];
   skippedDates: string[];
+}
+
+/** 會員列表項（對應後端 MemberListItemDto）。BranchTitles 為曾就診分院去重清單，空陣列表尚未預約。 */
+export interface MemberListItem {
+  memberId: string;
+  number: string;
+  mobile: string;
+  birthday: string;
+  name: string | null;
+  isBlackList: boolean;
+  isFirstVisit: boolean;
+  branchTitles: string[];
+}
+
+/** 會員詳情（編輯表單用，對應後端 MemberDetailDto）。number 唯讀不可改。 */
+export interface MemberDetail {
+  memberId: string;
+  number: string;
+  mobile: string;
+  birthday: string;
+  name: string | null;
+  gender: number | null;
+  bloodType: string | null;
+  email: string | null;
+  zipcodeId: number | null;
+  city: string | null;
+  address: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+  allergy: string[];
+  allergyOther: string | null;
+  medicalHistory: string[];
+  medicalHistoryOther: string | null;
+  isBlackList: boolean;
+}
+
+/** 編輯會員請求（對應後端 MemberUpdateRequest，不含 number）。 */
+export interface MemberUpdateRequest {
+  mobile: string;
+  birthday: string;
+  name: string | null;
+  gender: number | null;
+  bloodType: string | null;
+  email: string | null;
+  zipcodeId: number | null;
+  address: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+  allergy: string[] | null;
+  allergyOther: string | null;
+  medicalHistory: string[] | null;
+  medicalHistoryOther: string | null;
+  isBlackList: boolean;
+}
+
+/**
+ * 會員問卷清單項（對應後端 MemberQuestionnaireLinkDto）。linkId：掃描檔=memberQuestionId／唯讀=questionTypeId。
+ * questionTypeId/filename 供編輯表單預填（掃描檔項）；數位作答項 filename 恆為 null。
+ */
+export interface MemberQuestionnaireLink {
+  linkId: string;
+  categoryTitle: string;
+  questionTypeTitle: string;
+  questionTypeId: string;
+  filename: string | null;
+}
+
+/** 會員問卷維護頁（對應後端 MemberQuestionnairesDto）。 */
+export interface MemberQuestionnaires {
+  uploaded: MemberQuestionnaireLink[];
+  digitalAnswered: MemberQuestionnaireLink[];
+}
+
+/** 新增/編輯問卷掃描檔請求（對應後端 MemberQuestionUpsertRequest）。filename 為 null 表編輯時不換檔。 */
+export interface MemberQuestionUpsertRequest {
+  questionTypeId: string;
+  filename: string | null;
+}
+
+/**
+ * 問卷表單（唯讀檢視用，對應後端 QuestionFormDto，重用客戶前台 IQuestionService.GetFormAsync）。
+ * 與 web-customer/core/models.ts 的同名型別各自獨立一份（兩專案不共用程式碼）。
+ */
+export interface QuestionAnswerOption {
+  questionAnswerId: string;
+  title: string;
+  sort: number;
+}
+
+export interface QuestionFormItem {
+  questionId: string;
+  title: string;
+  optionType: number; // 1=單選 / 2=複選
+  isOther: boolean;
+  otherTitle: string | null;
+  answers: QuestionAnswerOption[];
+  selectedAnswerIds: string[];
+  otherText: string | null;
+}
+
+export interface QuestionForm {
+  questionTypeId: string;
+  categoryId: string;
+  title: string;
+  answered: boolean;
+  questions: QuestionFormItem[];
+}
+
+/** 郵遞區號（對應後端 ZipcodeDto），供會員編輯頁城市/區連動。 */
+export interface Zipcode {
+  zipcodeId: number;
+  city: string;
+  area: string;
+  zipcode: string;
 }

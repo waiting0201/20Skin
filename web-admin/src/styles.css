@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+/**
+ * 品牌 design token —— 承接客戶前台（web-customer）main.css 實測色值，
+ * 讓後台從「通用 SmartAdmin 樣板」改為與 20SKIN 品牌一致的企業識別。
+ * 對應決策見 docs/design/visual-design.md §後台視覺策略。
+ */
+@theme {
+  --color-brand: #00538d; /* 品牌主色，同客戶前台 skin-blue */
+  --color-brand-deep: #013f6b; /* 側欄底色 / hover 深色 */
+  --color-brand-deeper: #012b4a; /* 側欄品牌列底色 */
+  --color-brand-tint: #eaf2f8; /* 選中/hover 淺色底 */
+  --color-ink: #333333; /* 內文，同客戶前台 skin-ink */
+  --color-muted: #7c8796; /* 次要文字/圖示，同客戶前台 skin-gray */
+  --color-line: #798593; /* 分隔線，同客戶前台 skin-line */
+  --color-hairline: #e5e5e5; /* 淺邊框，同客戶前台 skin-border */
+  --color-surface: #f5f7f9; /* 頁面底色（取代通用 gray-100） */
+}

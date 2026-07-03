@@ -36,6 +36,17 @@ public sealed class BlobFileStorage(StorageOptions options) : IFileStorage
         return new SavedFile(filename, folder, blob.Uri.ToString());
     }
 
+    public async Task DeleteAsync(string folder, string filename, CancellationToken ct = default)
+    {
+        folder = (folder ?? "").Trim().ToLowerInvariant();
+        if (!options.AllowedFolders.Contains(folder))
+            throw new BusinessException("不支援的上傳目錄", "INVALID_FOLDER");
+        if (string.IsNullOrWhiteSpace(filename)) return;
+
+        var blob = _container.GetBlobClient($"{folder}/{filename}");
+        await blob.DeleteIfExistsAsync(cancellationToken: ct);
+    }
+
     private static string ExtFor(string contentType, string originalName) => contentType.ToLowerInvariant() switch
     {
         "image/jpeg" => ".jpg",

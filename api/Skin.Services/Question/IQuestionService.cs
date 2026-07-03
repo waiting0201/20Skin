@@ -13,8 +13,13 @@ public interface IQuestionService
     Task<IReadOnlyList<QuestionnaireCategoryDto>> GetCategoriesAsync(
         Guid memberId, string? clinic, Guid? categoryId, CancellationToken ct = default);
 
-    /// <summary>取單份問卷表單（題目 + 選項 + 會員既有作答 pre-fill）。查無或未啟用回 null。</summary>
-    Task<QuestionFormDto?> GetFormAsync(Guid memberId, Guid questionTypeId, CancellationToken ct = default);
+    /// <summary>
+    /// 取單份問卷表單（題目 + 選項 + 會員既有作答 pre-fill）。
+    /// <paramref name="includeDisabled"/>=false（預設，客戶前台用）：查無或未啟用回 null。
+    /// =true（後台會員問卷唯讀檢視用，見 MembersAdminController）：不論問卷/題目是否已停用皆可查看歷史作答，
+    /// 忠於舊 ViewMemberQAs.cshtml 不過濾 IsEnabled 的行為。
+    /// </summary>
+    Task<QuestionFormDto?> GetFormAsync(Guid memberId, Guid questionTypeId, bool includeDisabled = false, CancellationToken ct = default);
 
     /// <summary>提交作答：交易內先刪該會員此問卷舊作答再寫入（可重填、冪等）。</summary>
     Task SubmitAsync(Guid memberId, SaveMemberQuestionsRequest req, CancellationToken ct = default);

@@ -16,10 +16,10 @@ type FlagState = Record<number, { isAdd: boolean; isUpdate: boolean; isDelete: b
   selector: 'app-admin-form',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200 max-w-4xl">
-      <div class="px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800">
-          <i class="fa fa-user-plus text-gray-400 mr-2"></i>{{ isEdit() ? '編輯管理員' : '新增管理員' }}
+    <div class="bg-white rounded shadow-sm border border-hairline max-w-4xl">
+      <div class="px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink">
+          <i class="fa fa-user-plus text-muted mr-2"></i>{{ isEdit() ? '編輯管理員' : '新增管理員' }}
         </h1>
       </div>
 
@@ -30,40 +30,43 @@ type FlagState = Record<number, { isAdd: boolean; isUpdate: boolean; isDelete: b
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-5">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">帳號 <span class="text-red-400">*</span></label>
-            <input formControlName="username" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+            <label class="block text-sm font-medium text-ink mb-1">帳號 <span class="text-red-400">*</span></label>
+            <input formControlName="username"
+                   class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              密碼 @if (!isEdit()) { <span class="text-red-400">*</span> } @else { <span class="text-gray-400 text-xs">(留空不修改)</span> }
+            <label class="block text-sm font-medium text-ink mb-1">
+              密碼 @if (!isEdit()) { <span class="text-red-400">*</span> } @else { <span class="text-muted text-xs">(留空不修改)</span> }
             </label>
             <input type="password" formControlName="password" autocomplete="new-password"
-                   class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                   class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-            <input formControlName="name" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+            <label class="block text-sm font-medium text-ink mb-1">姓名</label>
+            <input formControlName="name"
+                   class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
           </div>
         </div>
 
         <!-- 權限樹 -->
         <div>
-          <h2 class="text-sm font-semibold text-gray-700 mb-2">功能權限</h2>
+          <h2 class="text-sm font-semibold text-ink mb-2">功能權限</h2>
           <div class="space-y-4">
             @for (mod of tree(); track mod.limId) {
-              <div class="border border-gray-200 rounded overflow-hidden">
-                <div class="flex items-center justify-between bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <span class="text-sm font-medium text-gray-700">
-                    <i class="fa fa-fw {{ mod.icon || 'fa-folder' }} text-gray-400 mr-1"></i>{{ mod.label || mod.key }}
+              <div class="border border-hairline rounded overflow-hidden">
+                <div class="flex items-center justify-between bg-surface px-4 py-2 border-b border-hairline">
+                  <span class="text-sm font-medium text-ink">
+                    <i class="fa fa-fw {{ mod.icon || 'fa-folder' }} text-muted mr-1"></i>{{ mod.label || mod.key }}
                   </span>
-                  <label class="text-xs text-gray-500 flex items-center gap-1 cursor-pointer">
+                  <label class="text-xs text-muted flex items-center gap-1 cursor-pointer">
                     <input type="checkbox" [checked]="isModuleAll(mod)" (change)="toggleModule(mod, $any($event.target).checked)" />
                     全選
                   </label>
                 </div>
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                   <thead>
-                    <tr class="text-gray-500 text-xs bg-white border-b border-gray-100">
+                    <tr class="text-muted text-xs bg-white border-b border-hairline">
                       <th class="text-left font-medium px-4 py-1.5">子功能</th>
                       <th class="font-medium px-2 py-1.5 w-20">新增</th>
                       <th class="font-medium px-2 py-1.5 w-20">修改</th>
@@ -72,8 +75,8 @@ type FlagState = Record<number, { isAdd: boolean; isUpdate: boolean; isDelete: b
                   </thead>
                   <tbody>
                     @for (child of mod.children; track child.limId) {
-                      <tr class="border-b border-gray-50">
-                        <td class="px-4 py-1.5 text-gray-700">{{ child.label || child.key }}</td>
+                      <tr class="border-b border-hairline">
+                        <td class="px-4 py-1.5 text-ink">{{ child.label || child.key }}</td>
                         <td class="px-2 py-1.5 text-center">
                           <input type="checkbox" [checked]="flags()[child.limId].isAdd"
                                  (change)="setFlag(child.limId, 'isAdd', $any($event.target).checked)" />
@@ -90,19 +93,20 @@ type FlagState = Record<number, { isAdd: boolean; isUpdate: boolean; isDelete: b
                     }
                   </tbody>
                 </table>
+                </div>
               </div>
             } @empty {
-              <p class="text-sm text-gray-400">{{ loading() ? '載入中…' : '無權限項目' }}</p>
+              <p class="text-sm text-muted">{{ loading() ? '載入中…' : '無權限項目' }}</p>
             }
           </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
           <button type="submit" [disabled]="saving()"
-                  class="bg-teal-600 text-white text-sm rounded px-4 py-2 hover:bg-teal-700 disabled:opacity-50">
+                  class="bg-brand text-white text-sm rounded px-4 py-2 hover:bg-brand-deep disabled:opacity-50">
             {{ saving() ? '儲存中…' : '儲存' }}
           </button>
-          <a routerLink="/authority/admins" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">取消</a>
+          <a routerLink="/authority/admins" class="text-sm text-muted hover:text-ink px-3 py-2">取消</a>
         </div>
       </form>
     </div>

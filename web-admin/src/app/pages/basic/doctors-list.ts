@@ -9,12 +9,12 @@ import { DoctorAdmin } from '../../core/models';
   selector: 'app-doctors-list',
   imports: [RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800"><i class="fa fa-user-md text-gray-400 mr-2"></i>醫師</h1>
+    <div class="bg-white rounded shadow-sm border border-hairline">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink"><i class="fa fa-user-md text-muted mr-2"></i>醫師</h1>
         @if (auth.can('Doctors', 'add')) {
           <a routerLink="/basic/doctors/new"
-             class="inline-flex items-center gap-1.5 bg-teal-600 text-white text-sm rounded px-3 py-1.5 hover:bg-teal-700">
+             class="inline-flex items-center gap-1.5 bg-brand text-white text-sm rounded px-3 py-1.5 hover:bg-brand-deep">
             <i class="fa fa-plus"></i> 新增醫師
           </a>
         }
@@ -24,32 +24,36 @@ import { DoctorAdmin } from '../../core/models';
         <div class="m-5 text-sm text-red-500">{{ error() }}</div>
       }
 
+      <div class="overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-gray-500 border-b border-gray-100 bg-gray-50">
-            <th class="px-5 py-2.5 font-medium">姓名</th>
-            <th class="px-5 py-2.5 font-medium text-right">操作</th>
+          <tr class="text-left text-muted border-b border-hairline bg-surface">
+            <th class="px-5 py-2.5 font-medium w-auto">姓名</th>
+            <th class="px-5 py-2.5 font-medium text-center w-20">操作</th>
           </tr>
         </thead>
         <tbody>
           @for (d of doctors(); track d.doctorId) {
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-              <td class="px-5 py-2.5 text-gray-800">{{ d.name }}</td>
-              <td class="px-5 py-2.5 text-right space-x-2">
-                @if (auth.can('Doctors', 'update')) {
-                  <a [routerLink]="['/basic/doctors', d.doctorId, 'edit']"
-                     class="text-blue-600 hover:underline"><i class="fa fa-pencil"></i> 編輯</a>
-                }
-                @if (auth.can('Doctors', 'delete')) {
-                  <button (click)="remove(d)" class="text-red-500 hover:underline"><i class="fa fa-trash"></i> 刪除</button>
-                }
+            <tr class="border-b border-hairline hover:bg-surface">
+              <td class="px-5 py-2.5 text-ink">{{ d.name }}</td>
+              <td class="px-5 py-2.5 text-center">
+                <span class="inline-flex items-center gap-3">
+                  @if (auth.can('Doctors', 'update')) {
+                    <a [routerLink]="['/basic/doctors', d.doctorId, 'edit']"
+                       class="text-brand hover:text-brand-deep" title="編輯"><i class="fa fa-pencil"></i></a>
+                  }
+                  @if (auth.can('Doctors', 'delete')) {
+                    <button (click)="remove(d)" class="text-red-500 hover:text-red-700" title="刪除"><i class="fa fa-trash"></i></button>
+                  }
+                </span>
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="2" class="px-5 py-6 text-center text-gray-400">{{ loading() ? '載入中…' : '尚無醫師' }}</td></tr>
+            <tr><td colspan="2" class="px-5 py-6 text-center text-muted">{{ loading() ? '載入中…' : '尚無醫師' }}</td></tr>
           }
         </tbody>
       </table>
+      </div>
     </div>
   `,
 })

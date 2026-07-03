@@ -18,7 +18,12 @@ public sealed class CategoriesAdminController(ICategoryAdminService categories)
 
     [ApiRoute("GET", "admin/categories/skin")]
     [Authorize(Roles.Admin, Resource = "Skins", Op = "read")]
-    public Task<IReadOnlyList<CategoryAdminDto>> SkinList() => categories.ListAsync(Clinic.Skin);
+    public Task<object> SkinList(int page = 1) => List(Clinic.Skin, page);
+
+    /// <summary>GET /api/admin/categories/skin/all — 全量（不分頁），供其他表單下拉/多選使用。</summary>
+    [ApiRoute("GET", "admin/categories/skin/all")]
+    [Authorize(Roles.Admin, Resource = "Skins", Op = "read")]
+    public Task<IReadOnlyList<CategoryAdminDto>> SkinListAll() => categories.ListAllAsync(Clinic.Skin);
 
     [ApiRoute("POST", "admin/categories/skin")]
     [Authorize(Roles.Admin, Resource = "Skins", Op = "add")]
@@ -41,7 +46,12 @@ public sealed class CategoriesAdminController(ICategoryAdminService categories)
 
     [ApiRoute("GET", "admin/categories/cosmetic")]
     [Authorize(Roles.Admin, Resource = "Cosmetics", Op = "read")]
-    public Task<IReadOnlyList<CategoryAdminDto>> CosmeticList() => categories.ListAsync(Clinic.Cosmetic);
+    public Task<object> CosmeticList(int page = 1) => List(Clinic.Cosmetic, page);
+
+    /// <summary>GET /api/admin/categories/cosmetic/all — 全量（不分頁），供其他表單下拉/多選使用。</summary>
+    [ApiRoute("GET", "admin/categories/cosmetic/all")]
+    [Authorize(Roles.Admin, Resource = "Cosmetics", Op = "read")]
+    public Task<IReadOnlyList<CategoryAdminDto>> CosmeticListAll() => categories.ListAllAsync(Clinic.Cosmetic);
 
     [ApiRoute("POST", "admin/categories/cosmetic")]
     [Authorize(Roles.Admin, Resource = "Cosmetics", Op = "add")]
@@ -61,6 +71,12 @@ public sealed class CategoriesAdminController(ICategoryAdminService categories)
     public Task<ApiResponse> CosmeticSort(SortRequest req) => Sort(Clinic.Cosmetic, req);
 
     // ================= 共用（非路由） =================
+
+    private async Task<object> List(string clinic, int page)
+    {
+        var (items, total) = await categories.ListAsync(clinic, page, 20);
+        return new { items, total, page, pageSize = 20 };
+    }
 
     private async Task<ApiResponse<CategoryAdminDto>> Detail(Guid id)
     {

@@ -12,10 +12,10 @@ import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
   selector: 'app-period-form',
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <div class="bg-white rounded shadow-sm border border-gray-200 max-w-lg">
-      <div class="px-5 py-3 border-b border-gray-100">
-        <h1 class="text-base font-semibold text-gray-800">
-          <i class="fa fa-clock-o text-gray-400 mr-2"></i>{{ isEdit() ? '編輯時段' : '新增時段' }}
+    <div class="bg-white rounded shadow-sm border border-hairline max-w-lg">
+      <div class="px-5 py-3 border-b border-hairline">
+        <h1 class="text-base font-semibold text-ink">
+          <i class="fa fa-clock-o text-muted mr-2"></i>{{ isEdit() ? '編輯時段' : '新增時段' }}
         </h1>
       </div>
 
@@ -25,33 +25,37 @@ import { OutpatientTime, PeriodUpsertRequest } from '../../core/models';
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="p-5 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">名稱 <span class="text-red-400">*</span></label>
-          <input formControlName="title" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">名稱 <span class="text-red-400">*</span></label>
+          <input formControlName="title"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">門診時段 <span class="text-red-400">*</span></label>
-          <select formControlName="outpatientTimeId" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+          <label class="block text-sm font-medium text-ink mb-1">門診時段 <span class="text-red-400">*</span></label>
+          <select formControlName="outpatientTimeId"
+                  class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
             @for (o of outpatientTimes(); track o.outpatientTimeId) {
               <option [value]="o.outpatientTimeId">{{ o.title }}</option>
             }
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">起始號碼（留空則不自動配號）</label>
-          <input type="number" formControlName="startNumber" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">起始號碼（留空則不自動配號）</label>
+          <input type="number" formControlName="startNumber"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">容量 <span class="text-red-400">*</span></label>
-          <input type="number" formControlName="patients" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+          <label class="block text-sm font-medium text-ink mb-1">容量 <span class="text-red-400">*</span></label>
+          <input type="number" formControlName="patients"
+                 class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
         </div>
 
         <div class="flex items-center gap-2 pt-2">
           <button type="submit" [disabled]="saving()"
-                  class="bg-teal-600 text-white text-sm rounded px-4 py-2 hover:bg-teal-700 disabled:opacity-50">
+                  class="bg-brand text-white text-sm rounded px-4 py-2 hover:bg-brand-deep disabled:opacity-50">
             {{ saving() ? '儲存中…' : '儲存' }}
           </button>
           <a [routerLink]="['/basic/periods']" [queryParams]="{ branch, clinic }"
-             class="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">取消</a>
+             class="text-sm text-muted hover:text-ink px-3 py-2">取消</a>
         </div>
       </form>
     </div>

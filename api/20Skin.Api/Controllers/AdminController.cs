@@ -26,10 +26,14 @@ public sealed class AdminController(IAdminService admins, RequestContext ctx)
         return AuthorizationDomain.BuildMenu(lims, adminLims, ctx.IsSuperAdmin);
     }
 
-    /// <summary>GET /api/admins — 管理員列表。</summary>
+    /// <summary>GET /api/admins — 管理員分頁列表。</summary>
     [ApiRoute("GET", "admins")]
     [Authorize(Roles.Admin, Resource = "Admins", Op = "read")]
-    public async Task<IReadOnlyList<AdminListItemDto>> List() => await admins.ListAsync();
+    public async Task<object> List(int page = 1)
+    {
+        var (items, total) = await admins.ListAsync(page, 20);
+        return new { items, total, page, pageSize = 20 };
+    }
 
     /// <summary>GET /api/lims — 完整權限樹（供新增表單，全未勾）。</summary>
     [ApiRoute("GET", "lims")]
