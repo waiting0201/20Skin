@@ -90,7 +90,7 @@ import { MenuRoute, resolveMenuRoute } from '../core/menu-route-map';
         </header>
 
         <!-- Ribbon 麵包屑 -->
-        <div class="bg-white border-b border-l-4 border-l-brand border-b-hairline px-4 sm:px-6 py-2 text-xs text-muted flex items-center gap-2">
+        <div class="app-ribbon bg-white border-b border-l-4 border-l-brand border-b-hairline px-4 sm:px-6 py-2 text-xs text-muted flex items-center gap-2">
           <i class="fa fa-home"></i>
           <span>首頁</span>
           @if (breadcrumb()) {

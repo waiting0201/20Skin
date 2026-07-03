@@ -406,3 +406,99 @@ export interface Zipcode {
   area: string;
   zipcode: string;
 }
+
+/**
+ * 預約列表項（對應後端 AppointmentAdminListItemDto，見 docs/blueprints/admin-reserve.md）。
+ * periodTitle 為「時間」欄（Rosters.OutpatientTimes.Title 優先，否則 fallback Periods.OutpatientTimes.Title）；
+ * slotTitle 為「時段」欄（Periods.Title）。status：1=成功／0=取消。
+ */
+export interface AppointmentAdminListItem {
+  appointmentId: string;
+  appointmentDate: string;
+  clinic: string;
+  doctorName: string | null;
+  periodTitle: string | null;
+  slotTitle: string;
+  categoryTitle: string;
+  memberName: string | null;
+  memberBirthday: string;
+  memberMobile: string;
+  outpatientNum: number | null;
+  status: number;
+  isFirstVisit: boolean;
+}
+
+/** 時段容量統計（對應後端 PeriodAmountDto）。rosterPeriodId 為 null 表示該時段目前無對應排班容量覆蓋。 */
+export interface PeriodAmount {
+  periodId: string;
+  periodTitle: string;
+  sort: number;
+  totalAmount: number;
+  appointmentAmount: number;
+  rosterPeriodId: string | null;
+}
+
+/**
+ * 預約列表結果（對應後端 AppointmentAdminListResultDto）。branchIsAutoRowNumber 決定是否顯示「編號」欄；
+ * periodAmounts 僅當篩選條件足以定位單一天的時段容量表時才非空。
+ */
+export interface AppointmentAdminListResult {
+  items: AppointmentAdminListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  branchIsAutoRowNumber: boolean;
+  periodAmounts: PeriodAmount[];
+}
+
+/**
+ * 預約詳情（對應後端 AppointmentAdminDetailDto）。photo 為 Appointments.Photo 上傳圖檔名（folder 為 'appointments'）；
+ * memberGender：1=男／其他=女（比照舊 View，含 null 亦顯示為女，忠於舊系統邏輯，非新增判斷）。
+ */
+export interface AppointmentAdminDetail {
+  appointmentId: string;
+  clinic: string;
+  categoryTitle: string;
+  photo: string | null;
+  memberNumber: string;
+  memberMobile: string;
+  memberBirthday: string;
+  memberName: string | null;
+  memberGender: number | null;
+  memberBloodType: string | null;
+  memberCity: string | null;
+  memberArea: string | null;
+  memberAddress: string | null;
+  memberAllergy: string[];
+  memberAllergyOther: string | null;
+  memberMedicalHistory: string[];
+  memberMedicalHistoryOther: string | null;
+  questionnaire: QuestionForm | null;
+}
+
+/** 單筆容量輸入（對應後端 CapacityItemInput）；rosterPeriodId 有值時同時更新 RosterPeriods.Patients。 */
+export interface CapacityItemInput {
+  periodId: string;
+  rosterPeriodId: string | null;
+  patients: number;
+}
+
+/** 容量批次更新請求（對應後端 CapacityUpdateRequest）。 */
+export interface CapacityUpdateRequest {
+  items: CapacityItemInput[];
+}
+
+/** 單筆問卷匯出項（對應後端 QuestionnaireExportItemDto）。 */
+export interface QuestionnaireExportItem {
+  appointmentId: string;
+  periodTitle: string;
+  memberName: string | null;
+  categoryTitle: string;
+  questionTypeTitle: string;
+  questionnaire: QuestionForm;
+}
+
+/** 問卷匯出結果（對應後端 QuestionnaireExportDto）。 */
+export interface QuestionnaireExportResult {
+  items: QuestionnaireExportItem[];
+}

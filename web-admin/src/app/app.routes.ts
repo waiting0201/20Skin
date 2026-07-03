@@ -205,10 +205,26 @@ export const routes: Routes = [
         data: { perm: { key: 'Members', op: 'read' } },
       },
 
-      // 未建模組佔位（reserve 逐一補齊）
+      // 預約管理（對應舊 ReserveMs；資源 key 動態決定，同 Periods/Categorys/Rosters 不掛靜態 data.perm）
+      {
+        path: 'reserve',
+        loadComponent: () => import('./pages/reserve/reserve-list').then((m) => m.ReserveListComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'reserve/print/questionnaire',
+        loadComponent: () => import('./pages/reserve/questionnaire-print').then((m) => m.QuestionnairePrintComponent),
+        canActivate: [permGuard],
+      },
+      {
+        path: 'reserve/:id',
+        loadComponent: () => import('./pages/reserve/appointment-detail').then((m) => m.AppointmentDetailComponent),
+        canActivate: [permGuard],
+      },
+
+      // 未建模組佔位
       { path: 'coming-soon', loadComponent: () => import('./pages/coming-soon').then((m) => m.ComingSoonComponent) },
       { path: 'forbidden', loadComponent: () => import('./pages/forbidden').then((m) => m.ForbiddenComponent) },
-      // TODO: reserve 模組，帶 data.perm
     ],
   },
   { path: '**', redirectTo: '' },

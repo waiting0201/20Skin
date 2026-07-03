@@ -13,14 +13,15 @@ related_docs:
   - ../blueprints/admin-roster.md
   - ../blueprints/admin-auth-authority.md
   - ../blueprints/admin-member.md
+  - ../blueprints/admin-reserve.md
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-04T01:00+08:00
+last_updated: 2026-07-03T18:00+08:00
 status: draft
 ---
 
-> **列表頁 Grid 規範必讀**：新增或修改任何後台列表頁（欄位、順序、顯示內容、寬度、對齊、分頁）前，**必須先讀**下方「列表頁 Grid 欄位規範」「欄位對齊規範」與「分頁規範」章節，並比對對應舊系統 `reference/old/20SkinBackend/Views/{BasicMs,AuthorityMs,ShiftMs}/*.cshtml`——不可自訂樣式、不可新增舊系統沒有的欄位、置中或靠左需與舊系統該欄一致、是否分頁需與舊系統一致。此規範適用於全部既有 8 個後台列表頁，以及未來任何新增列表頁；`related_docs` 已在對應 blueprint（basic-data／roster／auth-authority）互相連結，供日後開發時追溯。
+> **列表頁 Grid 規範必讀**：新增或修改任何後台列表頁（欄位、順序、顯示內容、寬度、對齊、分頁）前，**必須先讀**下方「列表頁 Grid 欄位規範」「欄位對齊規範」與「分頁規範」章節，並比對對應舊系統 `reference/old/20SkinBackend/Views/{BasicMs,AuthorityMs,ShiftMs,ReserveMs}/*.cshtml`——不可自訂樣式、不可新增舊系統沒有的欄位、置中或靠左需與舊系統該欄一致、是否分頁需與舊系統一致。此規範適用於全部既有 10 個後台列表頁，以及未來任何新增列表頁；`related_docs` 已在對應 blueprint（basic-data／roster／auth-authority／member／reserve）互相連結，供日後開發時追溯。
 
 > 舊後台（MVC5 + SmartAdmin + Bootstrap3）完整盤點見 [old/design/frontend-backend.md](../old/design/frontend-backend.md) 與 [old/blueprints/backend-admin.md](../old/blueprints/backend-admin.md)。新後台為**獨立 Angular 專案**、純 SPA；版面結構沿用 SmartAdmin（側欄+頂欄+Ribbon+內容+頁尾），但配色已改採承接客戶前台的企業識別品牌 token，不再是通用 SmartAdmin 配色（2026-07-03 決策，見 [visual-design.md](visual-design.md) §後台視覺策略）。
 
@@ -45,14 +46,14 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | 權限 | `/authority/admins...` | AuthorityMsController | 管理員 CRUD + 權限樹（Lims）勾選 |
 | 基礎資料 | `/basic/{branches\|doctors\|periods\|categories\|question-types\|questions}` | BasicMsController | 主檔 CRUD + 排序，**clinic 參數化** |
 | 班表 | `/roster?clinic=&branch=` | ShiftMsController | 排班 CRUD + 重複展開 + RosterPeriods 容量 |
-| 預約 | `/reserve?clinic=&branch=` | ReserveMsController | 查詢/詳情/取消 + 匯出 Excel/PDF + 容量批次更新 |
+| 預約 | `/reserve?clinic=&branch=`、`/reserve/:id`、`/reserve/print/questionnaire` | ReserveMsController | 查詢/詳情/取消 + 匯出簽到單 Excel + 問卷列印頁（瀏覽器原生 `window.print()`）+ 時段容量批次更新 |
 | 會員 | `/member...` | MemberMsController | 會員查詢/編輯/黑名單 + 問卷答案 |
 
 > **參數化取代變體**：舊 Ta/Ch/ChDentist(+Cosmetic) 的 ~70 頁 → 單一元件吃 `clinic`/`branch` 參數，大幅消除重複（對應 [old/modernization.md](../old/modernization.md) A5）。
 
 ## 列表頁 Grid 欄位規範（**已定案 2026-07-03**，所有後台列表頁必須參照）
 
-> 適用範圍：`authority/admins-list`、`basic/{branches,doctors,categories,periods,question-types,questions}-list`、`roster/rosters-list`、`member/members-list` 共 9 頁，及未來任何新增的後台列表頁。新增/修改欄位前**必須先讀本節**，不可各頁自訂樣式。
+> 適用範圍：`authority/admins-list`、`basic/{branches,doctors,categories,periods,question-types,questions}-list`、`roster/rosters-list`、`member/members-list`、`reserve/reserve-list` 共 10 頁，及未來任何新增的後台列表頁。新增/修改欄位前**必須先讀本節**，不可各頁自訂樣式。
 
 ### 欄位順序、顯示欄位與內容文字（**忠於舊系統**，2026-07-03 修正——原版自訂順序/欄位不成立，改回實際比對 `reference/old/20SkinBackend/Views/{BasicMs,AuthorityMs,ShiftMs}/*.cshtml` 的欄位、順序與顯示文字）
 
@@ -75,8 +76,10 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `authority/admins-list` | `AuthorityMs/Admins.cshtml` | 姓名、帳號、操作 | （無） |
 | `roster/rosters-list` | `ShiftMs/TaRosters.cshtml` 等 5 變體 | 醫師、日期、項目、需預約、操作（舊系統另有「分院」欄，2026-07-03 改為每個變體是獨立頁面、標題已標示分院/診別，不需要獨立欄位） | 需預約：是／否；欄名 2026-07-03 修正——「項目」（開放科別項目標題逗號串接，取代原本誤植的「班別」欄）、「需預約」（取代原「開放指定預約」），見下方「rosters-list 不設頁籤」 |
 | `member/members-list` | `MemberMs/Members.cshtml` | 初診、分院、身分證號、手機號碼、生日、姓名、黑名單、操作（問卷/編輯/刪除 3 icon，取代舊獨立「問卷」「編輯」「刪除」3 欄） | 初診：是／否；分院：無資料顯示「尚未預約」（沿用舊字串，多筆用逐行顯示取代舊 `<br>` 拼接 HTML）；黑名單：是／不是 |
+| `reserve/reserve-list` | `ReserveMs/ViewTaAppointments.cshtml` 等 3 變體（含 `ChAppointments`/`ChDentistAppointments`，結構幾乎相同） | 初診、醫師、預約日期、時間、時段、類型、項目、姓名、生日、手機號碼、編號（僅 `branchIsAutoRowNumber` 為 true 時顯示）、狀態、操作（瀏覽+取消 2 icon） | 初診：是／否；類型：`Clinic==='Skin'`→健保門診／`'Cosmetic'`→醫學美容／否則 齒科；狀態：`status===1`→成功（`text-green-600`）／否則 取消（`text-red-500`，非布林但沿用既有語意色慣例列入本欄位對照）；操作欄取消 icon 於 `status!==1` 時 `[disabled]` 並降低透明度（見 [blueprints/admin-reserve.md](../blueprints/admin-reserve.md)） |
 
 - **操作欄固定最後一欄**（樣式見下）。
+- **例外：`reserve/reserve-list` 左側另有一張「時段容量表」**（對應舊系統左窄欄，欄位「預約時段/設定人數/預約人數/剩餘人數」），該表結構與本規範管轄的清單頁 grid 不同（非分頁清單、無操作欄），不列入上方三個對照表，僅列表頁主 grid（右側「預約列表」）適用本規範。
 
 ### 欄位寬度規範（**已定案 2026-07-03**，每欄皆須明確指定寬度）
 
@@ -101,6 +104,7 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `authority/admins-list` | `w-32` `w-auto` `w-20` |
 | `roster/rosters-list` | `w-32` `w-28` `w-auto` `w-24` `w-20`（欄位依序：醫師/日期/項目/需預約/操作） |
 | `member/members-list` | `w-20` `w-32` `w-32` `w-32` `w-28` `w-auto` `w-24` `w-28`（操作欄 3 icon，比其餘頁面 2 icon 的 `w-20` 略寬） |
+| `reserve/reserve-list` | `w-20` `w-32` `w-28` `w-24` `w-28` `w-24` `w-auto` `w-32` `w-28` `w-32` `w-20`（編號，可選）`w-24` `w-20` |
 
 ### 欄位對齊規範（**已定案 2026-07-03**，忠於舊系統逐欄比對，非統一規則）
 
@@ -120,6 +124,7 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `authority/admins-list` | 姓名L 帳號L 操作C |
 | `roster/rosters-list` | 醫師L 日期L 項目L 需預約C 操作C |
 | `member/members-list` | 初診C 分院C 身分證號C 手機號碼C 生日C 姓名L 黑名單C 操作C |
+| `reserve/reserve-list` | 初診C 醫師L 預約日期C 時間C 時段C 類型C 項目C 姓名L 生日C 手機號碼C 編號C 狀態C 操作C |
 
 ### 操作欄規範（取代原「icon + 文字、靠右對齊」）
 
@@ -206,8 +211,9 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `authority/admins-list` | `AuthorityMs/Admins.cshtml` | ✅ 分頁 |
 | `roster/rosters-list` | `ShiftMs/TaRosters.cshtml` 等 5 變體 | ✅ 分頁（已於 2026-07-02 完成，本節之前唯一已分頁頁面） |
 | `member/members-list` | `MemberMs/Members.cshtml` | ✅ 分頁（`ToPagedList(pageSize: 20)`） |
+| `reserve/reserve-list` | `ReserveMs/TaAppointments.cshtml` 等 3 變體 | ✅ 分頁（舊系統 `ToPagedList(pageNumber: p, pageSize: 50)`，**pageSize 固定 50，非本規範其餘頁面的 20**，後端 `AppointmentAdminService` 已寫死不對外開放調整，見 [blueprints/admin-reserve.md](../blueprints/admin-reserve.md)） |
 
-- **pageSize 固定 20**：對照舊系統 `ToPagedList(pageNumber: p, pageSize: 20)` 與既有 Roster 分頁（`RostersAdminController` 寫死 20），三個新分頁頁面（Branches/Categories/Admins）比照辦理，**前端不開放調整 pageSize**，後端 `Math.Clamp(pageSize, 1, 100)` 僅為防禦，不代表可調整。
+- **pageSize 固定 20（`reserve/reserve-list` 例外固定 50）**：對照舊系統 `ToPagedList(pageNumber: p, pageSize: 20)` 與既有 Roster 分頁（`RostersAdminController` 寫死 20），三個新分頁頁面（Branches/Categories/Admins）比照辦理，**前端不開放調整 pageSize**，後端 `Math.Clamp(pageSize, 1, 100)` 僅為防禦，不代表可調整。`reserve/reserve-list` 沿用舊 `ReserveMsController` 原本就寫死的 50，非本次新系統自行決定的例外。
 - **API 回應信封**：分頁端點回傳 `{ items, total, page, pageSize }`（包在標準 `ApiResponse` 內，即 `res.data.items`/`res.data.total`），對應前端共用型別 `PagedResult<T>`（`core/models.ts`）；後端 Service 回傳 `(IReadOnlyList<T> Items, int Total)` tuple，Controller 用 `page`（query 參數，預設 1）組出上述信封，SQL 用 `COUNT(*)` + `OFFSET/FETCH` 兩段查詢（範本見 `RosterAdminService.ListAsync`）。
 - **UI 樣式**：分頁頁面在表格下方加同一組頁腳（`total() > pageSize` 才顯示）：`共 {total} 筆` + 上一頁/第 N 頁/下一頁按鈕，樣式與 `roster/rosters-list.ts` 完全一致，不可各頁自訂分頁 UI。
 - **翻頁不觸發重新整理排序狀態以外的副作用**：`branches-list`/`categories-list` 的「儲存排序」按鈕只送出**當頁**資料（`sorts` 由當頁 `items` 建立），這與舊系統行為一致（舊 `SortBranchs`/`SortSkins` 表單同樣只包含當頁列的 `EntityLists`），非新系統遺漏。
@@ -244,9 +250,9 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | 舊 | 新 |
 |---|---|
 | 簽到單 Excel（NPOI HSSF .xls，65536 列上限） | 後端 `ClosedXML`/OpenXML 產 `.xlsx`，API 回檔；或前端 `xlsx` 庫由 JSON 生成 |
-| 問卷 PDF（iTextSharp） | 前端 `pdfmake`/`html2pdf`（後端僅回 JSON）；或後端產 PDF。先採前端方案降後端負擔 |
+| 問卷 PDF（iTextSharp） | **已定案 2026-07-03**：後端僅回結構化 JSON（`QuestionnaireExportDto`），前端 `pages/reserve/questionnaire-print.ts` 用瀏覽器原生 `window.print()` 產生 PDF，**不引入 `pdfmake`/`html2pdf`**——刻意選擇原生列印以避免新增 npm 依賴與 CJK（中文）字型嵌入問題，取代先前「先採前端方案降後端負擔」的暫定敘述 |
 
-匯出端點見 [api-design.md](api-design.md)（`/api/appointments/export/{checkin|questionnaire}`）。
+匯出端點見 [api-design.md](api-design.md)（`/api/appointments/export/{checkin|questionnaire}`）；問卷列印頁列印時隱藏 `AdminLayoutComponent` 版型元素（側欄/頂欄/Ribbon/頁尾），見 `styles.css` 的 `@media print` 規則。
 
 ## 不做
 SSR/SEO；不共用客戶前台程式碼；不引入 SmartAdmin/Bootstrap（版面結構以 Tailwind 重現，配色改為品牌 token，見上）。

@@ -16,3 +16,21 @@
   --color-hairline: #e5e5e5; /* 淺邊框，同客戶前台 skin-border */
   --color-surface: #f5f7f9; /* 頁面底色（取代通用 gray-100） */
 }
+
+/**
+ * 列印模式：隱藏 AdminLayoutComponent 版型元素（側欄/頂欄/Ribbon/頁尾），只印內容本體。
+ * 供 pages/reserve/questionnaire-print.ts 使用（見 docs/blueprints/admin-reserve.md 匯出策略：
+ * 刻意選擇瀏覽器原生列印取代 pdfmake/html2pdf，避免新增 npm 依賴與 CJK 字型問題）。
+ * aside/header/footer 為 admin-layout.ts 版型語意化標籤；Ribbon 麵包屑非語意標籤，另加 .app-ribbon class 供本規則選取。
+ */
+@media print {
+  aside,
+  header,
+  footer,
+  .app-ribbon {
+    display: none !important;
+  }
+  .print-hide {
+    display: none !important;
+  }
+}

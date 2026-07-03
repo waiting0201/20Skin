@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-04T01:00+08:00
+last_updated: 2026-07-03T18:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -20,7 +20,7 @@ last_updated: 2026-07-04T01:00+08:00
 
 > 一次最多 3–5 項
 
-（目前無 — 後台會員管理已完成，見下方 Recently Done；下一步為後台剩餘 1 模組：預約管理）
+（目前無 — 後台預約管理前端已完成，見下方 Recently Done；後台六模組（權限/基礎資料/排班/會員/預約/RWD）全數完成）
 
 ## 📋 Backlog
 
@@ -68,7 +68,7 @@ last_updated: 2026-07-04T01:00+08:00
 - [x] **後台認證與權限** ✅ Done 2026-07-01（地基 + 權限管理，真實 DB 驗證，見 Recently Done） [blueprints/admin-auth-authority.md](blueprints/admin-auth-authority.md)
 - [x] **後台基礎資料** ✅ Done 2026-07-02（分院/醫師/時段/科別項目/問卷主檔，真實 DB 驗證，見 Recently Done） [blueprints/admin-basic-data.md](blueprints/admin-basic-data.md)
 - [x] **後台排班** ✅ Done 2026-07-02（排班 CRUD + 重複展開 + RosterCategorys/RosterPeriods diff，真實 DB 驗證，見 Recently Done） [blueprints/admin-roster.md](blueprints/admin-roster.md)
-- [ ] **後台預約管理 + 匯出** [blueprints/admin-reserve.md](blueprints/admin-reserve.md)
+- [x] **後台預約管理 + 匯出**（後端 + 前端）✅ Done 2026-07-03（3 組變體 + 容量表 + Excel/問卷列印 + 前端頁面完整實作，後端真實 DB 驗證，見 Recently Done） [blueprints/admin-reserve.md](blueprints/admin-reserve.md)
 - [x] **後台會員管理** ✅ Done 2026-07-03（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證，見 Recently Done） [blueprints/admin-member.md](blueprints/admin-member.md)
 - [x] **後台 RWD（響應式）** ✅ Done 2026-07-03（見 Recently Done） [design/frontend-backend.md](design/frontend-backend.md) §RWD
 
@@ -90,6 +90,20 @@ last_updated: 2026-07-04T01:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **後台預約管理前端：列表（含時段容量表）/詳情/取消/Excel 匯出/問卷列印頁完整實作，後台最後一個 P1 模組前端補齊** — Done 2026-07-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §前端實作紀錄
+  - **範圍**：`web-admin/src/app/pages/reserve/`（`reserve-list`/`appointment-detail`/`questionnaire-print`）+ `reserve-api.service.ts` + `core/models.ts` 新增 8 個型別；路由 `reserve`/`reserve/:id`/`reserve/print/questionnaire`（無靜態 `data.perm`，資源 key 依 `branch` query param 動態決定，比照 `roster`/`basic/periods` 既有慣例）；`menu-route-map.ts` `BUILT_KEYS` 補上 3 個 Lims key。
+  - **版面比照舊系統**：`reserve-list` 左窄欄時段容量表（可編輯設定人數 + 唯讀預約/剩餘人數）+ 右寬欄預約列表（grid 欄位/寬度/對齊已補入 [design/frontend-backend.md](design/frontend-backend.md) 三個對照表，共 10 頁）；`pageSize` 固定 50（沿用舊系統，與其餘模組的 20 刻意不同，已同步寫入分頁規範表）。
+  - **逐欄核對舊 `.cshtml` 修正一處任務規格與實際原始碼的落差**：「項目」欄任務規格原稿標示靠左，但實測舊 `TaAppointments.cshtml` 該欄 `<th>`/`<td>` 皆有 `text-center`，依本專案已定案的「以實際舊 View class 為準」規則改為置中，已同步修正 `design/frontend-backend.md` 對照表。
+  - **匯出策略定案：問卷改用瀏覽器原生列印，捨棄 `pdfmake`/`html2pdf`**（取代 blueprint 原先記錄的待實作風險項）：`questionnaire-print.ts` 渲染唯讀勾選表格（重用 `member-questionnaire-view.ts` 樣式）+「列印」按鈕呼叫 `window.print()`（不自動彈窗），刻意避免新增 npm 依賴與 CJK 字型嵌入問題。`styles.css` 新增全域 `@media print` 規則隱藏 `AdminLayoutComponent` 側欄/頂欄/Ribbon（新增 `.app-ribbon` class）/頁尾，只印內容本體。
+  - **詳情頁不設頁籤**：「預約資料」+「問卷」上下堆疊，比照本專案既有定案（非本次新規則）；`questionnaire===null` 統一顯示「不需填寫問卷」，涵蓋 ChDentist 變體本無問卷 tab 與「尚未作答」兩種情境（已知簡化，前後端資料格式無法區分兩者）。
+  - **驗證**：`ng build` 0 error；額外跑 `tsc --noEmit` 確認 0 型別錯誤；逐一比對編譯後 `styles-*.css` 確認新用到的 Tailwind class（`lg:w-80`/`lg:flex-row`/`disabled:opacity-30`/`disabled:cursor-not-allowed`/`print:hidden`/`break-inside-avoid`/自訂 `@media print` 選擇器）皆正確產生對應規則。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用，僅型別檢查+編譯+編譯後 CSS 比對，誠實記錄），建議下次有瀏覽器工具時針對篩選/容量編輯送出/詳情頁瀏覽/取消/Excel 下載/問卷列印頁渲染逐一驗證。
+- [x] **後台預約管理：查詢/詳情/取消/容量批次更新/簽到單 Excel/問卷 JSON 匯出完整實作（真實 DB 端對端驗證）** — Done 2026-07-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md)
+  - **舊系統研究**：完整讀完 `ReserveMsController.cs`（1225 行）確認只有 3 組變體（`TaAppointments`/`ChAppointments`/`ChDentistAppointments`，非其他模組常見的 5 組）；Ta/Ch 各自用 `sClinic` 查詢參數在 Skin/Cosmetic 間切換（同頁面非獨立頁面）；對真實 DB 查證 `Lims`（`ParentID=18`）三個 Key 精確拼字、`Branchs.IsAutoRowNumber`（前端據此決定是否顯示看診號碼欄）、`Appointments.Photo`/`.IsFirstVisit`（後者存在但列表/匯出皆不讀取，改用動態計算沿用舊行為）。
+  - **後端**：`AppointmentAdminDtos.cs`（8 個 DTO）+ `Skin.Services.Reserve.AppointmentAdminService`（Dapper：列表 pageSize 固定 50、時段容量表 `OUTER APPLY` 比對邏輯照抄舊系統、取消含防重複取消防禦性檢查、容量批次更新、簽到單 Excel 用 `ClosedXML` 取代舊 NPOI .xls、問卷匯出改結構化 JSON 取代舊 iTextSharp PDF）+ `AppointmentsAdminController`（3 組瘦 proxy，仿 `RostersAdminController` 設計）；`Skin.Services.Skin.Services.csproj` 新增 `ClosedXML` 套件。
+  - **關鍵細節照抄舊系統（勿修正為一致）**：列表/詳情頁「時間」欄有 `Rosters.OutpatientTimes.Title ?? Periods.OutpatientTimes.Title` fallback，但簽到單 Excel 匯出的「時間」欄**無**此 fallback——兩處刻意不同，已用真實資料驗證兩者行為確實有別；問卷匯出刻意不篩選 `Status`（連已取消預約有填問卷也匯出）。
+  - **刻意的安全強化（非破壞相容性）**：取消加一條舊系統沒有的檢查——已取消狀態重複取消擋下 `ALREADY_CANCELLED`。
+  - **真實 DB 端對端實測**（測試日期 2099-01-01/02，測試會員沿用既有 `B121583140`）：建立 2 個測試管理員（全權限/僅 `TaAppointments` 唯讀）驗證授權邊界（403/401 正確）；Ta/Ch/ChDentist 三分支各建測試 Roster+Appointments(含取消)+SmsStatus+問卷作答，逐一驗證列表篩選/分頁/初診動態判斷（由 true 轉 false）、容量表（ta/ch 正確比對科別、ch-dentist 正確略過）、容量批次更新寫入、詳情問卷 pre-fill、取消（含重複取消/查無預約）、Excel 匯出（`openpyxl` 逐欄核對含「時間」欄確認留空、民國年生日正確）、問卷 JSON 匯出含已取消預約。**發現二林．齒科（ChDentist）在本機開發 DB 完全無 Dentist 診別基礎資料**（`Categorys`/`Periods` 皆 0 筆），暫建最小測試資料驗證後刪除，已記錄為風險（正式環境資料完整性未經本次驗證）。測試資料事後全數清除，SQL 逐表核對零殘留。`dotnet build` 0 warning 0 error。
+  - **未做**：前端頁面（本次任務範圍僅後端 API，`web-admin` 對應頁面待排入）；問卷匯出 PDF 前端方案（`pdfmake`/`html2pdf`）未實作。
 - [x] **排班頁面（rosters-list/roster-form）移除頁籤，並修正 5 處表單/列表落差（含追加一輪核對）** — Done 2026-07-03 [design/frontend-backend.md](design/frontend-backend.md) §rosters-list 不設頁籤
   - 使用者裁示：①「門診管理裡都有同樣的問題，拿掉tab，要跟舊系統對齊表單」②追加「門診表單要參照舊系統」，觸發第二輪逐行核對，又抓出「班別」欄位是舊系統死碼被誤實作、「重複」用詞順序不符 2 項。
   - **追加修正（第二輪）**：「班別」（`OutpatientTimeID`）下拉在舊 `AddTaRosters`/`EditTaRosters.cshtml` 整段被 Razor 註解隱藏、從未渲染，屬死碼——客戶預約真正讀取的時間欄位是 `Periods.OutpatientTimeID`（`BookingService` join 路徑），與 `Rosters.OutpatientTimeID` 無關；初版誤將此死碼做成可互動下拉，已移除（表單欄位保留但不渲染：新增固定送 `null`，編輯原樣回傳既有值不覆寫，不清空歷史資料）。「重複」單選鈕文字/順序改回舊系統原詞「每天/每周/永不」（原「不重複/每日/每週」），「截止日」改回舊 placeholder「重複結束日期」。

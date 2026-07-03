@@ -45,7 +45,7 @@ export const LIMS_ROUTE_MAP: Record<string, MenuRoute> = {
   ChCosmeticRosters: { path: '/roster', queryParams: { branch: 'ch', clinic: 'Cosmetic' } },
   ChDentistRosters: { path: '/roster', queryParams: { branch: 'chDentist', clinic: 'Dentist' } },
 
-  // 預約管理（ReserveMs，尚未建頁，路由格式先比照 Periods 預留，待 admin-reserve 補齊時核對）
+  // 預約管理（ReserveMs）
   TaAppointments: { path: '/reserve', queryParams: { branch: 'ta' } },
   ChAppointments: { path: '/reserve', queryParams: { branch: 'ch' } },
   ChDentistAppointments: { path: '/reserve', queryParams: { branch: 'chDentist', clinic: 'Dentist' } },
@@ -75,6 +75,9 @@ export const BUILT_KEYS = new Set<string>([
   'ChCosmeticRosters',
   'ChDentistRosters',
   'Members',
+  'TaAppointments',
+  'ChAppointments',
+  'ChDentistAppointments',
 ]);
 
 /** 解析選單葉節點的點擊目標（路徑 + query 參數）；未建模組導佔位頁。 */
