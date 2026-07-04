@@ -27,13 +27,15 @@ import { MenuRoute, resolveMenuRoute } from '../core/menu-route-map';
                transition-transform duration-200 ease-out
                lg:static lg:translate-x-0"
         [class.translate-x-0]="mobileMenuOpen()" [class.-translate-x-full]="!mobileMenuOpen()">
-        <div class="h-16 flex items-center gap-3 px-4 bg-brand-deeper border-b border-white/10">
+        <!-- 品牌 logo 點擊回儀表板（手機側欄由既有 NavigationEnd 訂閱自動收合） -->
+        <a routerLink="/"
+           class="h-16 flex items-center gap-3 px-4 bg-brand-deeper border-b border-white/10 hover:bg-white/5 transition-colors">
           <img src="images/logo-mark.jpg" alt="20SKIN" class="w-8 h-8 rounded-full ring-1 ring-white/30" />
           <div class="leading-tight">
             <div class="text-white font-semibold tracking-wide text-sm">20SKIN</div>
             <div class="text-white/50 text-[11px] tracking-wider">後台管理系統</div>
           </div>
-        </div>
+        </a>
 
         <nav class="flex-1 overflow-y-auto py-2">
           @for (mod of menu(); track mod.key) {

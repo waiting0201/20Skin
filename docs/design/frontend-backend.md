@@ -29,7 +29,7 @@ status: draft
 Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`（Bearer）；權限 route guard。慣例見 [frontend-coding-style.md](frontend-coding-style.md)。
 
 ## 版型（結構沿用 SmartAdmin，配色為品牌識別）
-`AdminLayoutComponent`：左側欄（品牌深藍，權限選單，`lg` 以下收合為可開關的 off-canvas 抽屜）+ 頂欄（漢堡選單/使用者/登出）+ Ribbon（麵包屑）+ 內容 `router-outlet` + 頁尾。Tailwind + 品牌 token 對應見 [visual-design.md](visual-design.md)。
+`AdminLayoutComponent`：左側欄（品牌深藍，權限選單，`lg` 以下收合為可開關的 off-canvas 抽屜）+ 頂欄（漢堡選單/使用者/登出）+ Ribbon（麵包屑）+ 內容 `router-outlet` + 頁尾。Tailwind + 品牌 token 對應見 [visual-design.md](visual-design.md)。側欄頂部品牌 logo 為連結（`routerLink="/"`），點擊回儀表板（2026-07-04 使用者需求；手機側欄由既有 NavigationEnd 訂閱自動收合）。
 
 ### RWD（**已定案並實作 2026-07-03**）
 後台支援 RWD（響應式），取代舊系統 SmartAdmin 固定桌面版面的假設。**範圍**：登入、`AdminLayoutComponent` 側欄/頂欄、8 個列表頁 Grid、各表單頁，皆可在手機/平板寬度正常操作。**做法**：延續 Tailwind 既有慣例，用 `sm:`/`lg:` 斷點漸進調整，不引入額外 RWD 專屬框架：
