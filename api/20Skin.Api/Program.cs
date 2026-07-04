@@ -37,6 +37,7 @@ builder.Services.AddSingleton(new JwtOptions
     Issuer = config["Jwt:Issuer"] ?? "20skin",
     Audience = config["Jwt:Audience"] ?? "20skin",
     AccessTokenMinutes = int.TryParse(config["Jwt:AccessTokenMinutes"], out var m) ? m : 60,
+    AdminAccessTokenMinutes = int.TryParse(config["Jwt:AdminAccessTokenMinutes"], out var am) ? am : 600,
 });
 builder.Services.AddSingleton<JwtTokenService>();
 
@@ -92,6 +93,9 @@ builder.Services.AddScoped<Skin.Services.Member.IMemberAdminService, Skin.Servic
 
 // 後台預約管理（分院別名重用 Skin.Services.BasicData.PeriodsOptions，見 docs/blueprints/admin-reserve.md）
 builder.Services.AddScoped<Skin.Services.Reserve.IAppointmentAdminService, Skin.Services.Reserve.AppointmentAdminService>();
+
+// 後台儀表板（區塊依管理員可讀權限過濾，見 docs/blueprints/admin-dashboard.md）
+builder.Services.AddScoped<Skin.Services.Dashboard.IDashboardAdminService, Skin.Services.Dashboard.DashboardAdminService>();
 
 // 預約規則（設定驅動，取代舊硬編碼分院 GUID）
 builder.Services.AddSingleton(new BookingOptions

@@ -502,3 +502,43 @@ export interface QuestionnaireExportItem {
 export interface QuestionnaireExportResult {
   items: QuestionnaireExportItem[];
 }
+
+/** 儀表板各診別當日有效預約數（對應後端 DashboardClinicStatDto）。 */
+export interface DashboardClinicStat {
+  clinic: string;
+  clinicTitle: string;
+  todayCount: number;
+}
+
+/** 儀表板單一分院當日統計（對應後端 DashboardBranchDto；branchKey 同預約管理路由參數 ta/ch/chDentist）。 */
+export interface DashboardBranch {
+  branchKey: string;
+  branchTitle: string;
+  todayCount: number;
+  todayFirstVisit: number;
+  todayCancelled: number;
+  clinics: DashboardClinicStat[];
+}
+
+/** 儀表板未來 7 天（含今日）預約量（對應後端 DashboardTrendDayDto；perBranch 鍵為 branchKey）。 */
+export interface DashboardTrendDay {
+  date: string;
+  total: number;
+  perBranch: Record<string, number>;
+}
+
+/** 儀表板會員統計（對應後端 DashboardMemberStatsDto；需 Members 讀取權限，無權限時後端回 null）。 */
+export interface DashboardMemberStats {
+  totalMembers: number;
+  todayNew: number;
+  monthNew: number;
+  blacklistCount: number;
+}
+
+/** 儀表板（對應後端 DashboardDto；區塊依管理員可讀權限過濾，見 docs/blueprints/admin-dashboard.md）。 */
+export interface Dashboard {
+  date: string;
+  branches: DashboardBranch[];
+  trend: DashboardTrendDay[];
+  members: DashboardMemberStats | null;
+}
