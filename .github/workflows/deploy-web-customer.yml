@@ -49,7 +49,11 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_CUSTOMER }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'web-customer'
-          output_location: 'dist/web-customer/browser'
+          # 注意（實測部署時發現）：skip_app_build: true 搭配非根目錄的 app_location 時，
+          # 這個 action 有已知問題會忽略 output_location、直接把 app_location 本身當成產物目錄
+          # 找 index.html（monorepo 常見雷）。改成 app_location: '/'（repo 根目錄）+
+          # output_location 用「相對於 repo 根目錄」的完整路徑，繞開這個問題。
+          app_location: '/'
+          output_location: 'web-customer/dist/web-customer/browser'
           skip_app_build: true
           skip_deploy_on_missing_secrets: true

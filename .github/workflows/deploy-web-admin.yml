@@ -47,7 +47,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_ADMIN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          app_location: 'web-admin'
-          output_location: 'dist/web-admin/browser'
+          # 見 deploy-web-customer.yml 同一處註解：skip_app_build + 非根目錄 app_location 的已知問題。
+          app_location: '/'
+          output_location: 'web-admin/dist/web-admin/browser'
           skip_app_build: true
           skip_deploy_on_missing_secrets: true
