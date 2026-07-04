@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-04T20:00+08:00
+last_updated: 2026-07-04T21:45+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -20,7 +20,7 @@ last_updated: 2026-07-04T20:00+08:00
 
 > 一次最多 3–5 項
 
-（目前無 — 後台預約管理前端已完成，見下方 Recently Done；後台六模組（權限/基礎資料/排班/會員/預約/RWD）全數完成）
+（目前無）
 
 ## 📋 Backlog
 
@@ -97,6 +97,11 @@ last_updated: 2026-07-04T20:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **台中特定診療項目「二林模式」＋配號時段概念** — Done 2026-07-04 [blueprints/customer-booking.md](blueprints/customer-booking.md) §台中特定診療項目二林模式
+  - 使用者拍板三決策：①判定資料驅動（配號時段＝`IsAutoRowNumber` 分院＋時段 `StartNumber` 有值，無設定清單）；②「不可當日」「±2 天重複」維持台中分院層級不變；③後台 TaPeriods 解除「新增時段」按鈕隱藏（業務性偏離舊系統）
+  - 程式：`GetTimeSlotsAsync` 非配號時段回 null `outpatientTimeTitle`、`CreateAsync` 配號條件收斂（移除 `?? 2`）、`GetByIdAsync` PeriodTitle 改 CASE＋補 JOIN RosterPeriods、`periods-list.ts` 解隱藏、`period-form.ts` 起始編號提示改為配號開關語意；客戶前台零改動
+  - **順帶修 2 個既有 bug**：①二林誤顯示「選擇早晚診」與早/午/晚按鈕（二林 Periods 其實全綁 OutpatientTimes，「有無綁定」判斷是錯誤假設，見 [gotchas.md](gotchas.md)）；②詳情/完成頁 API 自 2026-07-02 起 500（`COALESCE(c.IsQuestion,0)` int vs bool record 建構子，補 `CAST AS BIT`）
+  - 驗證：真實 DB 端到端（二林回歸/台中回歸/台中細時段建約不配號＋簡訊「請至現場取號」＋項目分流互不可見），測試資料硬刪零殘留
 - [x] **正式環境 Azure 資源實際套用（真實訂閱，非僅產出方案）** — Done 2026-07-04 [design/infrastructure.md](design/infrastructure.md) §部署實測記錄
   - `rg-20skin-prod`（西美 `westus2`）17 項資源全數建立：2x SWA（客戶前台 Standard、後台 Free）/ Function App(Flex Consumption) + Plan / Storage(`st20skinprod`) / Key Vault(`kv-20skin-prod-lnjm`) / App Insights + Log Analytics / 既有 `weyprous` SQL Server 防火牆規則；GitHub OIDC 身分 `id-20skin-ci-prod` + federated credential（`repo:waiting0201/20Skin:environment:production`）+ RG 層級 Contributor 已建立
   - 既有 SQL AAD 系統管理員設為 `Weypro`；Function App 的 Managed Identity 已在 `20Skin` DB 建立 contained user（`db_datareader`/`db_datawriter`，透過 `pyodbc` + `az` access token 執行 T-SQL）

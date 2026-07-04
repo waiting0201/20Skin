@@ -17,7 +17,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-03T18:00+08:00
+last_updated: 2026-07-04T21:30+08:00
 status: draft
 ---
 
@@ -158,11 +158,11 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 **背景**：`periods-list.ts` 原實作把時段 5 變體（台中健保/台中美容/二林健保/二林美容/二林齒科）收在同一頁面內用頁籤切換，是本專案自行發明的 UI，**舊系統 5 個變體是各自獨立的 `.cshtml` 頁面，彼此間完全沒有切換頁籤**（只能各自從選單分別進入）。使用者要求「頁面不需要有 tab，表單要完全參照舊程式」後，改為忠於舊系統：
 
 - **移除頁籤 UI**：`periods-list.ts` 拿掉原本的 5 個頁籤切換列；`branch`/`clinic` 仍透過 query params 決定（元件維持參數化，未拆成 5 個獨立元件——舊系統雖是 5 個獨立頁面，但欄位/邏輯 100% 相同，維持單一元件符合 [old/modernization.md](../old/modernization.md) A5「參數化消除重複」原則，只是拿掉頁籤這個舊系統沒有的導覽層），變體間的切換完全交給選單（每個 Lims key 各自的選單項），不在頁面內提供切換入口。
-- **台中健保時段（`branch=ta&clinic=Skin`）隱藏「新增時段」按鈕**：忠實對應舊 `BasicMs/TaPeriods.cshtml` 第 30 行——該頁「新增台中健保時段」連結被 Razor 註解整段隱藏（`@*...*@`），其餘 4 個變體（`ChPeriods`/`TaCosmeticPeriods`/`ChCosmeticPeriods`/`ChDentistPeriods`）皆正常顯示新增連結，非全域規則。後端 `TaSkinCreate` 端點仍保留（比照舊系統 `AddTaPeriods` action 仍存在、只是沒有 UI 連結），只在前端隱藏入口。詳見 [gotchas.md](gotchas.md) §選單資料表把 path?query 烤成單一字串（同次修復發現此功能實際已完整實作，只是選單連結壞掉）。
+- **台中健保時段（`branch=ta&clinic=Skin`）「新增時段」按鈕**：原比照舊 `BasicMs/TaPeriods.cshtml` 第 30 行隱藏（該連結被 Razor 註解，其餘 4 變體正常顯示）。**2026-07-04 使用者拍板解除隱藏**（業務性偏離：台中要能自行新增「比照二林」的細時段，起始編號留空＋逐時段人數），`periods-list.ts` 已移除 `isTaSkin` 條件，權限檢查保留；後端 `TaSkinCreate` 端點本已存在不變。見 [blueprints/customer-booking.md](../blueprints/customer-booking.md) §台中特定診療項目二林模式。
 - **表單欄位/用詞改為完全比照舊 View**（`period-form.ts`）：
   - 「時間」（`OutpatientTimeID` 下拉，原新系統誤標為「門診時段」）
   - 「時段」（`Title`）**不是自由輸入文字**，舊系統是兩個 `<select>`（時 08–21、分 00/05/…/55）由前端 JS 組成 `"HH:MM"` 字串存入 `Title`（原新系統誤做成「名稱」自由文字輸入框，已修正為忠實復刻兩個下拉）
-  - 「起始編號」提示文字改為「若沒填寫，起始編號預設為 2」（忠於舊系統文案；此預設值已由 `AppointmentService.NextOutpatientNumber`（`ctx.StartNumber ?? 2`）在後端實作，原新系統前端提示文字「留空則不自動配號」與實際行為不符，已一併修正）
+  - 「起始編號」提示文字：2026-07-03 曾改回舊系統文案「若沒填寫，起始編號預設為 2」（當時後端為 `ctx.StartNumber ?? 2`）；**2026-07-04 隨「配號時段」規則再改**——起始編號成為配號開關（有值才配號、留空不配號），提示文字改為說明此語意，`?? 2` 預設值已移除（真實資料台中時段皆有 StartNumber=12，無行為回歸；此為使用者拍板的業務性偏離，見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)）
   - 「人數」（`Patients`，原新系統誤標為「容量」）
 - 對應列表頁欄名（時間/時段/起始編號/人數）同步修正，見上方「欄位順序」「欄位對齊」表格。
 - `ng build` 0 error。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用）。

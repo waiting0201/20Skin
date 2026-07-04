@@ -14,9 +14,37 @@ related_docs:
   - ../design/database-design.md
   - sms-reminder.md
   - questionnaire.md
-keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel, doctor, designated]
-last_updated: 2026-07-02
+keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel, doctor, designated, numbered-slot, erlin-mode]
+last_updated: 2026-07-04
 ---
+
+## 台中特定診療項目「二林模式」＋配號時段概念（2026-07-04）
+
+**需求**：台中既有功能不動，但特定診療項目要比照二林——不配門診號、時段以時間文字呈現、逐細時段設定人數。
+
+**核心概念「配號時段」**（使用者拍板，資料驅動、無設定清單）：
+`分院 IsAutoRowNumber=true 且 COALESCE(RosterPeriods.StartNumber, Periods.StartNumber) IS NOT NULL`
+- 配號時段 → 自動配門診號＋早晚診標題呈現（台中現有早/晚診，`StartNumber=12`，行為不變）
+- 非配號時段 → 不配號（完成頁/簡訊「請至現場取號」）＋以 `Periods.Title` 時間文字呈現（二林全部、台中起始編號留空的細時段）
+
+**為何棄用「有無 outpatientTimeTitle」判斷（推翻 2026-07-02 第二輪 audit 第 3 點）**：真實 DB 查證發現**二林 45 個 Periods 也全部綁著 OutpatientTimes（早上/下午/晚上）**，「僅台中門診設定會有值」是錯誤假設——該判斷會讓二林誤顯示「選擇早晚診」與早/午/晚按鈕（既有 bug，本次修正）。舊系統實際是硬編碼 `台中 GUID + Clinic=="Skin"` 才顯示早晚診（`AjaxController.cs:177`、`Complete.cshtml:51`），其餘顯示 `Periods.Title`。新系統改用上述「配號時段」概念：與台中/二林現況資料完全吻合（台中 2 時段皆有 StartNumber、二林 45 時段皆無），且天然支援台中細時段擴充。
+
+**其餘決策**：
+- 「不可預約當日」「前後 2 天不可重複」**維持台中分院層級規則不變**（細時段項目在台中仍受限）；指定醫師提前 2 天亦維持分院層級。
+- 後台「台中健保時段」頁**解除隱藏「新增時段」按鈕**（見 [admin-basic-data.md](admin-basic-data.md)）。
+
+**實作**（門診號與呈現共用同一驅動）：
+- `BookingService.GetTimeSlotsAsync`：SELECT 加 `COALESCE(rp.StartNumber, p.StartNumber)`；非配號時段將 `OutpatientTimeId`/`OutpatientTimeTitle` 回 null → 前端 `periodSectionTitle`/按鈕文字零改動自動正確。
+- `AppointmentService.CreateAsync`：配號條件由 `IsAutoRowNumber` 收斂為 `IsAutoRowNumber && StartNumber != null`。
+- `AppointmentService.GetByIdAsync`：`PeriodTitle` 改 CASE（配號時段才用 `ot.Title`），補 `LEFT JOIN RosterPeriods`；**順帶修正既有 500 bug**——`COALESCE(c.IsQuestion, 0)` 產出 int 使 Dapper 無法匹配 `AppointmentDetailDto.IsQuestion`(bool) 建構子，詳情/完成頁自 2026-07-02 起一直 500，已補 `CAST(... AS BIT)`（見 [gotchas.md](../gotchas.md)）。
+
+**營運 SOP（無程式碼，靠排班資料分流）**：
+1. 後台「台中健保時段」新增細時段（如 10:00），**起始編號留空**、人數設各時段容量；「時間」照常選早/午/晚（僅分類用，不影響呈現）。
+2. 二林模式項目**另開獨立排班**：只勾這些項目、只給細時段人數（早/晚診列留 0）。
+3. 台中原有排班照舊（早/晚診給人數、細時段列留 0）。
+4. ⚠️ 同一張排班綁的所有項目共用其時段——**一般項目與二林模式項目不可同排班**（誤將細時段人數填 >0 到一般項目排班會讓一般項目出現細時段）。
+
+**驗證（2026-07-04，真實 DB 端到端，測試資料硬刪零殘留）**：二林時段 API 回 `outpatientTimeTitle=null`＋詳情頁「09:00」（bug 修正）；台中早/晚診照舊（「早上/晚上」＋配號 12、詳情「早上」）；台中細時段（StartNumber=NULL、人數 2）→ 一般時段呈現、建立後 `outpatientNum=null`、簡訊「請至現場取號」、與一般項目時段互不可見。
 
 ## 客戶前台全頁面重新對齊舊系統（2026-07-02，第三輪 audit）
 
@@ -38,7 +66,7 @@ last_updated: 2026-07-02
    - **指定醫師 + 自動配號分院（IsAutoRowNumber）需至少提前 2 天**（`GetDoctorRosters` 的 `t1 > t2` 比較）→ 一併補上。**注意**：此規則舊系統從未真正上線過（指定醫師整體功能被 `1==2` 停死），是新系統啟用指定醫師時一併沿用的規則，如與業務認知不符可調整/移除 `BookingService.GetTimeSlotsAsync` 內該段判斷。
    - 實作見 [BookingService.cs](../../api/Skin.Services/Booking/BookingService.cs) `GetTimeSlotsAsync`/`TryGetSlotStart`。
 2. **「限定人數 1 人」（IsOnly/ChIsOnly/ChDentistIsOnly）未實作** — 舊系統依 `Categorys.IsOnly`（台中）/`ChIsOnly`（二林皮膚）/`ChDentistIsOnly`（二林齒科）鎖定「預約人數」欄位唯讀=1。這 3 欄位後台 CRUD 已存在，但客戶端 `CategoryDto` 未曾暴露。已補：`GetCategoriesByClinicAsync(branchId, clinic)` 依 `branchId` 用 `PeriodsOptions.AliasFor`（重用既有 Ta/Ch/ChDentist 分院別名設定，不新增硬編碼 GUID）解析出對應旗標，回傳單一 `CategoryDto.IsAmountLocked`；`GET /api/categories` 加 `branchId` 必填參數；前端 `appointment-form.ts` 依 `store.category()?.isAmountLocked` 將人數欄位改唯讀顯示 1，送出強制 `amount=1`。
-3. **時段區塊標題「選擇早晚診」/「選擇時段」未依分院切換** — 舊系統台中顯示「選擇早晚診」（`ViewBag.SelectPeriodTitle`），其餘「選擇時段」。改用資料驅動判斷（不用硬編碼分院 GUID）：前端 `periodSectionTitle` computed 依已載入的時段是否帶 `outpatientTimeTitle`（僅台中門診設定會有值）決定標題。
+3. **時段區塊標題「選擇早晚診」/「選擇時段」未依分院切換** — 舊系統台中顯示「選擇早晚診」（`ViewBag.SelectPeriodTitle`），其餘「選擇時段」。前端 `periodSectionTitle` computed 依已載入的時段是否帶 `outpatientTimeTitle` 決定標題。~~「僅台中門診設定會有值」~~ **此假設已於 2026-07-04 被真實資料證偽並修正**：後端改依「配號時段」決定是否輸出 `outpatientTimeTitle`（見上方「台中特定診療項目二林模式」段）；前端判斷式不變。
 
 ## 前端重複預約檢查（2026-07-02）
 
@@ -72,7 +100,7 @@ last_updated: 2026-07-02
 
 ## 設計決策（必保留業務邏輯）
 - **容量**：`capacity = RosterPeriods.Patients ?? Periods.Patients`；已用 `= COUNT(Appointments WHERE Status=1 AND AppointmentDate AND PeriodID)`；滿則擋。
-- **自動門診號**（`Branchs.IsAutoRowNumber=true`，台中健保）：從 `Periods.StartNumber`(預設 2) 起每次 +2 取偶數，掃描現有 `OutpatientNum` 找首個空缺。
+- **自動門診號**（2026-07-04 收斂為「配號時段」）：`Branchs.IsAutoRowNumber=true` **且** `COALESCE(RosterPeriods.StartNumber, Periods.StartNumber)` 有值才配號，從該 StartNumber 起每次 +2 取偶數，掃描現有 `OutpatientNum` 找首個空缺；StartNumber 為空的時段不配號（台中比照二林的細時段），呈現亦以此判斷（見上方「台中特定診療項目二林模式」段）。
 - **重複預約限制**：台中同診別**前後 2 天內**不可重複（且不可當天）；其他分院同診別**當天**不可重複。→ **改為依 Branch 設定/DB 驅動，移除硬編碼 GUID**（舊 `e65f4720…`）。
 - **台中分院不可預約當日**（2026-07-02 補回）：與上述重複視窗檢查無關的獨立規則，`BookingService.CheckDuplicateAsync` 對台中分院（依 `PeriodsOptions.AliasFor` 別名解析）在 `date.Date == TaiwanNow.Date` 時直接擋下，對應舊 `AjaxController.CheckAppointmentDate` 的 `cp==0` 判斷。
 - **問卷強制**：`Category.IsQuestion=true` 須先完成對應問卷。

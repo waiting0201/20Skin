@@ -89,9 +89,10 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
             if (used >= ctx.Capacity)
                 throw new BusinessException("此時段已額滿", "FULL");
 
-            // 自動門診號（IsAutoRowNumber）：從 StartNumber 起每次 +2 取偶數找空缺
+            // 自動門診號：限「配號時段」＝自動配號分院 且 時段 StartNumber 有值，從 StartNumber 起每次 +2 取偶數找空缺。
+            // StartNumber 為空的時段（台中比照二林的細時段）不配號 → 完成頁/簡訊顯示「請至現場取號」。
             int? outpatientNum = null;
-            if (ctx.IsAutoRowNumber)
+            if (ctx.IsAutoRowNumber && ctx.StartNumber is not null)
             {
                 var existing = (await conn.QueryAsync<int>(new CommandDefinition("""
                     SELECT OutpatientNum FROM Appointments
@@ -99,7 +100,7 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
                       AND AppointmentDate >= @dayStart AND AppointmentDate < @dayEnd
                     ORDER BY OutpatientNum
                     """, new { req.PeriodId, active = AppointmentStatus.Active, dayStart, dayEnd }, tx, cancellationToken: ct))).ToList();
-                outpatientNum = NextOutpatientNumber(ctx.StartNumber ?? 2, existing);
+                outpatientNum = NextOutpatientNumber(ctx.StartNumber.Value, existing);
             }
 
             var appointmentId = Guid.NewGuid();
@@ -181,22 +182,25 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
     {
         using var conn = db.Create();
         // 歸屬檢查：MemberID 條件，非本人查不到（修 IDOR）。
-        // PeriodTitle：LEFT JOIN OutpatientTimes 資料驅動判斷早晚診標題（比照 BookingService.GetTimeSlotsAsync 同一套邏輯，
-        // 不寫死分院 GUID）——有 OutpatientTimeID 對應設定時用該標題，否則用原始 Periods.Title。
+        // PeriodTitle：「配號時段」（自動配號分院 且 COALESCE(rp.StartNumber, p.StartNumber) 有值，同 CreateAsync 配號條件）
+        // 才顯示早晚診標題，其餘顯示 Periods.Title 時間文字（對齊舊 Complete.cshtml 對台中健保的分支；
+        // 不可用「有無綁 OutpatientTimes」判斷，二林時段也全綁早上/下午/晚上，見 docs/gotchas.md）。
         // QuestionAnswered：比照舊系統 Complete.cshtml／AppointmentDetail.cshtml，以 Appointments.QuestionTypeID 是否已寫入判斷已填/未填。
         return await conn.QueryFirstOrDefaultAsync<AppointmentDetailDto>(new CommandDefinition("""
             SELECT a.AppointmentID AS AppointmentId, a.AppointmentDate, a.Clinic,
                    b.BranchID AS BranchId, b.Title AS BranchTitle,
                    c.Title AS CategoryTitle, d.Name AS DoctorName,
-                   COALESCE(ot.Title, p.Title) AS PeriodTitle,
+                   CASE WHEN b.IsAutoRowNumber = 1 AND COALESCE(rp.StartNumber, p.StartNumber) IS NOT NULL
+                        THEN COALESCE(ot.Title, p.Title) ELSE p.Title END AS PeriodTitle,
                    a.Amount, a.OutpatientNum, a.IsFirstVisit, a.Status, a.QuestionTypeID AS QuestionTypeId, a.Photo,
-                   COALESCE(c.IsQuestion, 0) AS IsQuestion,
+                   CAST(COALESCE(c.IsQuestion, 0) AS BIT) AS IsQuestion,
                    CAST(CASE WHEN a.QuestionTypeID IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS QuestionAnswered
             FROM Appointments a
             LEFT JOIN Branchs b   ON b.BranchID = a.BranchID
             LEFT JOIN Categorys c ON c.CategoryID = a.CategoryID
             LEFT JOIN Doctors d   ON d.DoctorID = a.DoctorID
             LEFT JOIN Periods p   ON p.PeriodID = a.PeriodID
+            LEFT JOIN RosterPeriods rp ON rp.RosterID = a.RosterID AND rp.PeriodID = a.PeriodID
             LEFT JOIN OutpatientTimes ot ON ot.OutpatientTimeID = p.OutpatientTimeID
             WHERE a.AppointmentID = @appointmentId AND a.MemberID = @memberId
             """, new { appointmentId, memberId }, cancellationToken: ct));

@@ -56,12 +56,15 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
         var dayEnd = dayStart.AddDays(1);
         // doctorId=null → 不指定（IsAppointment=0）；有值 → 指定醫師（IsAppointment=1 且 DoctorID=doctorId）。
         // 容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。
+        // StartNumber（COALESCE 同 CreateAsync 配號來源）用於判斷「配號時段」：
+        // 自動配號分院且 StartNumber 有值 → 早晚診呈現＋配號；否則一般時段呈現（見下方 numbered 判斷）。
         const string sql = """
             SELECT p.PeriodID                 AS PeriodId,
                    p.Title                    AS Title,
                    ot.OutpatientTimeID        AS OutpatientTimeId,
                    ot.Title                   AS OutpatientTimeTitle,
                    rp.Patients                AS Capacity,
+                   COALESCE(rp.StartNumber, p.StartNumber) AS StartNumber,
                    b.IsAutoRowNumber          AS IsAutoRowNumber,
                    (SELECT COUNT(*) FROM Appointments a
                      WHERE a.PeriodID = p.PeriodID
@@ -103,7 +106,14 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
             {
                 continue;
             }
-            results.Add(new TimeSlotDto(row.PeriodId, row.Title, row.OutpatientTimeId, row.OutpatientTimeTitle, row.Capacity, row.Used));
+            // 「配號時段」＝自動配號分院 且 StartNumber 有值（台中早/晚診）→ 以早晚診標題呈現；
+            // 其餘（二林全部、台中無起始編號的細時段）一律回 null，前端顯示 Periods.Title 時間文字。
+            // 不可用「有無綁 OutpatientTimes」判斷：真實資料中二林時段也全綁早上/下午/晚上（見 docs/gotchas.md）。
+            var numbered = row.IsAutoRowNumber && row.StartNumber is not null;
+            results.Add(new TimeSlotDto(row.PeriodId, row.Title,
+                numbered ? row.OutpatientTimeId : null,
+                numbered ? row.OutpatientTimeTitle : null,
+                row.Capacity, row.Used));
         }
         return results;
     }
@@ -188,6 +198,7 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
         public int? OutpatientTimeId { get; set; }
         public string? OutpatientTimeTitle { get; set; }
         public int Capacity { get; set; }
+        public int? StartNumber { get; set; }
         public int Used { get; set; }
         public bool IsAutoRowNumber { get; set; }
     }

@@ -18,7 +18,7 @@ import { PeriodAdmin } from '../../core/models';
     <div class="bg-white rounded shadow-sm border border-hairline">
       <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-hairline">
         <h1 class="text-base font-semibold text-ink"><i class="fa fa-clock-o text-muted mr-2"></i>{{ pageLabel() }}</h1>
-        @if (!isTaSkin() && auth.can(resourceKey(), 'add')) {
+        @if (auth.can(resourceKey(), 'add')) {
           <a [routerLink]="['/basic/periods/new']" [queryParams]="{ branch: branch(), clinic: clinic() }"
              class="inline-flex items-center gap-1.5 bg-brand text-white text-sm rounded px-3 py-1.5 hover:bg-brand-deep">
             <i class="fa fa-plus"></i> 新增{{ pageLabel() }}
@@ -94,8 +94,6 @@ export class PeriodsListComponent {
   readonly clinic = computed(() => this.queryParams()?.get('clinic') ?? 'Skin');
   readonly resourceKey = computed(() => periodResourceKey(this.branch(), this.clinic()));
   readonly pageLabel = computed(() => periodLabel(this.branch(), this.clinic()));
-  /** 舊系統 TaPeriods.cshtml 的「新增」連結被註解隱藏（見 docs/gotchas.md），沿用此行為。 */
-  readonly isTaSkin = computed(() => this.branch() === 'ta' && this.clinic() === 'Skin');
 
   readonly periods = signal<PeriodAdmin[]>([]);
   readonly sorts = signal<Record<string, number>>({});

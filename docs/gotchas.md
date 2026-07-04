@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-03T23:30+08:00
+last_updated: 2026-07-04T21:30+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -101,6 +101,24 @@ last_updated: 2026-07-03T23:30+08:00
 
 ### Blob 公開容器：GET 可、DELETE 需授權
 - 容器建為 `PublicAccessType.Blob`（`<img>` 直接讀）。**匿名只能讀**；刪除要用帳戶金鑰/SAS（測試清理時用 SDK 帶金鑰，別用匿名 DELETE，會 403）。
+
+## 預約時段 / 門診號
+
+### 二林 Periods 也全綁 OutpatientTimes——不可用「有無綁定」判斷分院模式（2026-07-04）
+- **症狀**：以「時段有 `outpatientTimeTitle` 就是台中早晚診」做資料驅動判斷，二林會誤顯示「選擇早晚診」與「早上/下午/晚上」按鈕（時段選擇、完成/詳情頁時間欄同時中招）。
+- **原因**：`Periods.OutpatientTimeID` 是 NOT NULL + FK，**二林全部 45 個時段也綁著早上/下午/晚上**；舊系統其實是硬編碼「台中 GUID + Clinic=='Skin'」才顯示早晚診（`AjaxController.cs:177`、`Complete.cshtml:51`）。
+- **修法/預防**：判斷一律用「配號時段」＝`Branchs.IsAutoRowNumber=true` 且 `COALESCE(RosterPeriods.StartNumber, Periods.StartNumber) IS NOT NULL`（`BookingService.GetTimeSlotsAsync`／`AppointmentService.CreateAsync`／`GetByIdAsync` 三處同一條件）。真實資料：台中早/晚診 StartNumber=12、二林全 NULL。見 [blueprints/customer-booking.md](blueprints/customer-booking.md)。
+
+### 台中時段「起始編號」是行為開關，清空會停止配號（2026-07-04）
+- **症狀**：後台把台中健保某時段的「起始編號」清空，該時段立即變成「不配號＋時間文字呈現」（比照二林）。
+- **原因**：這是刻意設計（使用者拍板）——台中細時段（比照二林的診療項目）就靠「起始編號留空」啟用；副作用是既有早/晚診的起始編號也成了敏感欄位。
+- **預防**：台中早/晚診時段的起始編號（現為 12）**不可清空**；後台調整時段時先確認影響。另：一般項目與二林模式項目**不可綁同一張排班**（排班的時段清單是全項目共用，人數 0 才會隱藏）。
+
+### Dapper record DTO 與 SQL 欄位型別必須嚴格匹配（bit vs int，2026-07-04 修復）
+- **症狀**：`GET /api/appointments/{id}`（完成頁/詳情頁）自 2026-07-02 起一直 500：`A parameterless default constructor or one matching signature ... is required for AppointmentDetailDto materialization`。
+- **原因**：`COALESCE(c.IsQuestion, 0)` 中 int 字面值使結果型別升為 **int**，但 `AppointmentDetailDto.IsQuestion` 是 `bool`——Dapper 對 positional record 的建構子匹配不做 int→bool 轉換，直接找不到建構子而拋例外。
+- **修法**：`CAST(COALESCE(c.IsQuestion, 0) AS BIT)`（同查詢 `QuestionAnswered` 本來就有 CAST，正確）。
+- **預防**：回傳 record DTO 的查詢，凡 `COALESCE`/`CASE` 混入 int 字面值的 bit 欄位一律補 `CAST(... AS BIT)`；驗證要真的打到該 endpoint，不能只驗 build。
 
 ## 開發環境 / 編輯器
 

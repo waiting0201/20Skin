@@ -12,7 +12,7 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '
  * 後台基礎資料 — 新增/編輯時段（對應舊 BasicMs/Add·EditTa·Ch·ChDentist·CosmeticPeriods）。
  * branch/clinic 由 query params 帶入（決定呼叫哪組後端變體 proxy），編輯時不可改。
  * 表單欄位/用詞完全比照舊 View：時間（OutpatientTimeID 下拉）、時段（HH:MM 兩個下拉組成）、
- * 起始編號（選填，留空預設 2，見 AppointmentService.NextOutpatientNumber）、人數（必填）。
+ * 起始編號（選填；2026-07-04 起為「配號時段」開關——有值才自動配號，留空不配號，見 docs/gotchas.md）、人數（必填）。
  */
 @Component({
   selector: 'app-period-form',
@@ -57,7 +57,7 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '
           <label class="block text-sm font-medium text-ink mb-1">起始編號</label>
           <input type="number" formControlName="startNumber"
                  class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-          <p class="text-xs text-muted mt-1">若沒填寫，起始編號預設為 2</p>
+          <p class="text-xs text-muted mt-1">自動配號分院（台中健保）填寫後該時段依此編號自動配號；留空則不配號（客戶顯示「請至現場取號」）</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-ink mb-1">人數 <span class="text-red-400">*</span></label>

@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/frontend-customer.md
   - ../blueprints/customer-booking.md
 keywords: [frontend, customer, angular, signals, spa, main.css, reservation-store, recaptcha]
-last_updated: 2026-07-02
+last_updated: 2026-07-04
 status: draft
 ---
 
@@ -59,7 +59,9 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 
 **預約日期重複檢查（2026-07-02 完成）**：`AppointmentFormComponent.onDateChange()` 選日期後即呼叫 `BookingService.checkAvailability`（`POST /api/rosters/check-availability`），對應舊 `AppointmentForm.AppointmentDate` 的 `[Remote("CheckAppointmentDate")]`；未通過顯示 `dateError`（沿用舊訊息「三日內不可重複預約」為 fallback，實際文案依分院視窗天數由後端回傳），並以 `dateAvailable` signal 擋住後續「指定醫師/選時段」區塊與送出按鈕。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
 
-**預約表單老系統對齊補完（2026-07-02，第二輪 audit）**：`AppointmentFormComponent` 補 3 個 computed signal：`amountLocked`（依 `store.category()?.isAmountLocked`，鎖定人數欄位唯讀=1，對應舊 `Categorys.IsOnly` 系列）、`periodSectionTitle`（依已載入時段是否帶 `outpatientTimeTitle` 動態顯示「選擇早晚診」/「選擇時段」，資料驅動不寫死分院 GUID）；時段可用性過濾（週日/已過去時段/指定醫師 2 天前）移至後端 `BookingService.GetTimeSlotsAsync`。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
+**預約表單老系統對齊補完（2026-07-02，第二輪 audit）**：`AppointmentFormComponent` 補 3 個 computed signal：`amountLocked`（依 `store.category()?.isAmountLocked`，鎖定人數欄位唯讀=1，對應舊 `Categorys.IsOnly` 系列）、`periodSectionTitle`（依已載入時段是否帶 `outpatientTimeTitle` 動態顯示「選擇早晚診」/「選擇時段」）；時段可用性過濾（週日/已過去時段/指定醫師 2 天前）移至後端 `BookingService.GetTimeSlotsAsync`。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
+
+**時段呈現改依「配號時段」驅動（2026-07-04，前端零改動）**：真實資料查證發現二林時段也全綁 `OutpatientTimes`，「有 `outpatientTimeTitle` 即台中」是錯誤假設（二林先前誤顯示「選擇早晚診」與早/午/晚按鈕）。後端改為只有「配號時段」（`IsAutoRowNumber` 分院＋時段 `StartNumber` 有值）才輸出 `outpatientTimeId`/`outpatientTimeTitle`，其餘回 null——前端 `periodSectionTitle` 與時段按鈕 `{{ s.outpatientTimeTitle || s.title }}` 判斷式不變即自動正確；完成頁/詳情頁 `periodTitle`、門診號「請至現場取號」同樣由後端欄位驅動。台中細時段項目（比照二林）因此無需任何前端改動。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md) §台中特定診療項目二林模式。
 
 > **取消功能無獨立路由**：`AppointmentCancel.cshtml`（舊 `/MainMs/AppointmentCancel?AppointmentID=`）**已合併進 `AppointmentDetailComponent`**（`/appointments/:id` 頁內「確定取消」按鈕），並非獨立的 `AppointmentCancelComponent`／`/appointments/:id/cancel` 路由（2026-07-02 audit 修正此處先前的錯誤敘述，避免文件腐化）。
 >
@@ -91,7 +93,7 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 
 - **完成頁 / 詳情頁補回「問卷填寫狀態」欄位**：`AppointmentDetailDto` 新增 `isQuestion`/`questionAnswered`，`CompleteComponent`/`AppointmentDetailComponent` 依此顯示「不需填寫問卷／已填寫／未填寫（附連結）」，對應舊 `Complete.cshtml`/`AppointmentDetail.cshtml`。
 - **完成頁補回二林分院兩則專屬提示**：`AppointmentDetailDto` 新增 `branchId`；`CompleteComponent` 依 `branchId`+`clinic==='Skin'` 顯示到院報到提醒與「請提前10分鐘報到，只保留10分鐘」（後者比照舊碼原始行為，不限診別）。
-- **完成頁台中皮膚科「早晚診」標題**：`AppointmentService.GetByIdAsync` SQL 補 `LEFT JOIN OutpatientTimes`，`periodTitle` 與表單頁用同一套資料驅動邏輯，不再顯示原始時段字串。
+- **完成頁台中皮膚科「早晚診」標題**：`AppointmentService.GetByIdAsync` SQL 補 `LEFT JOIN OutpatientTimes`，`periodTitle` 與表單頁用同一套資料驅動邏輯，不再顯示原始時段字串。（2026-07-04 判斷條件改為「配號時段」，見上方對應段落。）
 - **預約清單頁補分頁 UI**：`AppointmentListComponent` 改實際帶 `page`/`pageSize` 呼叫並用 `total` 算頁數，補上一頁/下一頁按鈕（沿用 `main.css` 既有 `.page-wrapper`/`.page-block` 樣式）。
 - **診別選擇頁醫美入口改回隱藏**（業務決策，見下）：`ClinicComponent` 移除原本對非台中分院顯示「醫學美容」的分支，比照舊系統全院隱藏（舊 `Clinic.cshtml` 該選項整段被 Razor 註解）。歷史醫美預約查詢/詳情頁顯示、後台醫美排班管理不受影響。
 - **額滿時段改回隱藏**：`BookingService.GetTimeSlotsAsync` 剩餘容量 ≤0 直接不回傳，前端移除對應的「灰階/餘0」死碼（`appointment-form.ts`）。
