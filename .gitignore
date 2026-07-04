@@ -67,6 +67,9 @@ __azurite_db*.json
 __blobstorage__/
 __queuestorage__/
 azurite-debug.log
+
+# ---- 正式環境 smoke-test 執行輸出（scripts/smoke，--output 產生的報告，勿納入版控） ----
+scripts/smoke/report*.json
 AzuriteConfig
 
 # ---- 機密 / 環境設定 ----

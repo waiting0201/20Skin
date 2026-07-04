@@ -1,0 +1,3 @@
+# 驗收①（DB 查詢）需要 pyodbc；驗收②只用 Python 標準函式庫 + az CLI，無額外套件。
+# 系統需另外安裝 ODBC Driver 18 for SQL Server（pyodbc 只是 Python binding，不含驅動本體）。
+pyodbc>=5.0

@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-04T12:00+08:00
+last_updated: 2026-07-04T20:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -73,6 +73,8 @@ last_updated: 2026-07-04T12:00+08:00
 - [x] **後台 RWD（響應式）** ✅ Done 2026-07-03（見 Recently Done） [design/frontend-backend.md](design/frontend-backend.md) §RWD
 
 ### P2 — 部署與品質
+- [ ] **正式環境 smoke-test 腳本待實跑**（需有 prod DB/Storage 權限的機器）：`scripts/smoke/check_migrated_files.py`（驗收①搬遷檔可顯示）+ `check_new_upload.py`（驗收②新上傳可用+自動清理）已產出（2026-07-04），本次產出環境無 prod 憑證未能實跑。Why：`docs/blueprints/file-upload.md` 記錄的「尚待實跑」缺口，需要瀏覽器/prod 憑證才能完成。
+  - Related: [blueprints/file-upload.md](blueprints/file-upload.md) §Smoke-test 腳本、[../scripts/smoke/README.md](../scripts/smoke/README.md)
 - [x] **正式環境首次部署全數完成並驗證存活**（prod-only）✅ Done 2026-07-04（見 Recently Done）[design/infrastructure.md](design/infrastructure.md)
   - `rg-20skin-prod` 17 項資源全數建立成功；SQL AAD 系統管理員 + Function App contained user 已設定；Key Vault 5 項機密已寫入；GitHub Environment `production` + secrets 已由使用者設定完成；reCAPTCHA 後台網域已註冊
   - 三個 CI/CD workflow（web-customer/web-admin/api）皆已 push 觸發並成功部署：客戶前台、後台 SWA 回應 200；API 回應 401（`/api/branches` 需會員 JWT，符合設計）
@@ -249,7 +251,9 @@ last_updated: 2026-07-04T12:00+08:00
   - **前端**：`UploadService` + `appointment-form` 檔案選擇/預覽/移除；`complete`/`appointment-detail` 顯示照片；`environment.uploadBase`。
   - **踩雷修復**：`Azure.Storage.Blobs 12.29.1` 預設 service 版本 Azurite 3.35 不支援（500）→ 釘 `ServiceVersion.V2025_11_05`（正式 Azure 安全；本機不需特殊旗標）。見 [gotchas.md](gotchas.md)。
   - **驗證**：API（上傳→blob 公開 GET image/png→INVALID_TYPE/INVALID_FOLDER/401→建預約帶 photo→詳情回 photo→硬刪+刪 blob 零殘留）＋ Playwright 前端 14/14（選檔→預覽→送出→完成頁顯示圖）。`dotnet build` 0 warn、`ng build` 通過。
-  - **未做**：後台分院/項目圖上傳；問卷檔案題型（無資料）；刪除端點；歷史 4275 張照片＋分院/項目圖搬進 `upload` 容器（部署 azcopy）。
+  - **未做**：後台分院/項目圖上傳；問卷檔案題型（無資料）；刪除端點。
+  - **歷史檔案搬遷 ✅ 已完成（使用者確認 2026-07-04）**：舊 `~/Upload/{appointments,branchs,categorys,memberquestions}` 已 azcopy `--recursive` 整包搬進 `st20skinprod` 的 `upload` 容器（子路徑 1:1，DB 只存檔名故無需改）。詳見 [blueprints/file-upload.md](blueprints/file-upload.md) §歷史檔案搬遷與正式機驗證。
+  - **正式機上傳/顯示驗證（部分）**：`GET /api/health` 200、受保護端點 401＝符合設計、兩前台 `environment.prod.ts` `uploadBase`/`apiBase` 正確且部署 JS 已無 localhost。**尚待實跑**（需瀏覽器＋真會員）：① login→上傳→顯示 click-path；② 抽既有檔名 GET Blob 確認 200+image（驗證搬遷檔可顯示、舊記錄不破圖）。
 - [x] **客戶前台指定醫師流程完成 + 修 router async BusinessException→500 bug — 真實 DB 驗證** — Done 2026-07-01 [blueprints/customer-booking.md](blueprints/customer-booking.md)
   - **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`（null→不指定 IsAppointment=0；有值→該醫師 IsAppointment=1）；`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援指定醫師（roster 依 IsAppointment+DoctorID 解析）。
   - **router bug 修復**：async action 拋 `BusinessException`（FULL/DUPLICATE/NO_ROSTER/問卷 NOT_FOUND…）原誤回 HTTP 500 → 加 `catch (BusinessException)` 回 200 Fail（見 [gotchas.md](gotchas.md)）。
