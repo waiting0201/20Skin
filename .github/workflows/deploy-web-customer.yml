@@ -49,11 +49,10 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_CUSTOMER }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: 'upload'
-          # 注意（實測部署時發現）：skip_app_build: true 搭配非根目錄的 app_location 時，
-          # 這個 action 有已知問題會忽略 output_location、直接把 app_location 本身當成產物目錄
-          # 找 index.html（monorepo 常見雷）。改成 app_location: '/'（repo 根目錄）+
-          # output_location 用「相對於 repo 根目錄」的完整路徑，繞開這個問題。
-          app_location: '/'
-          output_location: 'web-customer/dist/web-customer/browser'
+          # 注意（實測部署兩次才找出正確組合）：skip_app_build: true 時這個 action 完全不看
+          # output_location，只把 app_location 當成「已建置好的靜態檔案目錄」直接找 index.html。
+          # 所以 app_location 必須直接指向 Angular build 產物目錄（相對 repo 根目錄），
+          # 不能再另外設定 output_location。
+          app_location: 'web-customer/dist/web-customer/browser'
           skip_app_build: true
           skip_deploy_on_missing_secrets: true
