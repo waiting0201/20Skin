@@ -9,7 +9,7 @@ related_docs:
   - ../architecture.md
   - ../project-overview.md
 keywords: [blueprints, 藍圖, 功能, 索引]
-last_updated: 2026-06-30
+last_updated: 2026-07-04
 ---
 
 > 本資料夾為**新系統**功能藍圖。舊系統功能藍圖見 [../old/blueprints/](../old/blueprints/)。每份新藍圖皆含「對應舊系統」連結。
@@ -35,6 +35,7 @@ last_updated: 2026-06-30
 | 後台排班 | draft | backend-engineer / frontend-architect | [admin-roster.md](admin-roster.md) |
 | 後台預約管理 | draft | backend-engineer / frontend-architect | [admin-reserve.md](admin-reserve.md) |
 | 後台會員管理 | draft | backend-engineer / frontend-architect | [admin-member.md](admin-member.md) |
+| 後台儀表板 | in-progress | backend-engineer / frontend-architect | [admin-dashboard.md](admin-dashboard.md) |
 
 ## Status 定義
 

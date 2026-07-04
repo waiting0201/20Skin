@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/api-design.md
   - ../old/blueprints/customer-booking.md
 keywords: [api, endpoint, custom-router, azure-functions, mvc, rest, apiresponse, jwt]
-last_updated: 2026-07-03
+last_updated: 2026-07-04
 status: draft
 ---
 
@@ -121,7 +121,10 @@ status: draft
 - `admin/members/{id}/questionnaires/{questionTypeId}/view`(GET) — 唯讀檢視數位作答打勾清單，重用 `IQuestionService.GetFormAsync(includeDisabled: true)`（已停用問卷類型的歷史作答仍可查看，與客戶前台預設行為不同）
 - `admin/members/{id}/questionnaires`(POST)、`admin/members/questionnaires/{linkId}`(PUT/DELETE) — 問卷掃描檔上傳/編輯/刪除（`Filename` 存入既有 `memberquestions` Blob 資料夾，重用 `POST /api/uploads`；換檔/刪除連動呼叫 `IFileStorage.DeleteAsync` 清 Blob）
 
-預約管理 `/api/appointments` + `/api/appointments/export/{checkin|questionnaire}`（尚未實作）。
+**預約管理（已實作 Done 2026-07-03，[blueprints/admin-reserve.md](../blueprints/admin-reserve.md)）**：`admin/appointments/{ta|ch|ch-dentist}`(GET 列表含時段容量表)、`…/{id}`(GET 詳情/POST `{id}/cancel` 取消)、`…/capacity`(PUT 容量批次更新)、`…/export/{checkin|questionnaire}`(GET 簽到單 Excel / 問卷 JSON) — 3 組瘦 proxy 對應 `TaAppointments`/`ChAppointments`/`ChDentistAppointments`。
+
+**儀表板（已實作 2026-07-04，[blueprints/admin-dashboard.md](../blueprints/admin-dashboard.md)）**：
+- `admin/dashboard`(GET) — 授權 `[Authorize(Roles.Admin)]`（任何管理員；會員 403、匿名 401），**回應區塊依可讀權限過濾**（`RequestContext.CanRead`）：`branches[]`（今日有效預約/初診/已取消 + 診別分解，需對應 `TaAppointments`/`ChAppointments`/`ChDentistAppointments` read）、`trend[]`（未來 7 天含今日，僅 Status=1）、`members`（總數/今日新增/本月新增/黑名單，需 `Members` read，無權限回 null）。統計口徑同預約列表頁（初診=該會員 Status=1 預約總數≤1 動態計算）。
 
 **後台認證與權限（已實作 Done 2026-07-01，`AdminController`）**：
 

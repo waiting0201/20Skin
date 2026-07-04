@@ -17,7 +17,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-04T21:30+08:00
+last_updated: 2026-07-04T23:00+08:00
 status: draft
 ---
 
@@ -50,6 +50,13 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | 會員 | `/member...` | MemberMsController | 會員查詢/編輯/黑名單 + 問卷答案 |
 
 > **參數化取代變體**：舊 Ta/Ch/ChDentist(+Cosmetic) 的 ~70 頁 → 單一元件吃 `clinic`/`branch` 參數，大幅消除重複（對應 [old/modernization.md](../old/modernization.md) A5）。
+
+### 儀表板（`/` 首頁，**已實作 2026-07-04**，取代舊空殼 Main/Index）
+
+- 版面（上而下）：會員統計 4 卡（`grid-cols-2 lg:grid-cols-4`）→ 分院當日卡 3 張（`md:grid-cols-3`；今日有效預約大字 + 診別 chips + 初診/已取消 + 「預約維護」連結帶 queryParams 直達 `/reserve`）→ 未來 7 天趨勢（水平堆疊長條，純 Tailwind div，不引入圖表函式庫）。
+- 區塊由後端依可讀權限過濾（`GET admin/dashboard`，見 [api-design.md](api-design.md)）；前端只渲染有出現的區塊，全空時顯示引導文字。
+- 系列色固定順序不依資料重排：ta=`#00538d`（品牌藍）/ ch=`#d97706` / chDentist=`#059669`，已通過 dataviz 調色盤驗證（CVD/對比）；數字/標籤一律 `text-ink`/`text-muted` 不著系列色；堆疊分段間留 2px 縫隙、`min-w-[3px]` 保零星量可見；≥2 系列時顯示 legend。
+- 詳見 [blueprints/admin-dashboard.md](../blueprints/admin-dashboard.md)（統計口徑、權限過濾、設計決策）。
 
 ## 列表頁 Grid 欄位規範（**已定案 2026-07-03**，所有後台列表頁必須參照）
 

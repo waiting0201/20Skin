@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/security.md
   - ../old/modernization.md
 keywords: [security, jwt, auth, authorization, claims, lims, recaptcha, refresh-token]
-last_updated: 2026-07-03T21:00+08:00
+last_updated: 2026-07-04T23:00+08:00
 status: draft
 ---
 
@@ -55,6 +55,15 @@ status: draft
 - `perms` 由 `AuthorizationDomain.Flatten`（`Skin.Services/Admin/`）在登入時把 `Lims`(樹) + `AdminLims`(IsAdd/IsUpdate/IsDelete) 攤平寫入。
 - token 過大時可只放權限摘要，細項由 `/api/auth/me` 補；視 claims 大小決定。
 
+### token 效期（決策 2026-07-04）
+
+| 角色 | 效期 | 設定鍵（預設值） | 理由 |
+|---|---|---|---|
+| 會員 | 60 分鐘 | `Jwt:AccessTokenMinutes`（60） | 客戶端單次預約流程短，維持短效降低外洩風險 |
+| 管理員 | **10 小時** | `Jwt:AdminAccessTokenMinutes`（600） | 櫃檯整天作業，60 分鐘會在工作中途被登出打斷；10 小時涵蓋一個完整班表日 |
+
+實作：`JwtOptions.AdminAccessTokenMinutes` + `JwtTokenService.CreateToken(claims, lifetimeMinutes)` 覆寫參數，只有 `AuthController.CreateAdminToken` 傳入管理員效期，會員簽發路徑不變。正式環境設定在 `infra/modules/function-app.bicep`（`Jwt__AdminAccessTokenMinutes`）。已實測：後台登入 token exp = 600 分鐘、會員 = 60 分鐘。取捨：無 refresh token（持久化受 schema 限制，見下方），到期即重新登入；拉長效期是在「不可加表」約束下對櫃檯可用性的務實解。
+
 > **實作細節（Done 2026-07-01）**：JWT claim 值皆為字串，故 `is_super_admin` 存 `"true"`/`"false"`、`perms` 存 **JSON 字串**（`JsonSerializer.Serialize`）。前端 `auth.service` 對 `perms` 做 `JSON.parse`、`is_super_admin` 容錯 `true`/`'true'`（避開 JWT 陣列 claim 序列化陷阱）。`ClaimTypes.Name` 在 payload 為長 URI，前端以該 key 讀取。
 
 ## 授權（取代 CheckSession 字串比對）
@@ -62,6 +71,7 @@ status: draft
 | 層 | 機制 |
 |---|---|
 | API（後台功能） | 自訂 router 依 `perms` 比對「資源 key + 操作(add/update/delete/read)」；`is_super_admin` 直接放行；取代舊 `Lims.Key.Contains` 脆弱比對。**實作**：`[Authorize(Roles.Admin, Resource="Admins", Op="update")]`（`Routing/Attributes.cs`）+ `ApiRouterFunction.HasPermission`（讀 JWT `perms` claim）。read 只需該資源有列即可（對應舊「有 AdminLims 列即可見/可讀」）。 |
+| API（單端點內分區塊授權） | `RequestContext.CanRead(resource)`（2026-07-04 新增）：read 語意與 `HasPermission` 一致（perms claim 有列即可、超管放行），供「同一端點依權限決定回應區塊」的場景（如 `GET admin/dashboard` 依 3 組預約 key + Members 過濾統計區塊）。逐端點授權仍走 `[Authorize(Resource,Op)]`，此為補充非取代。 |
 | API（會員資源） | 一律加**歸屬檢查**（`Appointment.MemberID == sub`），**修正舊 IDOR** |
 | 前端 route guard | 客戶：有無有效 token；後台：依 `perms` 控制可見選單與可進頁面（見 [frontend-backend.md](frontend-backend.md)） |
 
