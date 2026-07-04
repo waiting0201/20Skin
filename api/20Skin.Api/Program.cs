@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,9 +73,7 @@ builder.Services.AddScoped<Skin.Services.BasicData.IDoctorAdminService, Skin.Ser
 // 後台基礎資料：時段（Ta/Ch/ChDentist 分院別名 → 實際 BranchID，設定驅動，GUID 不進原始碼）
 builder.Services.AddSingleton(new Skin.Services.BasicData.PeriodsOptions
 {
-    BranchIdByAlias = config.GetSection("Periods:BranchIdByAlias")
-        .GetChildren().ToDictionary(c => c.Key, c => Guid.TryParse(c.Value, out var g) ? g : Guid.Empty,
-            StringComparer.OrdinalIgnoreCase),
+    BranchIdByAlias = ReadBranchAliasMap(config),
 });
 builder.Services.AddScoped<Skin.Services.BasicData.IPeriodAdminService, Skin.Services.BasicData.PeriodAdminService>();
 
@@ -97,9 +96,7 @@ builder.Services.AddScoped<Skin.Services.Reserve.IAppointmentAdminService, Skin.
 // 預約規則（設定驅動，取代舊硬編碼分院 GUID）
 builder.Services.AddSingleton(new BookingOptions
 {
-    DuplicateWindowDaysByBranch = config.GetSection("Booking:DuplicateWindowDaysByBranch")
-        .GetChildren().ToDictionary(c => c.Key, c => int.TryParse(c.Value, out var v) ? v : 0,
-            StringComparer.OrdinalIgnoreCase),
+    DuplicateWindowDaysByBranch = ReadBookingWindowMap(config),
 });
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
@@ -120,3 +117,35 @@ builder.Services.AddSingleton<Skin.Services.Storage.IFileStorage, Skin.Services.
 builder.Services.AddSingleton<ISmsSender, DevNoOpSmsSender>();
 
 builder.Build().Run();
+
+// Azure Functions Flex Consumption 的 App Setting 名稱不接受連字號（GUID 一定含連字號），故無法把
+// "Periods:BranchIdByAlias:<GUID>" 這種逐項攤平的巢狀 key 直接部署成 App Setting（本機 local.settings.json
+// 沒有這個限制，仍可用巢狀 key，下面優先讀取巢狀 key 以維持本機開發行為不變）。
+// 正式環境改用單一 JSON 字串設定（"Periods:BranchIdByAliasJson"，對應 App Setting 名
+// `Periods__BranchIdByAliasJson`，值本身不受這個名稱限制），僅在巢狀 key 查無資料時才 fallback 解析。
+static Dictionary<string, Guid> ReadBranchAliasMap(IConfiguration config)
+{
+    var map = config.GetSection("Periods:BranchIdByAlias")
+        .GetChildren().ToDictionary(c => c.Key, c => Guid.TryParse(c.Value, out var g) ? g : Guid.Empty,
+            StringComparer.OrdinalIgnoreCase);
+    if (map.Count == 0 && config["Periods:BranchIdByAliasJson"] is { Length: > 0 } json)
+    {
+        var raw = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+        map = raw.ToDictionary(kv => kv.Key, kv => Guid.TryParse(kv.Value, out var g) ? g : Guid.Empty,
+            StringComparer.OrdinalIgnoreCase);
+    }
+    return map;
+}
+
+static Dictionary<string, int> ReadBookingWindowMap(IConfiguration config)
+{
+    var map = config.GetSection("Booking:DuplicateWindowDaysByBranch")
+        .GetChildren().ToDictionary(c => c.Key, c => int.TryParse(c.Value, out var v) ? v : 0,
+            StringComparer.OrdinalIgnoreCase);
+    if (map.Count == 0 && config["Booking:DuplicateWindowDaysByBranchJson"] is { Length: > 0 } json)
+    {
+        var raw = JsonSerializer.Deserialize<Dictionary<string, int>>(json) ?? new();
+        map = new Dictionary<string, int>(raw, StringComparer.OrdinalIgnoreCase);
+    }
+    return map;
+}

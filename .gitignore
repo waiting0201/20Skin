@@ -57,6 +57,11 @@ yarn-error.log*
 dist/
 .cache/
 
+# ---- Bicep 編譯產物（az bicep build 產生的 ARM JSON，來源是 .bicep，勿納入版控） ----
+infra/main.json
+infra/**/*.json
+!infra/main.parameters.json
+
 # ---- Azurite（本機 Azure Storage 模擬器狀態，勿納入版控） ----
 __azurite_db*.json
 __blobstorage__/

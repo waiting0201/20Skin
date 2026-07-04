@@ -1,0 +1,53 @@
+name: deploy-web-admin
+
+# 後台 SPA → Azure Static Web Apps（Free tier，獨立站，不 link 任何 API）。
+# 只在 web-admin/** 有變更時觸發。設計同 deploy-web-customer.yml，見
+# docs/design/infrastructure.md §CI/CD 設計。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web-admin/**'
+      - '.github/workflows/deploy-web-admin.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-admin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web-admin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-admin
+        run: npm ci
+
+      - name: Build (production configuration)
+        working-directory: web-admin
+        run: npm run build -- --configuration production
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_ADMIN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'web-admin'
+          output_location: 'dist/web-admin/browser'
+          skip_app_build: true
+          skip_deploy_on_missing_secrets: true

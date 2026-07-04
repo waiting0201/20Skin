@@ -1,0 +1,55 @@
+name: deploy-web-customer
+
+# 客戶前台 SPA → Azure Static Web Apps（Free tier，獨立站，不 link 任何 API）。
+# 只在 web-customer/** 有變更時觸發，避免三個獨立可部署單元互相干擾。
+# 部署權杖走 SWA 專屬 deployment token（非 OIDC）：目前官方唯一支援的 SWA GitHub Actions
+# 部署方式，風險範圍僅限這一個 Static Web App（可用 `az staticwebapp secrets reset-api-key` 單獨輪替）。
+# 見 docs/design/infrastructure.md §CI/CD 設計。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web-customer/**'
+      - '.github/workflows/deploy-web-customer.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-web-customer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web-customer/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web-customer
+        run: npm ci
+
+      - name: Build (production configuration)
+        working-directory: web-customer
+        run: npm run build -- --configuration production
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_CUSTOMER }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: 'web-customer'
+          output_location: 'dist/web-customer/browser'
+          skip_app_build: true
+          skip_deploy_on_missing_secrets: true

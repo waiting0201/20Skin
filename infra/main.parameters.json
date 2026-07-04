@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westus2"
+    },
+    "existingSqlServerName": {
+      "value": "weyprous"
+    },
+    "existingSqlServerResourceGroup": {
+      "value": "WeyproUS"
+    },
+    "existingSqlDatabaseName": {
+      "value": "20Skin"
+    },
+    "bookingDuplicateWindowDaysByBranch": {
+      "value": {
+        "e65f4720-82a3-498a-9447-fb5dc910999e": 2
+      }
+    },
+    "periodsBranchIdByAlias": {
+      "value": {
+        "Ta": "e65f4720-82a3-498a-9447-fb5dc910999e",
+        "Ch": "c59d0277-bd0e-48f8-aece-9a4a47e5f2a3",
+        "ChDentist": "baaaf928-f685-492f-ba88-e65a4c4d8248"
+      }
+    },
+    "additionalCorsOrigins": {
+      "value": []
+    }
+  }
+}

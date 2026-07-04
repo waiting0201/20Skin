@@ -8,11 +8,11 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-03T18:00+08:00
+last_updated: 2026-07-04T12:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）** → **正式環境 Azure 資源已實際建立並套用（`rg-20skin-prod`，17 項資源 + SQL/Key Vault 設定完成，待 GitHub 端設定後才會真正跑第一次 CI/CD 部署程式碼）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -73,7 +73,11 @@ last_updated: 2026-07-03T18:00+08:00
 - [x] **後台 RWD（響應式）** ✅ Done 2026-07-03（見 Recently Done） [design/frontend-backend.md](design/frontend-backend.md) §RWD
 
 ### P2 — 部署與品質
-- [ ] **CI/CD**：兩 SPA → Static Web Apps、API → Functions（[design/infrastructure.md](design/infrastructure.md)）
+- [x] **正式環境 Azure 資源實際套用完成**（prod-only）✅ Done 2026-07-04（見 Recently Done）[design/infrastructure.md](design/infrastructure.md)
+  - `rg-20skin-prod` 17 項資源全數建立成功（2x SWA / Function App(Flex Consumption) / Storage / Key Vault / App Insights+Log Analytics / 既有 SQL 防火牆規則）；SQL AAD 系統管理員 + Function App contained user 已設定；Key Vault 5 項機密已寫入；2 個 SWA 部署權杖已取得
+  - 部署過程發現並修正 4 個 Flex Consumption 平台限制（Key Vault purge protection 強制開啟、appsetting 名稱不可含冒號、不可含連字號、FUNCTIONS_WORKER_RUNTIME 重複設定），其中一項需要 `api/20Skin.Api/Program.cs` 配合改動（分院 GUID 設定改讀 JSON 字串 app setting，見 infrastructure.md §部署實測記錄）
+  - 客戶前台 SWA 因訂閱 Free tier 名額已滿（其他既有專案佔用），使用者決定改用 Standard tier（約 $9/月），後台維持 Free
+  - **未做**：GitHub Environment `production` + secrets 尚未設定（需 `gh auth login`，見 infrastructure.md §一次性手動步驟 9）+ reCAPTCHA 後台網域註冊 + 兩個 SPA/API 尚未真正跑過 CI/CD 部署（只有 Azure 資源本身建好）
 - [ ] **環境分離** dev/staging/prod
 - [ ] **測試**：Domain service 單元測試（容量/編號/重複/簡訊）+ 端點整合測試
 - [ ] **與舊系統並行驗證**（同一 reused DB 雙寫一致性）
@@ -90,6 +94,18 @@ last_updated: 2026-07-03T18:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **正式環境 Azure 資源實際套用（真實訂閱，非僅產出方案）** — Done 2026-07-04 [design/infrastructure.md](design/infrastructure.md) §部署實測記錄
+  - `rg-20skin-prod`（西美 `westus2`）17 項資源全數建立：2x SWA（客戶前台 Standard、後台 Free）/ Function App(Flex Consumption) + Plan / Storage(`st20skinprod`) / Key Vault(`kv-20skin-prod-lnjm`) / App Insights + Log Analytics / 既有 `weyprous` SQL Server 防火牆規則；GitHub OIDC 身分 `id-20skin-ci-prod` + federated credential（`repo:waiting0201/20Skin:environment:production`）+ RG 層級 Contributor 已建立
+  - 既有 SQL AAD 系統管理員設為 `Weypro`；Function App 的 Managed Identity 已在 `20Skin` DB 建立 contained user（`db_datareader`/`db_datawriter`，透過 `pyodbc` + `az` access token 執行 T-SQL）
+  - Key Vault 5 項機密已寫入（`Storage-ConnectionString`/`Jwt-SigningKey`(新產生)/`Recaptcha-SecretKey`(沿用既有)/`SuperAdmin-Username`/`SuperAdmin-Password`(新產生)）；兩個 SWA 部署權杖已取得（暫存本機，未落地 commit）
+  - **部署過程中發現並修正 4 個 Flex Consumption 平台限制**（Bicep + 一處程式碼改動）：Key Vault 需強制 `enablePurgeProtection: true`（不可逆）；appsetting 名稱不可含冒號（`Jwt:SigningKey` 等一律改雙底線）；appsetting 名稱不可含連字號（GUID 逐分院攤平的寫法整個作廢，改成單一 JSON 字串 app setting，`api/20Skin.Api/Program.cs` 新增 `ReadBranchAliasMap`/`ReadBookingWindowMap` fallback 解析，`dotnet build` 0 error）；`FUNCTIONS_WORKER_RUNTIME` 在 Flex Consumption 是不允許的重複設定
+  - 客戶前台改用 Standard tier（使用者決定）：訂閱既有 9 個其他專案吃滿 Free tier 10 個上限，後台搶到最後一個 Free 名額
+  - **未做**：GitHub Environment `production` + secrets/variable 尚未設定（本機 `gh` 未登入）；reCAPTCHA 後台網域註冊；兩個 SPA + API 尚未真正跑過 CI/CD workflow（目前僅 Azure 資源本身就緒，程式碼尚未部署上去）
+- [x] **正式環境（prod-only）部署方案 + IaC(Bicep) + GitHub Actions workflow 產出** — Done 2026-07-04 [design/infrastructure.md](design/infrastructure.md)
+  - **範圍**：`infra/main.bicep` + 7 個 `infra/modules/*.bicep`（Static Web Apps ×2 / Function App(Flex Consumption) / Storage / Key Vault(RBAC) / App Insights+Log Analytics / 既有 SQL 防火牆規則）+ `.github/workflows/`（`deploy-web-customer`/`deploy-web-admin`/`deploy-api`/`deploy-infra`，四單元各自 path filter 獨立觸發）+ 兩份 `public/staticwebapp.config.json`（SPA fallback + 安全 headers）。
+  - **關鍵決策**：① 兩 SWA **不使用** SWA 的 Bring-your-own-API linking（查證官方文件確認 Free tier 本就不支援此功能，且此功能本身是 1:1 綁定不適合兩站共用一支 API）——API 完全獨立部署，靠 CORS 直接呼叫；② Function App 採 **Flex Consumption**（非傳統 Consumption，因 .NET 10 isolated 在 Linux 上傳統 Consumption 不支援且即將淘汰）；③ DB 連線改 **Managed Identity**（`Authentication=Active Directory Managed Identity`，零程式碼改動，取代 `sa`），並提供 SQL 帳密 fallback；④ Storage 帳戶**查證現有程式碼後改為單一帳戶**（原規劃兩顆分離帳戶，但 `Program.cs:111-117` 顯示 Blob 上傳現況直接重用 `AzureWebJobsStorage`，拆分需先改程式碼，故列為 backend-engineer 後續待辦而非本次阻塞項）。
+  - **同步修正既有程式碼**：`web-customer`/`web-admin` 的 `environment.prod.ts` 原本 `apiBase: '/api'`（隱含假設走 SWA linked backend，與上述「不 link API」決策衝突，正式部署會 404）——已改為 Function App 絕對網址；`uploadBase` 同步填入 Storage 帳戶的公開容器網址。
+  - **更新（2026-07-04）**：已實際套用到真實訂閱，見上方新條目「正式環境 Azure 資源實際套用」。
 - [x] **後台預約管理前端：列表（含時段容量表）/詳情/取消/Excel 匯出/問卷列印頁完整實作，後台最後一個 P1 模組前端補齊** — Done 2026-07-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §前端實作紀錄
   - **範圍**：`web-admin/src/app/pages/reserve/`（`reserve-list`/`appointment-detail`/`questionnaire-print`）+ `reserve-api.service.ts` + `core/models.ts` 新增 8 個型別；路由 `reserve`/`reserve/:id`/`reserve/print/questionnaire`（無靜態 `data.perm`，資源 key 依 `branch` query param 動態決定，比照 `roster`/`basic/periods` 既有慣例）；`menu-route-map.ts` `BUILT_KEYS` 補上 3 個 Lims key。
   - **版面比照舊系統**：`reserve-list` 左窄欄時段容量表（可編輯設定人數 + 唯讀預約/剩餘人數）+ 右寬欄預約列表（grid 欄位/寬度/對齊已補入 [design/frontend-backend.md](design/frontend-backend.md) 三個對照表，共 10 頁）；`pageSize` 固定 50（沿用舊系統，與其餘模組的 20 刻意不同，已同步寫入分頁規範表）。

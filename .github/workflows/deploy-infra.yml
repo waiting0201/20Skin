@@ -1,0 +1,66 @@
+name: deploy-infra
+
+# Bicep IaC 套用（infra/）。刻意只用 workflow_dispatch 手動觸發，不掛在 push 上——
+# 基礎設施變更影響面比程式碼部署大（可能動到 Key Vault/RBAC/防火牆），需要人主動決定何時套用。
+# 預設 mode=whatif 只顯示差異、不真的套用，需明確選 mode=apply 才會執行 az deployment group create。
+# 登入走 OIDC federated credential，見 docs/design/infrastructure.md §一次性手動步驟。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '執行模式'
+        required: true
+        default: 'whatif'
+        type: choice
+        options:
+          - whatif
+          - apply
+
+concurrency:
+  group: deploy-infra
+  cancel-in-progress: false
+
+jobs:
+  bicep:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC federated credential)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate
+        run: |
+          az deployment group validate \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters @infra/main.parameters.json
+
+      - name: What-if
+        run: |
+          az deployment group what-if \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters @infra/main.parameters.json
+
+      - name: Apply
+        if: ${{ inputs.mode == 'apply' }}
+        run: |
+          az deployment group create \
+            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters @infra/main.parameters.json
+
+      - name: Azure logout
+        if: always()
+        run: az logout
