@@ -22,6 +22,7 @@ public sealed class AuthController(
     IAdminService admins,
     IRecaptchaVerifier recaptcha,
     JwtTokenService jwt,
+    JwtOptions jwtOptions,
     SuperAdminOptions superAdmin,
     RequestContext ctx)
 {
@@ -123,7 +124,10 @@ public sealed class AuthController(
             CreateAdminToken(admin.AdminID, admin.Name ?? admin.Username, isSuper: false, perms)));
     }
 
-    /// <summary>簽發後台 JWT。perms 以 JSON 字串 claim 承載（前端解析、router 比對）。</summary>
+    /// <summary>
+    /// 簽發後台 JWT。perms 以 JSON 字串 claim 承載（前端解析、router 比對）。
+    /// 效期用後台專屬設定（預設 10 小時，櫃檯整天作業免頻繁重登；會員 token 維持較短效期）。
+    /// </summary>
     private string CreateAdminToken(Guid adminId, string name, bool isSuper, List<AdminPermDto> perms)
         => jwt.CreateToken([
             new Claim(ClaimTypes.NameIdentifier, adminId.ToString()),
@@ -131,7 +135,7 @@ public sealed class AuthController(
             new Claim(ClaimTypes.Role, Roles.Admin),
             new Claim("is_super_admin", isSuper ? "true" : "false"),
             new Claim("perms", JsonSerializer.Serialize(perms, JsonOpts)),
-        ]);
+        ], jwtOptions.AdminAccessTokenMinutes);
 
     /// <summary>GET /api/auth/me — 當前 token 身分。</summary>
     [ApiRoute("GET", "auth/me")]

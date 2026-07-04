@@ -11,6 +11,9 @@ public sealed class JwtOptions
     public string Issuer { get; set; } = "20skin";
     public string Audience { get; set; } = "20skin";
     public int AccessTokenMinutes { get; set; } = 60;
+
+    /// <summary>後台管理員 token 效期（分鐘）。櫃檯整天作業，預設 10 小時（決策 2026-07-04）。</summary>
+    public int AdminAccessTokenMinutes { get; set; } = 600;
 }
 
 /// <summary>
@@ -22,14 +25,14 @@ public sealed class JwtTokenService(JwtOptions options)
     private readonly JsonWebTokenHandler _handler = new();
     private SymmetricSecurityKey Key => new(Encoding.UTF8.GetBytes(options.SigningKey));
 
-    public string CreateToken(IEnumerable<Claim> claims)
+    public string CreateToken(IEnumerable<Claim> claims, int? lifetimeMinutes = null)
     {
         var descriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             Issuer = options.Issuer,
             Audience = options.Audience,
-            Expires = DateTime.UtcNow.AddMinutes(options.AccessTokenMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(lifetimeMinutes ?? options.AccessTokenMinutes),
             SigningCredentials = new SigningCredentials(Key, SecurityAlgorithms.HmacSha256),
         };
         return _handler.CreateToken(descriptor);

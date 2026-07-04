@@ -135,6 +135,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         Jwt__Issuer: '20skin'
         Jwt__Audience: '20skin-client'
         Jwt__AccessTokenMinutes: '60'
+        Jwt__AdminAccessTokenMinutes: '600' // 後台管理員 10 小時（櫃檯整天作業免頻繁重登，決策 2026-07-04）
         Recaptcha__MinScore: '0.5' // 正式環境維持舊系統門檻，見 security.md §MinScore 門檻決策
 
         // ---- 智邦 SMS（尚未實作，DevNoOpSmsSender 佔位；串接完成後改用下列 KV reference）----
