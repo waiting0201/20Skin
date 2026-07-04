@@ -12,7 +12,7 @@ last_updated: 2026-07-04T12:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
-> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）** → **正式環境 Azure 資源已實際建立並套用（`rg-20skin-prod`，17 項資源 + SQL/Key Vault 設定完成，待 GitHub 端設定後才會真正跑第一次 CI/CD 部署程式碼）**。
+> **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）** → **正式環境首次上線（`rg-20skin-prod`，三個可部署單元皆已透過 CI/CD 成功部署並驗證存活：客戶前台/後台 SWA 200、API 401=符合設計）**。
 > 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
@@ -73,11 +73,12 @@ last_updated: 2026-07-04T12:00+08:00
 - [x] **後台 RWD（響應式）** ✅ Done 2026-07-03（見 Recently Done） [design/frontend-backend.md](design/frontend-backend.md) §RWD
 
 ### P2 — 部署與品質
-- [x] **正式環境 Azure 資源實際套用完成**（prod-only）✅ Done 2026-07-04（見 Recently Done）[design/infrastructure.md](design/infrastructure.md)
-  - `rg-20skin-prod` 17 項資源全數建立成功（2x SWA / Function App(Flex Consumption) / Storage / Key Vault / App Insights+Log Analytics / 既有 SQL 防火牆規則）；SQL AAD 系統管理員 + Function App contained user 已設定；Key Vault 5 項機密已寫入；2 個 SWA 部署權杖已取得
-  - 部署過程發現並修正 4 個 Flex Consumption 平台限制（Key Vault purge protection 強制開啟、appsetting 名稱不可含冒號、不可含連字號、FUNCTIONS_WORKER_RUNTIME 重複設定），其中一項需要 `api/20Skin.Api/Program.cs` 配合改動（分院 GUID 設定改讀 JSON 字串 app setting，見 infrastructure.md §部署實測記錄）
+- [x] **正式環境首次部署全數完成並驗證存活**（prod-only）✅ Done 2026-07-04（見 Recently Done）[design/infrastructure.md](design/infrastructure.md)
+  - `rg-20skin-prod` 17 項資源全數建立成功；SQL AAD 系統管理員 + Function App contained user 已設定；Key Vault 5 項機密已寫入；GitHub Environment `production` + secrets 已由使用者設定完成；reCAPTCHA 後台網域已註冊
+  - 三個 CI/CD workflow（web-customer/web-admin/api）皆已 push 觸發並成功部署：客戶前台、後台 SWA 回應 200；API 回應 401（`/api/branches` 需會員 JWT，符合設計）
+  - 部署過程發現並修正 **5 個平台限制**（Key Vault purge protection 強制開啟、appsetting 名稱不可含冒號/連字號、`FUNCTIONS_WORKER_RUNTIME` 重複設定、`Azure/static-web-apps-deploy@v1` 的 `skip_app_build: true` 不使用 `output_location`），兩項需要程式碼配合（`Program.cs` 分院 GUID 改讀 JSON app setting；两個 SPA workflow 的 `app_location` 改指向 build 產物目錄），詳見 infrastructure.md §部署實測記錄
   - 客戶前台 SWA 因訂閱 Free tier 名額已滿（其他既有專案佔用），使用者決定改用 Standard tier（約 $9/月），後台維持 Free
-  - **未做**：GitHub Environment `production` + secrets 尚未設定（需 `gh auth login`，見 infrastructure.md §一次性手動步驟 9）+ reCAPTCHA 後台網域註冊 + 兩個 SPA/API 尚未真正跑過 CI/CD 部署（只有 Azure 資源本身建好）
+  - **未做（非阻塞）**：refresh token 持久化寫入邏輯、智邦 SMS 串接、自訂網域/CDN，見 infrastructure.md §已知限制/後續事項
 - [ ] **環境分離** dev/staging/prod
 - [ ] **測試**：Domain service 單元測試（容量/編號/重複/簡訊）+ 端點整合測試
 - [ ] **與舊系統並行驗證**（同一 reused DB 雙寫一致性）

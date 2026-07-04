@@ -20,11 +20,13 @@ status: active
 
 > 舊部署（IIS + Web.config + CheckSms console + 本機 Upload）見 [old/design/infrastructure.md](../old/design/infrastructure.md)。
 > **本文為正式環境（prod-only）具體方案**，對應 IaC 見 [`infra/`](../../infra/README.md)、CI/CD 見 [`.github/workflows/`](../../.github/workflows/)。
-> **狀態（2026-07-04）**：Bicep 已在真實 Azure 訂閱（`rg-20skin-prod`）成功套用，17 項資源全數建立；
-> 既有 SQL AAD 系統管理員 + Function App 的 contained user + Key Vault 機密皆已設定完成。
-> 尚未完成：GitHub Environment `production` + secrets（需 `gh auth login`，見下方一次性手動步驟）、
-> 兩份 SPA 尚未真正部署程式碼（`.github/workflows/` 尚未觸發過）。實際部署細節與過程中發現的
-> 3 個平台限制修正見下方「部署實測記錄」。
+> **狀態（2026-07-04）**：**首次正式部署已全數完成並驗證存活**。Bicep 已在真實 Azure 訂閱
+> （`rg-20skin-prod`）成功套用，17 項資源全數建立；既有 SQL AAD 系統管理員 + Function App 的
+> contained user + Key Vault 機密皆已設定完成；GitHub Environment `production` + secrets 已由
+> 使用者手動設定完成；三個 CI/CD workflow（web-customer/web-admin/api）皆已跑過並成功部署程式碼——
+> 客戶前台、後台 SWA 皆回應 200，API 回應 401（`GET /api/branches` 需要會員 JWT，符合設計，非錯誤）。
+> 尚未完成：reCAPTCHA 網域已由使用者完成註冊；仍待辦僅剩非阻塞事項（見「已知限制/後續事項」）。
+> 實際部署過程發現並修正的 5 個平台限制見下方「部署實測記錄」。
 
 ## 部署拓樸
 
