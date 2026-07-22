@@ -83,10 +83,7 @@ import { CategoryAdmin, DoctorAdmin, PeriodAdmin, RosterCreateRequest, RosterPer
         <div>
           <label class="block text-sm font-medium text-ink mb-2">各時段容量 <span class="text-red-400">*</span></label>
           @if (isAutoRowNumber()) {
-            <p class="text-xs text-amber-600 mb-2">
-              ⚠️ 一般項目與二林模式（現場取號）項目請分開排班：同一張排班的時段為所有勾選項目共用，
-              若在一般項目排班誤填現場取號時段人數，會讓一般項目也冒出細時段。
-            </p>
+            <p class="text-xs text-amber-600 mb-2">⚠️ 一張排班只能填一種：<b>配號</b> 或 <b>現場取號</b>（兩種都填人數會讓客戶端時段混亂）。</p>
           }
           <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -218,8 +215,8 @@ export class RosterFormComponent {
     const numbered = rows.filter((r) => r.value.templateStartNumber != null);
     const walkin = rows.filter((r) => r.value.templateStartNumber == null);
     const secs: { title: string | null; rows: FormGroup[] }[] = [];
-    if (numbered.length) secs.push({ title: '配號時段（客戶看到 早診/晚診）', rows: numbered });
-    if (walkin.length) secs.push({ title: '現場取號時段（客戶看到時段時間）', rows: walkin });
+    if (numbered.length) secs.push({ title: '配號時段（早/晚診）', rows: numbered });
+    if (walkin.length) secs.push({ title: '現場取號時段', rows: walkin });
     this.rowSections.set(secs.length ? secs : [{ title: null, rows: [] }]);
   }
 
@@ -300,6 +297,16 @@ export class RosterFormComponent {
     if (!this.form.controls.rosterDate.value) {
       this.error.set('請選擇門診日期');
       return;
+    }
+    // 混掛防呆（僅自動配號分院）：一張排班不可同時填「配號時段」與「現場取號時段」的人數（後端亦硬擋）。
+    if (this.isAutoRowNumber()) {
+      const rows = this.periodRows.getRawValue() as { templateStartNumber: number | null; patients: number }[];
+      const hasNumbered = rows.some((r) => r.templateStartNumber != null && Number(r.patients) > 0);
+      const hasWalkin = rows.some((r) => r.templateStartNumber == null && Number(r.patients) > 0);
+      if (hasNumbered && hasWalkin) {
+        this.error.set('配號與現場取號時段不能排在同一張排班，請分開建立');
+        return;
+      }
     }
     const raw = this.form.getRawValue();
     const periods: RosterPeriodInput[] = raw.periodRows.map((p) => ({

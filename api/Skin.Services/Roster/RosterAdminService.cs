@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using Skin.Core;
 using Skin.Core.Dtos;
@@ -21,6 +22,32 @@ public sealed class RosterAdminService(IDbConnectionFactory db) : IRosterAdminSe
             if (p.Patients < 0)
                 throw new BusinessException("容量不可為負數", "INVALID_PATIENTS");
         }
+    }
+
+    /// <summary>
+    /// 台中（自動配號分院）一張排班不可同時設定「配號時段」與「現場取號時段」的人數。
+    /// 排班的時段清單為該排班全部科別共用，混填人數會讓一般項目冒出細時段（見 docs/gotchas.md、
+    /// docs/blueprints/customer-booking.md SOP）。模式權威來源為 Periods.StartNumber 模板值——
+    /// **非**送出的 RosterPeriods.StartNumber（前端新增時該欄恆為 null），故此處 JOIN 回 Periods 判定。
+    /// 二林（非自動配號分院）不可能配號、無此問題，直接放行。
+    /// </summary>
+    private static async Task ValidateModeNotMixedAsync(
+        IDbConnection conn, IDbTransaction tx, Guid branchId, List<RosterPeriodInput> periods, CancellationToken ct)
+    {
+        var isAuto = await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT IsAutoRowNumber FROM Branchs WHERE BranchID = @branchId", new { branchId }, tx, cancellationToken: ct));
+        if (!isAuto) return;
+
+        var activeIds = periods.Where(p => p.Patients > 0).Select(p => p.PeriodId).ToList();
+        if (activeIds.Count == 0) return;
+
+        var startNumbers = (await conn.QueryAsync<int?>(new CommandDefinition(
+            "SELECT StartNumber FROM Periods WHERE PeriodID IN @activeIds", new { activeIds }, tx, cancellationToken: ct))).AsList();
+
+        var hasNumbered = startNumbers.Any(s => s is not null); // 配號時段（起始編號有值）
+        var hasWalkin = startNumbers.Any(s => s is null);       // 現場取號時段（起始編號留空）
+        if (hasNumbered && hasWalkin)
+            throw new BusinessException("同一張排班不可同時設定「配號時段」與「現場取號時段」的人數，請分開排班", "ROSTER_MODE_MIXED");
     }
 
     private static List<DateTime> BuildDates(DateTime start, int repeatMode, DateTime? expireDate)
@@ -128,6 +155,8 @@ public sealed class RosterAdminService(IDbConnectionFactory db) : IRosterAdminSe
         using var tx = conn.BeginTransaction();
         try
         {
+            await ValidateModeNotMixedAsync(conn, tx, branchId, req.Periods, ct);
+
             foreach (var date in dates)
             {
                 var existingCategoryIds = (await conn.QueryAsync<Guid>(new CommandDefinition("""
@@ -199,6 +228,12 @@ public sealed class RosterAdminService(IDbConnectionFactory db) : IRosterAdminSe
         using var tx = conn.BeginTransaction();
         try
         {
+            var branchId = await conn.ExecuteScalarAsync<Guid?>(new CommandDefinition(
+                "SELECT BranchID FROM Rosters WHERE RosterID = @id", new { id }, tx, cancellationToken: ct));
+            if (branchId is null)
+                throw new BusinessException("找不到排班", "NOT_FOUND");
+            await ValidateModeNotMixedAsync(conn, tx, branchId.Value, req.Periods, ct);
+
             var affected = await conn.ExecuteAsync(new CommandDefinition("""
                 UPDATE Rosters SET DoctorID = @DoctorId, OutpatientTimeID = @OutpatientTimeId,
                        RosterDate = @RosterDate, IsAppointment = @IsAppointment

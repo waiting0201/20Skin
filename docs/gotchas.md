@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-04T21:30+08:00
+last_updated: 2026-07-22T11:00+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -113,6 +113,7 @@ last_updated: 2026-07-04T21:30+08:00
 - **症狀**：後台把台中健保某時段的「起始編號」清空，該時段立即變成「不配號＋時間文字呈現」（比照二林）。
 - **原因**：這是刻意設計（使用者拍板）——台中細時段（比照二林的診療項目）就靠「起始編號留空」啟用；副作用是既有早/晚診的起始編號也成了敏感欄位。
 - **預防**：台中早/晚診時段的起始編號（現為 12）**不可清空**；後台調整時段時先確認影響。另：一般項目與二林模式項目**不可綁同一張排班**（排班的時段清單是全項目共用，人數 0 才會隱藏）。
+- **2026-07-22 更新**：後台三處已把「配號／現場取號」模式明確化（時段表單模式感知二選一、時段清單分組、排班容量表分組），且「配號＋現場取號人數混填同一張排班」已**前後端雙層硬擋**（`RosterAdminService.ValidateModeNotMixedAsync` 回 `ROSTER_MODE_MIXED`）——不再只靠人工 SOP。細節見 [design/frontend-backend.md](design/frontend-backend.md) §時段/排班模式感知呈現。若真要在同一天同時提供兩種，仍須**分開兩張排班**（科別不重疊）。
 
 ### Dapper record DTO 與 SQL 欄位型別必須嚴格匹配（bit vs int，2026-07-04 修復）
 - **症狀**：`GET /api/appointments/{id}`（完成頁/詳情頁）自 2026-07-02 起一直 500：`A parameterless default constructor or one matching signature ... is required for AppointmentDetailDto materialization`。
