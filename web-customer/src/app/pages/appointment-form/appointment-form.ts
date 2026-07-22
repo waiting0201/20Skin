@@ -38,7 +38,10 @@ import { Doctor, TimeSlot } from '../../core/models';
                   @if (amountLocked()) {
                     <input type="text" [value]="1" readonly autocomplete="off" />
                   } @else {
-                    <input type="number" min="1" [ngModel]="amount()" (ngModelChange)="amount.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+                    <input type="number" min="1" [max]="selectedAvailable()" [ngModel]="amount()" (ngModelChange)="amount.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+                    @if (amountExceedsCapacity()) {
+                      <p style="color:red;">所選時段僅剩 {{ selectedAvailable() }} 個名額，無法容納 {{ amount() }} 人，請減少人數或改選時段。</p>
+                    }
                   }
                 </div>
               </div>
@@ -177,11 +180,19 @@ export class AppointmentFormComponent {
     !!this.date() && this.dateAvailable() && (!this.designate() || !!this.doctorId()));
   /** 對應舊 Categorys.IsOnly 系列：此分院＋此項目鎖定人數固定 1。 */
   readonly amountLocked = computed(() => !!this.store.category()?.isAmountLocked);
+  /** 目前選中的時段（依 periodId 比對），用於人數上限＝該時段剩餘名額。 */
+  readonly selectedSlot = computed(() => this.slots().find((s) => s.periodId === this.periodId()) ?? null);
+  readonly selectedAvailable = computed(() => this.selectedSlot()?.available ?? null);
+  /** 預約人數超過所選時段剩餘名額（後端仍為權威，這裡是即時前擋）。 */
+  readonly amountExceedsCapacity = computed(() => {
+    const avail = this.selectedAvailable();
+    return !this.amountLocked() && avail != null && this.amount() > avail;
+  });
   /** 對應舊 ViewBag.SelectPeriodTitle：任一時段帶 outpatientTimeTitle（台中門診時間設定）即顯示「選擇早晚診」，資料驅動不硬編碼分院。 */
   readonly periodSectionTitle = computed(() => (this.slots().some((s) => !!s.outpatientTimeTitle) ? '選擇早晚診' : '選擇時段'));
   readonly canSubmit = computed(() =>
     !!this.date() && this.dateAvailable() && !!this.periodId() &&
-    (this.amountLocked() || this.amount() >= 1) &&
+    (this.amountLocked() || (this.amount() >= 1 && !this.amountExceedsCapacity())) &&
     (!this.designate() || !!this.doctorId()));
 
   constructor() {

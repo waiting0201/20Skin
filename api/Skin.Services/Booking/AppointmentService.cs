@@ -80,14 +80,20 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
         using var tx = conn.BeginTransaction(IsolationLevel.Serializable);
         try
         {
-            // 容量重查（交易內，防超賣）
+            // 容量重查（交易內，防超賣）。以「人數」為單位：已用＝當日該段 Status=1 預約的 Amount 合計
+            // （非筆數），加上本次 req.Amount 不得超過時段容量 Patients。否則單筆多人預約可塞爆 1 人時段。
             var used = await conn.ExecuteScalarAsync<int>(new CommandDefinition("""
-                SELECT COUNT(*) FROM Appointments
+                SELECT COALESCE(SUM(Amount), 0) FROM Appointments
                 WHERE PeriodID = @PeriodId AND Status = @active
                   AND AppointmentDate >= @dayStart AND AppointmentDate < @dayEnd
                 """, new { req.PeriodId, active = AppointmentStatus.Active, dayStart, dayEnd }, tx, cancellationToken: ct));
-            if (used >= ctx.Capacity)
-                throw new BusinessException("此時段已額滿", "FULL");
+            if (used + req.Amount > ctx.Capacity)
+            {
+                var remaining = Math.Max(0, ctx.Capacity - used);
+                throw new BusinessException(
+                    remaining > 0 ? $"此時段僅剩 {remaining} 個名額，無法容納 {req.Amount} 人" : "此時段已額滿",
+                    "FULL");
+            }
 
             // 自動門診號：限「配號時段」＝自動配號分院 且 時段 StartNumber 有值，從 StartNumber 起每次 +2 取偶數找空缺。
             // StartNumber 為空的時段（台中比照二林的細時段）不配號 → 完成頁/簡訊顯示「請至現場取號」。

@@ -55,7 +55,8 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
         var dayStart = date.Date;
         var dayEnd = dayStart.AddDays(1);
         // doctorId=null → 不指定（IsAppointment=0）；有值 → 指定醫師（IsAppointment=1 且 DoctorID=doctorId）。
-        // 容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約數。
+        // 容量＝RosterPeriods.Patients，已用＝當日該段 Status=1 預約的 Amount（人數）合計，非筆數；
+        // 與 AppointmentService.CreateAsync 的容量閘門一致，餘額才會以人數呈現（單筆可多人）。
         // StartNumber（COALESCE 同 CreateAsync 配號來源）用於判斷「配號時段」：
         // 自動配號分院且 StartNumber 有值 → 早晚診呈現＋配號；否則一般時段呈現（見下方 numbered 判斷）。
         const string sql = """
@@ -66,7 +67,7 @@ public sealed class BookingService(IDbConnectionFactory db, BookingOptions optio
                    rp.Patients                AS Capacity,
                    COALESCE(rp.StartNumber, p.StartNumber) AS StartNumber,
                    b.IsAutoRowNumber          AS IsAutoRowNumber,
-                   (SELECT COUNT(*) FROM Appointments a
+                   (SELECT COALESCE(SUM(a.Amount), 0) FROM Appointments a
                      WHERE a.PeriodID = p.PeriodID
                        AND a.Status = @active
                        AND a.AppointmentDate >= @dayStart AND a.AppointmentDate < @dayEnd) AS Used

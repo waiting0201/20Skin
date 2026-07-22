@@ -101,7 +101,9 @@ last_updated: 2026-07-22
 見 [frontend-customer.md](../design/frontend-customer.md) §流程圖。狀態以 reservation signal store 保存（取代舊 Session）。
 
 ## 設計決策（必保留業務邏輯）
-- **容量**：`capacity = RosterPeriods.Patients ?? Periods.Patients`；已用 `= COUNT(Appointments WHERE Status=1 AND AppointmentDate AND PeriodID)`；滿則擋。
+- **容量（以「人數」計，2026-07-22 修正）**：`capacity = RosterPeriods.Patients ?? Periods.Patients`；已用 `= COALESCE(SUM(Amount),0)`（**當日該段 Status=1 預約的預約人數合計，非筆數**）；建立閘門為 `used + req.Amount > capacity` 即擋（回 `FULL`，帶「僅剩 N 個名額」）。
+  - **背景**：`Appointments.Amount` 新系統語意＝「預約人數」（單筆可多人）。舊系統／本頁初版沿用 `COUNT(*)`（筆數）＝把每筆當佔 1 名額，且未把本次 `req.Amount` 納入比對 → 時段設 1 人時，前台輸入 3 人仍可預約成功（1 人時段被塞 3 人）。
+  - **三處同步以人數計**：`AppointmentService.CreateAsync`（閘門）、`BookingService.GetTimeSlotsAsync`（前台餘額/額滿排除）、`AppointmentAdminService.GetPeriodAmountsAsync`（後台名額統計，刻意偏離舊系統 COUNT 照抄以與前台一致）。前台 `appointment-form` 人數框加 `[max]=剩餘名額` 前擋（後端仍為權威）。見 [gotchas.md](../gotchas.md) §時段容量閘門原以「筆數」計。
 - **自動門診號**（2026-07-04 收斂為「配號時段」）：`Branchs.IsAutoRowNumber=true` **且** `COALESCE(RosterPeriods.StartNumber, Periods.StartNumber)` 有值才配號，從該 StartNumber 起每次 +2 取偶數，掃描現有 `OutpatientNum` 找首個空缺；StartNumber 為空的時段不配號（台中比照二林的細時段），呈現亦以此判斷（見上方「台中特定診療項目二林模式」段）。
 - **重複預約限制**：台中同診別**前後 2 天內**不可重複（且不可當天）；其他分院同診別**當天**不可重複。→ **改為依 Branch 設定/DB 驅動，移除硬編碼 GUID**（舊 `e65f4720…`）。
 - **台中分院不可預約當日**（2026-07-02 補回）：與上述重複視窗檢查無關的獨立規則，`BookingService.CheckDuplicateAsync` 對台中分院（依 `PeriodsOptions.AliasFor` 別名解析）在 `date.Date == TaiwanNow.Date` 時直接擋下，對應舊 `AjaxController.CheckAppointmentDate` 的 `cp==0` 判斷。

@@ -15,7 +15,7 @@ related_docs:
   - admin-roster.md
   - admin-member.md
 keywords: [admin, reserve, appointment, export, excel, questionnaire, capacity, cancel]
-last_updated: 2026-07-03T18:00+08:00
+last_updated: 2026-07-22T13:00+08:00
 ---
 
 ## 背景與動機
@@ -42,7 +42,7 @@ last_updated: 2026-07-03T18:00+08:00
 - **pageSize 固定 50（非其他模組常見的 20）**：舊系統 `ToPagedList(pageNumber: p, pageSize: 50)` 寫死 50，刻意沿用不對外開放調整，與 [admin-member.md](admin-member.md) 的 20 不同。
 - **避免 N+1**：初診判斷（`IsFirstVisit`）用相關子查詢 `(SELECT COUNT(*) FROM Appointments a2 WHERE a2.MemberID=a.MemberID AND a2.Status=1)` 隨列表單次投影取得（分頁上限 50 筆，相關子查詢優於額外一次分頁後 group-by 往返）；判斷全域（跨分院/診別）累計次數，非本次查詢範圍限定，忠於舊系統 `appointmentsService.Get().Where(a => a.Status==1)` 無 Branch/Clinic 篩選的既有語意。動態計算不讀既有 `Appointments.IsFirstVisit` 欄位（該欄位存在但列表/匯出皆不使用，忠於舊系統既有行為）。
 - **「時間」欄兩處刻意不同的 fallback 行為（照抄舊系統，勿「修正」為一致）**：列表頁/詳情頁的「時間」欄 `COALESCE(Rosters.OutpatientTimes.Title, Periods.OutpatientTimes.Title)`（有 fallback，忠於 `ViewTaAppointments.cshtml` 第176行）；簽到單 Excel 匯出的「時間」欄僅取 `Rosters.OutpatientTimes.Title`（**無** fallback，忠於 `ExportTaAppointments` 等 action 第 273/662/1034 行的既有行為）。已用真實資料驗證兩者確實不同（無 Roster 時列表顯示 fallback 標題，匯出留空）。
-- **時段容量表（PeriodAmounts）計算邏輯完整照抄舊系統**：對該分院+診別每個 `Periods` 模板，用 `OUTER APPLY` 找當天是否有符合 `BranchID+RosterDate+Clinic` 的 `Roster`（ta/ch 額外要求 `RosterCategorys` 含指定 `categoryId`；ch-dentist 不比對科別，`categoryId` 恆為 null 略過該條件）→ 有對應 `RosterPeriods` 用其 `Patients` 覆蓋，否則退回 `Periods.Patients`；`AppointmentAmount` 依 `PeriodID+RosterID` 分組統計 `Status=1` 預約數（無對應 Roster 則單純依 `PeriodID` 加總，涵蓋未綁定 Roster 的歷史預約）。真實 DB 驗證：ta/ch 正確比對 category、ch-dentist 正確略過。
+- **時段容量表（PeriodAmounts）計算邏輯完整照抄舊系統**：對該分院+診別每個 `Periods` 模板，用 `OUTER APPLY` 找當天是否有符合 `BranchID+RosterDate+Clinic` 的 `Roster`（ta/ch 額外要求 `RosterCategorys` 含指定 `categoryId`；ch-dentist 不比對科別，`categoryId` 恆為 null 略過該條件）→ 有對應 `RosterPeriods` 用其 `Patients` 覆蓋，否則退回 `Periods.Patients`；`AppointmentAmount` 依 `PeriodID+RosterID` 分組統計 `Status=1` 預約（無對應 Roster 則單純依 `PeriodID` 加總，涵蓋未綁定 Roster 的歷史預約）。**2026-07-22 起「已預約名額」改以人數計＝`COALESCE(SUM(Amount),0)`（非 `COUNT(*)` 筆數），刻意偏離舊系統照抄**，以與前台餘額／`CreateAsync` 容量閘門一致（`Amount` 新語意＝預約人數、單筆可多人，見 [customer-booking.md](customer-booking.md) §容量與 [gotchas.md](../gotchas.md)）。真實 DB 驗證：ta/ch 正確比對 category、ch-dentist 正確略過。
 - **取消加一條舊系統沒有的防禦性檢查（刻意的安全強化，非破壞相容性）**：`Status` 已為 0 時重複取消擋下 `BusinessException("此預約已取消","ALREADY_CANCELLED")`；舊系統 `DeleteTaAppointments` 等對已取消預約重複觸發會靜默重複執行（無害但不必要），比照本專案 roster/member 刪除守門的既有慣例補上防禦。取消**沒有**客戶端 `AppointmentService.CancelAsync` 的「預約前 1 小時內不可取消」限制——舊系統後台本來就無此規則，此限制是客戶自助取消才有的規則，不應套用到後台管理操作。
 - **匯出策略**：簽到單改用 `ClosedXML` 產生 `.xlsx`（取代舊 NPOI `.xls`，去 65536 列上限），只匯出 `Status=1` 的預約，欄位順序/內容完全照抄舊程式碼（分院/醫師/預約日期/時間/時段/類型/項目/姓名/手機號碼/編號/生日(民國年)/初診），查無資料回 `BusinessException("查無可匯出的預約資料","NO_DATA")`（取代舊系統 redirect 行為，因為現在是純 API）。問卷匯出**不在後端產生 PDF**（`frontend-backend.md` 已定案「先採前端方案降後端負擔」），改回傳結構化 JSON（`QuestionnaireExportDto`），前端另做可列印頁面走瀏覽器原生列印產生 PDF；查詢刻意**不篩選 Status**（連已取消預約只要有填問卷也匯出，忠於舊 `ExportQuestionXxxAppointments` 既有行為，真實 DB 驗證已確認含已取消預約），查無資料回空陣列而非例外（JSON 查詢非檔案下載，空清單是合法回應，與簽到單匯出的例外處理刻意不同）。
 - **問卷 join 重用既有 `IQuestionService.GetFormAsync`**（`includeDisabled: true`），不重新寫 join 邏輯；回傳的 `QuestionFormDto` 與 `web-admin` 既有 `member-questionnaire-view.ts` 同一份資料格式，前端可直接重用渲染邏輯（同 [admin-member.md](admin-member.md) 的既有慣例）。問卷匯出對每筆呼叫一次（N 次呼叫），屬低頻匯出操作非列表熱路徑，可接受，不刻意避免 N+1。

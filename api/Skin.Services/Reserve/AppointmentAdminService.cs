@@ -100,8 +100,9 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
     /// 時段容量表：對該分院+診別每個 Periods 模板，找當天是否有對應 Roster（ta/ch 需比對
     /// RosterCategorys 含指定 categoryId；ch-dentist 不比對科別，categoryId 為 null 時略過該條件）。
     /// TotalAmount 有對應 Roster 用 RosterPeriods.Patients，否則退回 Periods.Patients；
-    /// AppointmentAmount 依 PeriodID+RosterID 分組（無對應 Roster 則單純依 PeriodID 加總），
-    /// 逐字對照舊 TaAppointments/ChAppointments/ChDentistAppointments action 內嵌邏輯照抄。
+    /// AppointmentAmount 依 PeriodID+RosterID 分組（無對應 Roster 則單純依 PeriodID 加總）。
+    /// 已預約名額以「人數」計＝Status=1 預約的 Amount 合計（非筆數），與前台餘額／CreateAsync 容量閘門一致；
+    /// 此處刻意偏離舊系統「COUNT 筆數」照抄，因新系統 Amount 語意為預約人數、單筆可多人（見 docs/gotchas.md）。
     /// </summary>
     private static async Task<List<PeriodAmountDto>> GetPeriodAmountsAsync(
         System.Data.IDbConnection conn, Guid branchId, string clinic, Guid? categoryId, DateTime appointmentDate, CancellationToken ct)
@@ -125,7 +126,7 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
             """, new { branchId, clinic, appointmentDate, categoryId, matchCategory }, cancellationToken: ct))).AsList();
 
         var apptCounts = (await conn.QueryAsync<ApptCountRow>(new CommandDefinition("""
-            SELECT PeriodID AS PeriodId, RosterID AS RosterId, COUNT(*) AS Cnt
+            SELECT PeriodID AS PeriodId, RosterID AS RosterId, COALESCE(SUM(Amount), 0) AS Cnt
             FROM Appointments
             WHERE BranchID = @branchId AND Clinic = @clinic AND AppointmentDate = @appointmentDate AND Status = 1
             GROUP BY PeriodID, RosterID

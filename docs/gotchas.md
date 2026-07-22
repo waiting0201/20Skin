@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-22T11:00+08:00
+last_updated: 2026-07-22T13:00+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -114,6 +114,16 @@ last_updated: 2026-07-22T11:00+08:00
 - **原因**：這是刻意設計（使用者拍板）——台中細時段（比照二林的診療項目）就靠「起始編號留空」啟用；副作用是既有早/晚診的起始編號也成了敏感欄位。
 - **預防**：台中早/晚診時段的起始編號（現為 12）**不可清空**；後台調整時段時先確認影響。另：一般項目與二林模式項目**不可綁同一張排班**（排班的時段清單是全項目共用，人數 0 才會隱藏）。
 - **2026-07-22 更新**：後台三處已把「配號／現場取號」模式明確化（時段表單模式感知二選一、時段清單分組、排班容量表分組），且「配號＋現場取號人數混填同一張排班」已**前後端雙層硬擋**（`RosterAdminService.ValidateModeNotMixedAsync` 回 `ROSTER_MODE_MIXED`）——不再只靠人工 SOP。細節見 [design/frontend-backend.md](design/frontend-backend.md) §時段/排班模式感知呈現。若真要在同一天同時提供兩種，仍須**分開兩張排班**（科別不重疊）。
+
+### 時段容量閘門原以「筆數」計，忽略單筆預約人數（Amount）——已改人數計（2026-07-22 修復）
+- **症狀**：後台把某時段容量（`RosterPeriods.Patients`）設 1 人，前台預約人數輸入 3，仍可預約成功，1 人時段被塞進 3 個人。
+- **原因**：`Appointments.Amount` 新系統語意＝「預約人數」（單筆可多人，前台顯示 `{{ a.amount }}人`），但容量檢查沿用舊系統照抄的 `COUNT(*)`（筆數）＝把「每筆＝佔 1 名額」，且從未把本次 `req.Amount` 加進去比對。舊藍圖 [old/blueprints/customer-booking.md](old/blueprints/customer-booking.md) 的容量檢查本就是 `COUNT(Appointments) >= Patients`，新系統改了 Amount 語意卻沒同步閘門。前台人數框也只有 `min="1"`、無上限。
+- **修法**：容量以人數為單位一致化——
+  1. `AppointmentService.CreateAsync`（交易內閘門）：`used = COALESCE(SUM(Amount),0)`，判斷改 `used + req.Amount > Capacity` → 回 `FULL`（帶「僅剩 N 個名額」）。
+  2. `BookingService.GetTimeSlotsAsync`（前台餘額／額滿排除）：`Used` 子查詢 `COUNT(*)` → `COALESCE(SUM(Amount),0)`。
+  3. `AppointmentAdminService.GetPeriodAmountsAsync`（後台名額統計）：`COUNT(*)` → `COALESCE(SUM(Amount),0)`，**刻意偏離舊系統照抄**以與前台一致。
+  4. 前台 `appointment-form`：人數框加 `[max]="selectedAvailable()"` + `amountExceedsCapacity` 前擋，超額不可送出（後端仍為權威）。
+- **預防**：凡「時段占用/餘額」計算一律用 `SUM(Amount)`（人數），不可再用 `COUNT(*)`（筆數）；三處查詢語意須同步。見 [blueprints/customer-booking.md](blueprints/customer-booking.md)。
 
 ### Dapper record DTO 與 SQL 欄位型別必須嚴格匹配（bit vs int，2026-07-04 修復）
 - **症狀**：`GET /api/appointments/{id}`（完成頁/詳情頁）自 2026-07-02 起一直 500：`A parameterless default constructor or one matching signature ... is required for AppointmentDetailDto materialization`。
