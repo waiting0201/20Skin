@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-22T13:00+08:00
+last_updated: 2026-07-22T14:00+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -124,6 +124,12 @@ last_updated: 2026-07-22T13:00+08:00
   3. `AppointmentAdminService.GetPeriodAmountsAsync`（後台名額統計）：`COUNT(*)` → `COALESCE(SUM(Amount),0)`，**刻意偏離舊系統照抄**以與前台一致。
   4. 前台 `appointment-form`：人數框加 `[max]="selectedAvailable()"` + `amountExceedsCapacity` 前擋，超額不可送出（後端仍為權威）。
 - **預防**：凡「時段占用/餘額」計算一律用 `SUM(Amount)`（人數），不可再用 `COUNT(*)`（筆數）；三處查詢語意須同步。見 [blueprints/customer-booking.md](blueprints/customer-booking.md)。
+
+### reused DB 禁加索引 → 大表查詢皆全表掃描；避免相關子查詢放大成本（2026-07-22）
+- **背景**：[database-design.md](design/database-design.md) §核心原則明文**禁止對 reused DB 加任何索引**。`Appointments`（12.4 萬列）、`Members`（5.4 萬列）都只有 GUID 主鍵叢集索引，**所有篩選欄位（BranchID/AppointmentDate/MemberID/Number/Mobile…）皆無索引** → 每次查詢都是全叢集掃描，`ORDER BY AppointmentDate` 也需整批排序。開發機因整個 DB 被快取在記憶體才顯得快（8–189ms），冷快取/併發/資料成長會明顯放大。
+- **踩雷**：後台預約列表原用**相關子查詢**算初診數 `(SELECT COUNT(*) FROM Appointments a2 WHERE a2.MemberID=a.MemberID …)` 投影在分頁大查詢內 → 在無索引下形同為每頁列各掃一次全表，列表 CPU 近乎翻倍（實測 189ms vs 53ms）。
+- **修法/預防**：凡「每列再撈一次」的相關子查詢，改成**分頁後單次 IN 清單 group-by** 批次計算（見 `AppointmentAdminService.ListAsync`/`ExportCheckinAsync`）。更廣泛地說，在此 DB 上一切查詢設計都要以「反正是全表掃描」為前提——**盡量把一次請求的全表掃描次數壓到最少**，不要用相關子查詢把單次掃描放大成 N 次。真正根治（加索引）需 DB 擁有者放行政策例外，非程式層可決定。
+- **量測法**：`docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd …` 加 `SET STATISTICS IO/TIME ON`，看 `Appointments'. Scan count` 與 `logical reads`（單次全表 ≈ 3161 reads）。
 
 ### Dapper record DTO 與 SQL 欄位型別必須嚴格匹配（bit vs int，2026-07-04 修復）
 - **症狀**：`GET /api/appointments/{id}`（完成頁/詳情頁）自 2026-07-02 起一直 500：`A parameterless default constructor or one matching signature ... is required for AppointmentDetailDto materialization`。
