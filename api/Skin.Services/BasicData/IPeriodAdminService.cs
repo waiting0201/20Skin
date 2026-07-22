@@ -20,4 +20,7 @@ public interface IPeriodAdminService
 
     /// <summary>門診時段字典（上午/下午/晚上），下拉選單用。</summary>
     Task<IReadOnlyList<OutpatientTimeDto>> ListOutpatientTimesAsync(CancellationToken ct = default);
+
+    /// <summary>該分院是否為自動配號分院（Branchs.IsAutoRowNumber）；前端據此決定時段表單/清單/排班是否呈現「配號」模式。</summary>
+    Task<bool> GetBranchIsAutoRowNumberAsync(Guid branchId, CancellationToken ct = default);
 }

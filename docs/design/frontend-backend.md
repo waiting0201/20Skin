@@ -17,7 +17,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-04T23:00+08:00
+last_updated: 2026-07-22T10:00+08:00
 status: draft
 ---
 
@@ -202,6 +202,16 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
   - **「班別」（`OutpatientTimeID`）欄位整個移除**（追加修正，使用者回饋「門診表單要參照舊系統」後再次逐行核對發現）：查證 `AddTaRosters`/`EditTaRosters.cshtml` 第 107–113 行，該下拉整段被 Razor 註解包住（`@*<div class="form-group">...OutpatientTimeID...</div>*@`），**從未實際渲染過**，屬死碼；`Rosters.OutpatientTimeID` 因此在真實資料中一律維持建立時的預設值不變，且新系統 `BookingService` 真正拿時段時間是 join `Periods.OutpatientTimeID`（透過 `Periods`→`OutpatientTimes`），**與 `Rosters.OutpatientTimeID` 完全無關**，故拿掉此欄位不影響客戶預約流程。初版誤將此死碼欄位做成可互動下拉。已移除 UI（`<select>` 連同 `outpatientTimes` 下拉資料一併移除，改為不必要的 API 呼叫也一併拿掉），表單 `outpatientTimeId` 欄位保留但不渲染：新增固定送 `null`（比照舊系統新建一律未設定），編輯原樣回傳既有值不覆寫（比照舊系統白名單含此欄位、但表單從未提交對應輸入時 model binder 不會清空既有值的行為）。
   - **「重複」用詞與順序改回舊系統**：舊 `<select id="Repeat">` 選項依序是「每天」(1)／「每周」(2)／「永不」(3)；初版新系統用 3 個 radio 且文字/順序皆不同（「不重複」／「每日」／「每週」）。已改為單選鈕文字「每天」/「每周」/「永不」、順序與舊系統一致（僅內部數值仍用 0/1/2，屬實作細節不影響行為）；「截止日」欄名改回舊系統 placeholder「**重複結束日期**」。
 - `dotnet build`（0 warning）與 `ng build`（0 error）皆通過。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用），建議下次驗證「清空醫師『需預約』自動取消勾選」「編輯排班改門診日期成功寫回」「編輯既有排班的班別欄位值維持不變」三個修正後的行為。
+
+### 時段/排班「配號 vs 現場取號」模式感知呈現（**已定案 2026-07-22，刻意偏離舊用詞**）
+
+**背景**：2026-07-04「台中特定診療項目二林模式」上線後，台中健保時段同時存在兩種：**配號**（早/晚診自動配號，客戶看到「早診/晚診」）與**現場取號**（細時段，客戶看到 HH:MM 時間）。但底層兩欄語意與中文直覺相反且維護人員分不清：「時間」欄＝`OutpatientTimeID`（診次 上午/下午/晚診）、「時段」欄＝`Title`（HH:MM 時鐘）；客戶每次只看到其中一個，由「起始編號」（`StartNumber`）開關決定（判斷同 `BookingService` 的 `numbered = IsAutoRowNumber && StartNumber != null`）。使用者反映「舊系統只需選時間很清楚，現在又有時間又有時段」，經 AskUserQuestion 拍板改為模式感知呈現。**此為刻意偏離「忠於舊系統逐字用詞」慣例的 UX 明確性優先決策**（使用者已同意）。
+
+- **共用端點**：`GET /api/admin/periods/branch-meta?branch={ta|ch|chDentist}` → `{ isAutoRowNumber }`（`PeriodsAdminController.BranchMeta` + `PeriodAdminService.GetBranchIsAutoRowNumberAsync`，授權沿用 `Branchs.read`）。資料驅動判斷分院是否可配號，**不硬編碼 `branch==='ta'`**；獨立端點的理由是「新增且該變體 0 筆時段」時 list 無資料可讀模式。前端 `basic-data-api.service.getPeriodBranchMeta` + model `PeriodBranchMeta`。
+- **時段表單（`period-form.ts`）模式感知（二選一）**：自動配號分院（台中）頂部顯示「時段類型」單選——**配號**（早/晚診自動配號）／**一般時段**（現場取號）；二林分院不顯示切換、鎖死一般模式。依模式：配號→「診次」為主要欄位、「起始編號」必填顯示（`Validators.required + min(1)`）、HH:MM 淡化為「內部排序時間」；一般→「時段時間」為主要欄位、「起始編號」隱藏並強制送 `null`。底部加即時預覽「客戶會看到：___」（配號顯示診次標題、一般顯示 HH:MM）。編輯既有時段依 `isAutoRowNumber && startNumber != null` 推導初始模式。兩欄（`OutpatientTimeID`/`Title`）皆 NOT NULL，隱藏/淡化欄位仍送合法值。
+- **時段清單（`periods-list.ts`）分組顯示**：自動配號分院依起始編號有無值分「配號時段」「現場取號時段」兩區小標題（空區不列）；二林分院只有一組時省略小標題、維持單表外觀。欄名維持「時間/時段」（本次選分組、未改欄名），排序序列與「儲存排序」仍為全域（Sort 全域），分組僅視覺。
+- **排班容量表（`roster-form.ts`）分組＋SOP＋修 bug**：自動配號分院把各時段容量表分「配號 / 現場取號」兩區，並加 ⚠️ 提醒「一般項目與二林模式項目請分開排班」（同一排班時段為所有勾選項目共用，混填會讓一般項目冒出細時段，見 [blueprints/customer-booking.md](../blueprints/customer-booking.md) SOP）。**順帶修 bug**：新增排班時「起始號碼」欄原本每列寫死 `null` 恆顯示 `—`（看不出模式），改為顯示 `Periods` 模板值（新增 `templateStartNumber` display-only 欄位）；**送出的 `RosterPeriods.StartNumber` 寫入語意完全不變**（新增仍送 `null`、編輯仍送既有值），避免誤啟用 RosterPeriods 的 StartNumber 覆寫——模式權威來源恆為基礎資料 `Periods`。
+- **驗證**：`dotnet build` 0 error、`ng build` 0 error、`tsc --noEmit` 乾淨、新 Tailwind class（`bg-surface/70` 等）比對編譯後 CSS 確認產生。真實 DB 端對端：`branch-meta` 未帶 token 401、`ta`→`true`／`ch`／`chDentist`→`false`；建立台中健保現場取號細時段（StartNumber=null）→ 清單正確分「配號 [09:00,17:00] / 現場取號 [10:00]」兩區 → 硬刪剩 2 筆零殘留。**未做**：三頁的瀏覽器互動實測（模式切換動態欄位、分組視覺、排班警語渲染），本次會話未跑 Playwright，建議下次補。
 
 ### 分頁規範（**已定案 2026-07-03**，忠於舊系統 `IPagedList` + `Html.PagedListPager`）
 

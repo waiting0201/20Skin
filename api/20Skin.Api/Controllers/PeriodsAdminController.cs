@@ -20,6 +20,15 @@ public sealed class PeriodsAdminController(IPeriodAdminService periods, PeriodsO
     [Authorize(Roles.Admin, Resource = "Branchs", Op = "read")]
     public async Task<IReadOnlyList<OutpatientTimeDto>> OutpatientTimes() => await periods.ListOutpatientTimesAsync();
 
+    /// <summary>
+    /// GET /api/admin/periods/branch-meta?branch={ta|ch|chDentist} — 該分院是否自動配號。
+    /// 時段表單/清單/排班用來判斷是否呈現「配號」模式；授權沿用 Branchs.read（開時段表單本就需要）。
+    /// </summary>
+    [ApiRoute("GET", "admin/periods/branch-meta")]
+    [Authorize(Roles.Admin, Resource = "Branchs", Op = "read")]
+    public async Task<PeriodBranchMetaDto> BranchMeta(string branch)
+        => new(await periods.GetBranchIsAutoRowNumberAsync(branchAliases.Resolve(branch)));
+
     // ================= Ta + Skin（TaPeriods） =================
 
     [ApiRoute("GET", "admin/periods/ta-skin")]

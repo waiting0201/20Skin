@@ -130,4 +130,12 @@ public sealed class PeriodAdminService(IDbConnectionFactory db) : IPeriodAdminSe
             cancellationToken: ct));
         return rows.AsList();
     }
+
+    public async Task<bool> GetBranchIsAutoRowNumberAsync(Guid branchId, CancellationToken ct = default)
+    {
+        using var conn = db.Create();
+        return await conn.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT IsAutoRowNumber FROM Branchs WHERE BranchID = @branchId",
+            new { branchId }, cancellationToken: ct));
+    }
 }

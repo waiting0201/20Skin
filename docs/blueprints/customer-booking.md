@@ -15,7 +15,7 @@ related_docs:
   - sms-reminder.md
   - questionnaire.md
 keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel, doctor, designated, numbered-slot, erlin-mode]
-last_updated: 2026-07-04
+last_updated: 2026-07-22
 ---
 
 ## 台中特定診療項目「二林模式」＋配號時段概念（2026-07-04）
@@ -45,6 +45,8 @@ last_updated: 2026-07-04
 4. ⚠️ 同一張排班綁的所有項目共用其時段——**一般項目與二林模式項目不可同排班**（誤將細時段人數填 >0 到一般項目排班會讓一般項目出現細時段）。
 
 **驗證（2026-07-04，真實 DB 端到端，測試資料硬刪零殘留）**：二林時段 API 回 `outpatientTimeTitle=null`＋詳情頁「09:00」（bug 修正）；台中早/晚診照舊（「早上/晚上」＋配號 12、詳情「早上」）；台中細時段（StartNumber=NULL、人數 2）→ 一般時段呈現、建立後 `outpatientNum=null`、簡訊「請至現場取號」、與一般項目時段互不可見。
+
+**後台維護 UI 明確化（2026-07-22）**：上述配號/現場取號的分野原本只靠維護人員記憶「起始編號」這個隱性開關＋人工遵守 SOP，容易誤填。已在後台三處把模式明確化——時段表單改「配號／一般時段」模式感知二選一、時段清單分「配號時段／現場取號時段」兩區、排班容量表分組並加上「一般/二林項目分開排班」的 SOP 警語。判斷全部沿用本頁的 `numbered = IsAutoRowNumber && StartNumber != null`（新增共用端點 `GET /api/admin/periods/branch-meta` 供前端資料驅動判斷）。細節見 [design/frontend-backend.md](../design/frontend-backend.md) §時段/排班「配號 vs 現場取號」模式感知呈現，另見 [gotchas.md](../gotchas.md) §台中時段「起始編號」是行為開關。
 
 ## 客戶前台全頁面重新對齊舊系統（2026-07-02，第三輪 audit）
 

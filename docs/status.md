@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-04T23:30+08:00
+last_updated: 2026-07-22T10:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -98,6 +98,11 @@ last_updated: 2026-07-04T23:30+08:00
 
 ## ✅ Recently Done
 
+- [x] **後台時段/排班「配號 vs 現場取號」模式明確化（時段表單模式感知＋清單分組＋排班容量表分組 SOP）** — Done 2026-07-22 [design/frontend-backend.md](design/frontend-backend.md) §時段/排班模式感知呈現、[blueprints/customer-booking.md](blueprints/customer-booking.md)
+  - **緣起**：使用者反映「台中健保時段維護，舊系統只需選『時間』很清楚，現在又有時間又有時段，意義不同、分不清」。查證確認底層兩欄語意與中文直覺相反（「時間」=診次 OutpatientTimeID、「時段」=HH:MM Title），且客戶每次只看到其中一個，由隱性開關「起始編號」決定（配號 vs 現場取號，同 `BookingService.numbered`）。二林模式上線後兩欄同時有意義才浮現混淆。經 AskUserQuestion 拍板「表單改模式感知二選一」「清單分組」「排班容量表分組＋SOP 提醒」，**刻意偏離「忠於舊系統用詞」**（使用者同意）。
+  - **共用端點**：`GET admin/periods/branch-meta?branch={ta|ch|chDentist}` → `{ isAutoRowNumber }`（`PeriodsAdminController.BranchMeta` + `PeriodAdminService.GetBranchIsAutoRowNumberAsync`，授權沿用 `Branchs.read`）。資料驅動、不硬編碼 `branch==='ta'`；獨立端點以涵蓋「新增且變體 0 筆時段」情境。前端 `getPeriodBranchMeta` + model `PeriodBranchMeta`。**upsert 完全不動**。
+  - **前端三改**：①`period-form.ts` 模式感知（頂部「配號／一般時段」單選，二林鎖死一般；依模式顯示/淡化欄位、動態 Validators 鎖 startNumber、即時預覽「客戶會看到」）；②`periods-list.ts` 分「配號時段／現場取號時段」兩區（空區不列、二林單區省小標題）；③`roster-form.ts` 容量表分組＋⚠️「一般/二林項目分開排班」警語，**順帶修 bug**：新增排班「起始號碼」欄原恆顯示 `—`，改顯示 Periods 模板值（新增 display-only `templateStartNumber`），**送出的 `RosterPeriods.StartNumber` 寫入語意完全不變**（新增送 null、編輯送既有值），避免誤啟用休眠的覆寫能力。
+  - **驗證**：`dotnet build`／`ng build` 0 error、`tsc --noEmit` 乾淨、新 Tailwind class 比對編譯後 CSS 確認產生。真實 DB 端對端（func + azurite + 超管登入）：`branch-meta` 未帶 token 401、`ta`→`true`／`ch`／`chDentist`→`false`；建立台中健保現場取號細時段（StartNumber=null）→ 清單正確分「配號 [09:00,17:00]／現場取號 [10:00]」兩區 → 硬刪剩 2 筆零殘留。**未做**：三頁瀏覽器互動實測（模式切換動態欄位、分組視覺、排班警語渲染），本次會話未跑 Playwright，建議下次補。
 - [x] **後台儀表板（Dashboard）：權限過濾統計 + 未來 7 天趨勢，取代舊空殼首頁** — Done 2026-07-04 [blueprints/admin-dashboard.md](blueprints/admin-dashboard.md)
   - **緣起**：使用者需求「依照系統性質，設計 Dashboard」。查證舊 `20SkinBackend/Views/Main/Index.cshtml` 為空殼 widget（只有標題），故為新系統新增功能，依診所預約管理性質設計。
   - **後端**：`GET admin/dashboard`（`DashboardAdminController` + `Skin.Services.Dashboard.DashboardAdminService`，Dapper 彙總）——單一端點 `[Authorize(Roles.Admin)]`，**回應區塊依可讀權限過濾**（新增 `RequestContext.CanRead(resource)`，read 語意與 router `HasPermission` 一致）：分院當日統計（有效/初診/已取消 + 診別分解，對應 `TaAppointments`/`ChAppointments`/`ChDentistAppointments`）、未來 7 天趨勢（僅 Status=1）、會員統計（總數/今日新增/本月新增/黑名單，需 `Members`）。統計口徑刻意同預約列表頁（初診=該會員 Status=1 總數≤1 動態計算）。分院別名未設定時防禦性略過（不像逐分院端點丟例外）。

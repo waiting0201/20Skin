@@ -29,6 +29,13 @@ public sealed record PeriodUpsertRequest(int OutpatientTimeId, string Title, int
 /// <summary>門診時段字典（上午/下午/晚上），下拉選單用。</summary>
 public sealed record OutpatientTimeDto(int OutpatientTimeId, string Title);
 
+/// <summary>
+/// 時段表單/清單/排班的「配號 vs 現場取號」模式判斷用分院旗標。
+/// 模式＝ IsAutoRowNumber 分院 且 StartNumber 有值（見 BookingService `numbered`、docs/gotchas.md）。
+/// 供前端在「新增且該變體 0 筆時段」時仍能判模式（此時 list 無資料可讀），故獨立端點。
+/// </summary>
+public sealed record PeriodBranchMetaDto(bool IsAutoRowNumber);
+
 /// <summary>科別項目（列表/詳情）。Clinic 由所屬變體 proxy 決定，編輯時不可改。</summary>
 public sealed record CategoryAdminDto(Guid CategoryId, string Clinic, string Title, string? Intro, string Photo, bool IsQuestion, bool IsOnly, bool ChIsOnly, bool ChDentistIsOnly, int Sort);
 

@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { RosterApiService, rosterLabel } from '../../core/services/roster-api.service';
@@ -13,7 +13,11 @@ import { CategoryAdmin, DoctorAdmin, PeriodAdmin, RosterCreateRequest, RosterPer
  * 表單欄位/顯示邏輯忠於舊 View：
  * - 「需預約」（IsAppointment）只在有選醫師時顯示，清空醫師會自動取消勾選（舊系統 `$("#DoctorID").change` 行為）。
  * - 「門診日期」新增/編輯皆可填寫（舊 `EditTaRosters` 的 `TryUpdateModel` 白名單含 `RosterDate`，並非不可改）。
- * - 「起始號碼」為時段模板固定值（唯讀），只有「人數」可編輯（舊系統該欄位是 hidden input，直接複製 `Periods.StartNumber`，未提供編輯介面）。
+ * - 「起始號碼」欄顯示時段模板固定值（唯讀，來自 `Periods.StartNumber`），只有「人數」可編輯。
+ *   ⚠️ 此欄純顯示（`templateStartNumber`），與送出的 `RosterPeriods.StartNumber` 分離：新增一律送 null、編輯原樣回傳既有值，
+ *   避免誤啟用 RosterPeriods 的 StartNumber 覆寫（模式權威來源恆為基礎資料 Periods，見 docs/gotchas.md）。
+ * - 【模式分組】自動配號分院（台中）依模板起始號碼有無值把容量表分「配號 / 現場取號」兩區並加 SOP 警語
+ *   （一般項目與二林模式項目不可同排班，見 docs/blueprints/customer-booking.md）；二林分院維持單一無分組表格。
  * - **沒有「班別」（OutpatientTimeID）欄位**——查證舊 `AddTaRosters`/`EditTaRosters.cshtml` 該下拉整段被 Razor 註解隱藏
  *   （`@*<div class="form-group">...OutpatientTimeID...</div>*@`），從未實際渲染，`Rosters.OutpatientTimeID` 因此
  *   一律維持建立時的預設值不變。`outpatientTimeId` 表單欄位保留但不渲染 UI：新增時固定送 `null`（比照舊系統新建排班該欄位一律未設定），
@@ -78,6 +82,12 @@ import { CategoryAdmin, DoctorAdmin, PeriodAdmin, RosterCreateRequest, RosterPer
 
         <div>
           <label class="block text-sm font-medium text-ink mb-2">各時段容量 <span class="text-red-400">*</span></label>
+          @if (isAutoRowNumber()) {
+            <p class="text-xs text-amber-600 mb-2">
+              ⚠️ 一般項目與二林模式（現場取號）項目請分開排班：同一張排班的時段為所有勾選項目共用，
+              若在一般項目排班誤填現場取號時段人數，會讓一般項目也冒出細時段。
+            </p>
+          }
           <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -88,15 +98,22 @@ import { CategoryAdmin, DoctorAdmin, PeriodAdmin, RosterCreateRequest, RosterPer
               </tr>
             </thead>
             <tbody>
-              @for (row of periodRows.controls; track $index) {
-                <tr [formGroup]="$any(row)" class="border-b border-hairline">
-                  <td class="py-1.5 text-ink">{{ row.value.periodTitle }}</td>
-                  <td class="py-1.5 text-center text-muted">{{ row.value.startNumber ?? '—' }}</td>
-                  <td class="py-1.5">
-                    <input type="number" formControlName="patients"
-                           class="w-24 border border-hairline rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-                  </td>
-                </tr>
+              @for (sec of rowSections(); track sec.title) {
+                @if (sec.title) {
+                  <tr class="bg-surface/70 border-b border-hairline">
+                    <td colspan="3" class="py-1.5 text-xs font-semibold text-muted">{{ sec.title }}</td>
+                  </tr>
+                }
+                @for (row of sec.rows; track row.value.periodId) {
+                  <tr [formGroup]="$any(row)" class="border-b border-hairline">
+                    <td class="py-1.5 text-ink">{{ row.value.periodTitle }}</td>
+                    <td class="py-1.5 text-center text-muted">{{ row.value.templateStartNumber ?? '—' }}</td>
+                    <td class="py-1.5">
+                      <input type="number" formControlName="patients"
+                             class="w-24 border border-hairline rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
           </table>
@@ -159,6 +176,10 @@ export class RosterFormComponent {
   readonly categories = signal<CategoryAdmin[]>([]);
   readonly selectedCategoryIds = signal<Set<string>>(new Set());
 
+  /** 自動配號分院（台中）才把容量表分「配號 / 現場取號」兩區；二林維持單一無標題表格。 */
+  readonly isAutoRowNumber = signal(false);
+  readonly rowSections = signal<{ title: string | null; rows: FormGroup[] }[]>([]);
+
   readonly form = this.fb.nonNullable.group({
     rosterDate: [''],
     doctorId: [null as string | null],
@@ -173,13 +194,33 @@ export class RosterFormComponent {
     return this.form.controls.periodRows;
   }
 
-  private newPeriodRow(periodId: string, periodTitle: string, startNumber: number | null, patients: number) {
+  /**
+   * templateStartNumber：純顯示/分組用（基礎資料 Periods.StartNumber，模式權威來源）。
+   * startNumber：實際送出的 RosterPeriods.StartNumber（新增恆 null、編輯回傳既有值），兩者刻意分離。
+   */
+  private newPeriodRow(periodId: string, periodTitle: string, templateStartNumber: number | null, startNumber: number | null, patients: number) {
     return this.fb.nonNullable.group({
       periodId: [periodId],
       periodTitle: [periodTitle],
+      templateStartNumber: [templateStartNumber as number | null],
       startNumber: [startNumber as number | null],
       patients: [patients],
     });
+  }
+
+  /** 依模板起始號碼有無值把 periodRows 分「配號 / 現場取號」兩區（僅自動配號分院）；空區不列。 */
+  private rebuildSections(): void {
+    const rows = this.periodRows.controls as FormGroup[];
+    if (!this.isAutoRowNumber()) {
+      this.rowSections.set([{ title: null, rows }]);
+      return;
+    }
+    const numbered = rows.filter((r) => r.value.templateStartNumber != null);
+    const walkin = rows.filter((r) => r.value.templateStartNumber == null);
+    const secs: { title: string | null; rows: FormGroup[] }[] = [];
+    if (numbered.length) secs.push({ title: '配號時段（客戶看到 早診/晚診）', rows: numbered });
+    if (walkin.length) secs.push({ title: '現場取號時段（客戶看到時段時間）', rows: walkin });
+    this.rowSections.set(secs.length ? secs : [{ title: null, rows: [] }]);
   }
 
   constructor() {
@@ -187,17 +228,21 @@ export class RosterFormComponent {
       this.basicApi.listDoctors(),
       this.basicApi.listAllCategories(this.clinic),
       this.basicApi.listPeriods(this.branch, this.clinic),
+      this.basicApi.getPeriodBranchMeta(this.branch),
     ]).subscribe({
-      next: ([doctorsRes, categoriesRes, periodsRes]) => {
+      next: ([doctorsRes, categoriesRes, periodsRes, metaRes]) => {
         this.doctors.set(doctorsRes.data ?? []);
         this.categories.set(categoriesRes.data ?? []);
+        if (metaRes.success && metaRes.data) this.isAutoRowNumber.set(metaRes.data.isAutoRowNumber);
         const templates = periodsRes.data ?? [];
 
         if (this.rosterId) {
           this.loadEdit(this.rosterId, templates);
         } else {
           this.periodRows.clear();
-          for (const p of templates) this.periodRows.push(this.newPeriodRow(p.periodId, p.title, null, 0));
+          // 新增：起始號碼欄顯示模板值（修正舊版恆顯示「—」），但送出的 startNumber 維持 null。
+          for (const p of templates) this.periodRows.push(this.newPeriodRow(p.periodId, p.title, p.startNumber, null, 0));
+          this.rebuildSections();
         }
       },
       error: () => this.error.set('載入基礎資料失敗，請稍後再試'),
@@ -220,8 +265,10 @@ export class RosterFormComponent {
           this.periodRows.clear();
           for (const t of templates) {
             const existing = r.periods.find((p) => p.periodId === t.periodId);
-            this.periodRows.push(this.newPeriodRow(t.periodId, t.title, existing?.startNumber ?? null, existing?.patients ?? 0));
+            // 顯示/分組用模板值 t.startNumber；送出值沿用既有 RosterPeriods 值（維持寫入語意不變）。
+            this.periodRows.push(this.newPeriodRow(t.periodId, t.title, t.startNumber, existing?.startNumber ?? null, existing?.patients ?? 0));
           }
+          this.rebuildSections();
         } else {
           this.error.set(res.message ?? '找不到排班');
         }

@@ -13,6 +13,7 @@ import {
   OutpatientTime,
   PagedResult,
   PeriodAdmin,
+  PeriodBranchMeta,
   PeriodUpsertRequest,
   QuestionAdmin,
   QuestionTypeAdmin,
@@ -155,6 +156,11 @@ export class BasicDataApiService {
 
   listPeriods(branch: string, clinic: string): Observable<ApiResponse<PeriodAdmin[]>> {
     return this.http.get<ApiResponse<PeriodAdmin[]>>(`${this.base}/admin/periods/${periodSlug(branch, clinic)}`);
+  }
+
+  /** 該分院是否自動配號（決定時段表單/清單/排班是否呈現「配號」模式）。branch: 'ta'|'ch'|'chDentist'。 */
+  getPeriodBranchMeta(branch: string): Observable<ApiResponse<PeriodBranchMeta>> {
+    return this.http.get<ApiResponse<PeriodBranchMeta>>(`${this.base}/admin/periods/branch-meta?branch=${branch}`);
   }
 
   createPeriod(branch: string, clinic: string, req: PeriodUpsertRequest): Observable<ApiResponse<PeriodAdmin>> {

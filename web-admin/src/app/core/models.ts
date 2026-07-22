@@ -148,6 +148,14 @@ export interface OutpatientTime {
   title: string;
 }
 
+/**
+ * 時段模式判斷用分院旗標（對應後端 PeriodBranchMetaDto）。
+ * 模式＝ isAutoRowNumber 分院 且 startNumber 有值 → 配號；否則現場取號（同 BookingService `numbered`）。
+ */
+export interface PeriodBranchMeta {
+  isAutoRowNumber: boolean;
+}
+
 /** 科別項目（對應後端 CategoryAdminDto）。Clinic 由所屬變體 proxy 決定，編輯時不可改。 */
 export interface CategoryAdmin {
   categoryId: string;
