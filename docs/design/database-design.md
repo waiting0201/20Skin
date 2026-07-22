@@ -11,7 +11,7 @@ related_docs:
   - security.md
   - ../project-overview.md
 keywords: [database, schema, reused, dapper, sql, micro-orm, sql-server, 沿用]
-last_updated: 2026-07-02
+last_updated: 2026-07-22
 status: draft
 ---
 
@@ -24,6 +24,16 @@ status: draft
 - **禁止** `ALTER` / `CREATE` / `DROP` 任何表、欄位、索引、約束。
 - 新系統只能**讀寫既有欄位**，行為須與舊系統相容（同一 DB 同時被舊系統使用）。
 - 任何「需要動 schema」的需求（密碼雜湊欄位、refresh token 表、audit 欄位、補 FK），一律列為**待核准的後續項**，不在本次實作；見各 doc 的延後項。
+
+### 例外：效能索引（需 DB 擁有者逐案放行）
+
+加 nonclustered index 對舊系統**透明、非破壞性**（不改表結構/欄位、舊查詢行為不變，僅多少量寫入維護成本），因此在**取得 DB 擁有者明確同意**的前提下，可逐案為熱路徑加索引。這是上表「禁止 CREATE 索引」的**唯一例外**，非開放政策——每次都要有擁有者放行紀錄，並把腳本留檔於 `scripts/db/`。
+
+| 已核准 | 索引 | 日期 / 腳本 |
+|---|---|---|
+| ✅ | `Appointments(BranchID, AppointmentDate)`、`Appointments(MemberID, Status)`、`Members(Number)`、`Members(Mobile)` | 2026-07-22，`scripts/db/2026-07-22-add-appointment-indexes.sql`（後台預約列表，每次載入 Appointments reads ≈12,644→≈1,200） |
+
+**配套鐵則**：含 `(@p IS NULL OR col=@p)` 萬用 predicate 的查詢，光加索引無效，必須同時在該查詢加 `OPTION (RECOMPILE)`，否則優化器仍走全表掃描（見 [gotchas.md](../gotchas.md) 對應條）。索引與程式端 `OPTION (RECOMPILE)` 要**同一次部署**，勿只上其一。
 
 ## 存取方式：Dapper + 參數化 SQL（決策 2026-06-30）
 

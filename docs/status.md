@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-22T10:00+08:00
+last_updated: 2026-07-22T16:30+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -82,6 +82,7 @@ last_updated: 2026-07-22T10:00+08:00
   - 部署過程發現並修正 **5 個平台限制**（Key Vault purge protection 強制開啟、appsetting 名稱不可含冒號/連字號、`FUNCTIONS_WORKER_RUNTIME` 重複設定、`Azure/static-web-apps-deploy@v1` 的 `skip_app_build: true` 不使用 `output_location`），兩項需要程式碼配合（`Program.cs` 分院 GUID 改讀 JSON app setting；两個 SPA workflow 的 `app_location` 改指向 build 產物目錄），詳見 infrastructure.md §部署實測記錄
   - 客戶前台 SWA 因訂閱 Free tier 名額已滿（其他既有專案佔用），使用者決定改用 Standard tier（約 $9/月），後台維持 Free
   - **未做（非阻塞）**：refresh token 持久化寫入邏輯、智邦 SMS 串接、自訂網域/CDN，見 infrastructure.md §已知限制/後續事項
+- [ ] **DB migration 自動化（2026-07-22 討論後暫緩）**：曾評估「上傳 prod 自動執行索引/DDL」。結論——正統工具（DbUp/Flyway/EF）都需 `SchemaVersions` 記錄表，與本專案「共用 DB、無 schema ownership、迴避新增表」政策衝突；可行折衷是「CI 跑幂等 forward-only `scripts/db/*.sql`（無記錄表）」，但仍需 DB 擁有者授予 CI 對共用 prod DB 的 DDL 權限，且建索引鎖表時機隨 deploy。使用者裁示**先不做**，目前索引由擁有者手動跑腳本（見 `scripts/db/2026-07-22-add-appointment-indexes.sql`）。Why：自動化的前提（CI DDL 權限 + 記錄表破例）尚未取得，手動足以應付目前低頻的索引需求。
 - [ ] **環境分離** dev/staging/prod
 - [ ] **測試**：Domain service 單元測試（容量/編號/重複/簡訊）+ 端點整合測試
 - [ ] **與舊系統並行驗證**（同一 reused DB 雙寫一致性）
@@ -98,6 +99,12 @@ last_updated: 2026-07-22T10:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **後台預約管理列表加效能索引（reused DB 政策例外，DB 擁有者已放行）** — Done 2026-07-22 [blueprints/admin-reserve.md](blueprints/admin-reserve.md)、[design/database-design.md](design/database-design.md) §核心原則·例外、[gotchas.md](gotchas.md)
+  - **緣起**：使用者反映「預約管理速度還是很慢」。查證非「一次讀全部」（已分頁 50 筆），根因是 reused DB 禁索引 → `AppointmentAdminService.ListAsync` 每次載入對 Appointments（12.4 萬列）做約 4 次全表掃描（≈12,644 logical reads）。經 AskUserQuestion 確認**DB 擁有者已授權索引例外**後實作。
+  - **索引**：`scripts/db/2026-07-22-add-appointment-indexes.sql`（幂等 + 回滾 + 部署注意）——`Appointments(BranchID, AppointmentDate)`、`Appointments(MemberID, Status)`、`Members(Number)`、`Members(Mobile)`。對舊系統透明非破壞。
+  - **關鍵配套**：光加索引不夠。`ListAsync` 的 COUNT 與分頁主查詢含 `(@dateOnly IS NULL OR …)` 萬用 predicate，優化器仍走全表掃描；兩條已加 `OPTION (RECOMPILE)` 才 seek。索引與程式碼**必須同一次部署**。
+  - **本機 dev DB 實測（SET STATISTICS IO ON）**：COUNT 3161→3、主查詢 3161→302、初診 group-by 3161→153、容量表 3161→302；每次列表 ≈12,644→≈1,200 reads（約 10 倍）。`dotnet build` 通過。
+  - **待辦**：DB 擁有者於正式環境離峰時段執行索引腳本（Enterprise 版可加 `WITH (ONLINE=ON)`），並與含 RECOMPILE 的程式同批部署。
 - [x] **後台時段/排班「配號 vs 現場取號」模式明確化（時段表單模式感知＋清單分組＋排班容量表分組 SOP）** — Done 2026-07-22 [design/frontend-backend.md](design/frontend-backend.md) §時段/排班模式感知呈現、[blueprints/customer-booking.md](blueprints/customer-booking.md)
   - **緣起**：使用者反映「台中健保時段維護，舊系統只需選『時間』很清楚，現在又有時間又有時段，意義不同、分不清」。查證確認底層兩欄語意與中文直覺相反（「時間」=診次 OutpatientTimeID、「時段」=HH:MM Title），且客戶每次只看到其中一個，由隱性開關「起始編號」決定（配號 vs 現場取號，同 `BookingService.numbered`）。二林模式上線後兩欄同時有意義才浮現混淆。經 AskUserQuestion 拍板「表單改模式感知二選一」「清單分組」「排班容量表分組＋SOP 提醒」，**刻意偏離「忠於舊系統用詞」**（使用者同意）。
   - **共用端點**：`GET admin/periods/branch-meta?branch={ta|ch|chDentist}` → `{ isAutoRowNumber }`（`PeriodsAdminController.BranchMeta` + `PeriodAdminService.GetBranchIsAutoRowNumberAsync`，授權沿用 `Branchs.read`）。資料驅動、不硬編碼 `branch==='ta'`；獨立端點以涵蓋「新增且變體 0 筆時段」情境。前端 `getPeriodBranchMeta` + model `PeriodBranchMeta`。**upsert 完全不動**。

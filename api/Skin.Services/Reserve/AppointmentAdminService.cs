@@ -49,8 +49,13 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
             memberNumber = normalizedNumber, memberMobile = normalizedMobile, memberName = normalizedName, birthdayOnly,
         };
 
+        // OPTION (RECOMPILE)：where 內含 `(@dateOnly IS NULL OR a.AppointmentDate=@dateOnly)` 等萬用
+        // predicate，若共用快取計畫，優化器會退回全表掃描（無法為「日期給/不給」各挑最佳計畫）。
+        // RECOMPILE 讓每次以實際參數編譯，配合 IX_Appointments_BranchID_AppointmentDate 才會 seek
+        // （實測 COUNT 3161→3 reads）。後台列表屬低頻，逐次重編譯成本遠低於全表掃描節省。
         var total = await conn.ExecuteScalarAsync<int>(new CommandDefinition($"""
             SELECT COUNT(*) FROM Appointments a JOIN Members m ON m.MemberID = a.MemberID {where}
+            OPTION (RECOMPILE)
             """, filterParams, cancellationToken: ct));
 
         // PeriodTitle（時間欄）：Rosters.OutpatientTimes.Title 優先，否則 fallback Periods.OutpatientTimes.Title
@@ -74,6 +79,7 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
             {where}
             ORDER BY a.AppointmentDate DESC, p.Sort, a.OutpatientNum
             OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
+            OPTION (RECOMPILE)
             """, new
         {
             branchId, clinic, categoryId, dateOnly,

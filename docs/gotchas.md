@@ -128,8 +128,14 @@ last_updated: 2026-07-22T14:00+08:00
 ### reused DB 禁加索引 → 大表查詢皆全表掃描；避免相關子查詢放大成本（2026-07-22）
 - **背景**：[database-design.md](design/database-design.md) §核心原則明文**禁止對 reused DB 加任何索引**。`Appointments`（12.4 萬列）、`Members`（5.4 萬列）都只有 GUID 主鍵叢集索引，**所有篩選欄位（BranchID/AppointmentDate/MemberID/Number/Mobile…）皆無索引** → 每次查詢都是全叢集掃描，`ORDER BY AppointmentDate` 也需整批排序。開發機因整個 DB 被快取在記憶體才顯得快（8–189ms），冷快取/併發/資料成長會明顯放大。
 - **踩雷**：後台預約列表原用**相關子查詢**算初診數 `(SELECT COUNT(*) FROM Appointments a2 WHERE a2.MemberID=a.MemberID …)` 投影在分頁大查詢內 → 在無索引下形同為每頁列各掃一次全表，列表 CPU 近乎翻倍（實測 189ms vs 53ms）。
-- **修法/預防**：凡「每列再撈一次」的相關子查詢，改成**分頁後單次 IN 清單 group-by** 批次計算（見 `AppointmentAdminService.ListAsync`/`ExportCheckinAsync`）。更廣泛地說，在此 DB 上一切查詢設計都要以「反正是全表掃描」為前提——**盡量把一次請求的全表掃描次數壓到最少**，不要用相關子查詢把單次掃描放大成 N 次。真正根治（加索引）需 DB 擁有者放行政策例外，非程式層可決定。
+- **修法/預防**：凡「每列再撈一次」的相關子查詢，改成**分頁後單次 IN 清單 group-by** 批次計算（見 `AppointmentAdminService.ListAsync`/`ExportCheckinAsync`）。更廣泛地說，在此 DB 上一切查詢設計都要以「反正是全表掃描」為前提——**盡量把一次請求的全表掃描次數壓到最少**，不要用相關子查詢把單次掃描放大成 N 次。
 - **量測法**：`docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd …` 加 `SET STATISTICS IO/TIME ON`，看 `Appointments'. Scan count` 與 `logical reads`（單次全表 ≈ 3161 reads）。
+
+### 索引例外已放行 → 後台預約列表加索引，但萬用 predicate 需搭 OPTION(RECOMPILE)（2026-07-22）
+- **背景**：上一條「禁索引」已由 DB 擁有者**逐案放行例外**（見 [database-design.md](design/database-design.md) §核心原則·例外）。後台預約列表已加四索引：`Appointments(BranchID, AppointmentDate)`、`Appointments(MemberID, Status)`、`Members(Number)`、`Members(Mobile)`（腳本 `scripts/db/2026-07-22-add-appointment-indexes.sql`）。每次列表 Appointments logical reads ≈12,644→≈1,200（約 10 倍）。
+- **踩雷**：`ListAsync` 的 COUNT 與分頁主查詢含 `(@dateOnly IS NULL OR a.AppointmentDate=@dateOnly)` 等萬用 predicate；**光加索引無效**，優化器為「日期給/不給」共用一個保守計畫仍走全表掃描（實測索引上線後主查詢仍 3161 reads）。
+- **修法**：這兩條查詢加 `OPTION (RECOMPILE)`（每次以實際參數編譯），才會 seek（COUNT 3161→3、主查詢 3161→302）。初診 group-by／容量表因 predicate 全為無條件等值/IN，免 RECOMPILE 即 seek。
+- **預防**：① 索引與程式端 `OPTION (RECOMPILE)` 必須**同一次部署**，只上其一等於沒改。② 日後凡在此 DB 加索引，先檢查目標查詢有無 `(@p IS NULL OR …)` 萬用 predicate，有就要一併加 RECOMPILE（或改動態 SQL 只拼有值的條件）。③ 加索引一律需擁有者放行 + 腳本留檔 `scripts/db/`。
 
 ### Dapper record DTO 與 SQL 欄位型別必須嚴格匹配（bit vs int，2026-07-04 修復）
 - **症狀**：`GET /api/appointments/{id}`（完成頁/詳情頁）自 2026-07-02 起一直 500：`A parameterless default constructor or one matching signature ... is required for AppointmentDetailDto materialization`。
