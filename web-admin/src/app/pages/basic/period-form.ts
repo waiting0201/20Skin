@@ -105,6 +105,7 @@ type PeriodMode = 'numbered' | 'walkin';
           <label class="block text-sm font-medium text-ink mb-1">人數 <span class="text-red-400">*</span></label>
           <input type="number" formControlName="patients"
                  class="w-full border border-hairline rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
+          <p class="text-xs text-muted mt-1">此為預設值；客戶實際可約人數以「門診管理」的排班人數為準。</p>
         </div>
 
         <div class="rounded bg-surface border border-hairline px-4 py-2.5 text-sm">
