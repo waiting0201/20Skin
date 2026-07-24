@@ -117,8 +117,24 @@ builder.Services.AddSingleton(new Skin.Services.Storage.StorageOptions
 });
 builder.Services.AddSingleton<Skin.Services.Storage.IFileStorage, Skin.Services.Storage.BlobFileStorage>();
 
-// 簡訊寄送：dev 用 no-op（不真的發；客人手機）。正式環境改注入智邦 API 實作。
-builder.Services.AddSingleton<ISmsSender, DevNoOpSmsSender>();
+// 簡訊寄送：總開關 Sms:Enabled 決定真發（智邦 API）或 no-op（不真的發；客人手機）。
+// 正式環境部署後預設停用（Enabled=false → NoOp），驗證智邦帳號後再手動開啟。dev 恆停用。
+// 機密（ApiKey/Username/Password）正式環境由 Key Vault 提供。
+var smsOptions = new SmsOptions
+{
+    Enabled = bool.TryParse(config["Sms:Enabled"], out var smsEnabled) && smsEnabled,
+    ApiUrl = config["Sms:ApiUrl"] is { Length: > 0 } smsUrl ? smsUrl : "https://pp.url.com.tw/api/msg",
+    ApiKey = config["Sms:ApiKey"] ?? "",
+    Username = config["Sms:Username"] ?? "",
+    Password = config["Sms:Password"] ?? "",
+};
+builder.Services.AddSingleton(smsOptions);
+if (smsOptions.Enabled)
+    builder.Services.AddHttpClient<ISmsSender, ChiefTelSmsSender>();
+else
+    builder.Services.AddSingleton<ISmsSender, DevNoOpSmsSender>();
+// 簡訊排程（Timer 撈當日待發，見 SmsReminderTimerFunction）。
+builder.Services.AddScoped<ISmsService, SmsService>();
 
 builder.Build().Run();
 

@@ -5,4 +5,5 @@
   <Project Path="Skin.Core/Skin.Core.csproj" />
   <Project Path="Skin.Data/Skin.Data.csproj" />
   <Project Path="Skin.Services/Skin.Services.csproj" />
+  <Project Path="Skin.Tests/Skin.Tests.csproj" />
 </Solution>

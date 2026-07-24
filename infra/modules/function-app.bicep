@@ -109,7 +109,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         // 若在 appsettings 額外設定 FUNCTIONS_WORKER_RUNTIME 會被 ARM 拒絕（BadRequest，
         // 實測部署時發現），故不重複設定，僅傳統 Consumption/Premium 方案才需要這個 app setting。
         APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
-        WEBSITE_TIME_ZONE: 'Asia/Taipei' // Timer trigger（簡訊排程）尚未實作，先備妥時區設定
+        WEBSITE_TIME_ZONE: 'Asia/Taipei' // 簡訊排程 SmsReminderTimerFunction 的 cron "0 0 8 * * *" 以此解讀為台灣 08:00
 
         // ---- AzureWebJobsStorage：連線字串走 Key Vault reference（見 storage.bicep 註解） ----
         AzureWebJobsStorage: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Storage-ConnectionString/)'
@@ -138,9 +138,14 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         Jwt__AdminAccessTokenMinutes: '600' // 後台管理員 10 小時（櫃檯整天作業免頻繁重登，決策 2026-07-04）
         Recaptcha__MinScore: '0.5' // 正式環境維持舊系統門檻，見 security.md §MinScore 門檻決策
 
-        // ---- 智邦 SMS（尚未實作，DevNoOpSmsSender 佔位；串接完成後改用下列 KV reference）----
-        // Sms__ApiUrl: '...'
-        // Sms__ApiKey: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Sms-ApiKey/)'
+        // ---- 智邦 SMS ----
+        // 總開關：正式環境先停用（部署後保持 no-op），驗證智邦帳號後手動改 'true' 開啟真發。
+        Sms__Enabled: 'false'
+        Sms__ApiUrl: 'https://pp.url.com.tw/api/msg'
+        // 機密：Key Vault reference，實際值由人工一次性寫入（KV secret 名可用連字號）。
+        Sms__ApiKey: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Sms-ApiKey/)'
+        Sms__Username: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Sms-Username/)'
+        Sms__Password: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Sms-Password/)'
 
         // ---- 分院設定：單一 JSON 字串（見上方 var 宣告的說明，取代逐分院攤平 App Setting）----
         Booking__DuplicateWindowDaysByBranchJson: bookingWindowJson

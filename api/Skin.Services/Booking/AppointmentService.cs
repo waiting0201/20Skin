@@ -32,7 +32,9 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
                 rp.Patients                             AS Capacity,
                 COALESCE(rp.StartNumber, p.StartNumber) AS StartNumber,
                 b.IsAutoRowNumber                       AS IsAutoRowNumber,
-                cat.IsQuestion                          AS IsQuestion
+                cat.IsQuestion                          AS IsQuestion,
+                b.Title                                 AS BranchTitle,
+                p.Title                                 AS PeriodTitle
             FROM Rosters r
             JOIN RosterCategorys rc ON rc.RosterID = r.RosterID AND rc.CategoryID = @CategoryId
             JOIN RosterPeriods rp   ON rp.RosterID = r.RosterID AND rp.PeriodID = @PeriodId
@@ -70,7 +72,7 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
 
         // 會員手機（發簡訊用）+ 初診判斷
         var member = await conn.QueryFirstOrDefaultAsync<MemberRow>(new CommandDefinition("""
-            SELECT TOP 1 m.Mobile AS Mobile,
+            SELECT TOP 1 m.Mobile AS Mobile, m.Name AS Name,
                    (SELECT COUNT(*) FROM Appointments a WHERE a.MemberID = m.MemberID AND a.Status = @active) AS Cnt
             FROM Members m WHERE m.MemberID = @memberId
             """, new { memberId, active = AppointmentStatus.Active }, cancellationToken: ct));
@@ -126,28 +128,30 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
                     outpatientNum, active = AppointmentStatus.Active, now,
                 }, tx, cancellationToken: ct));
 
-            // 簡訊雙寫：即時 + 前一天提醒（Status=null 待發；實際發送見下方/排程，dev 不真發）
-            var body = $"【20skin】您已預約 {req.AppointmentDate:yyyy-MM-dd} {Clinic.ToTitle(req.Clinic)}"
-                       + (outpatientNum is null ? "，請至現場取號。" : $"，看診號碼 {outpatientNum} 號。");
+            // 簡訊雙寫：即時 + 前一天提醒（Status=null 待發；即時列在下方發送、前一天列由 Timer 排程發）。
+            // 內容一字不差照舊系統，依診別/是否配號差異化（見 Skin.Services.Sms.SmsDomain）。
+            var (immediateBody, reminderBody) = SmsDomain.Compose(
+                req.Clinic, ctx.BranchTitle, ctx.PeriodTitle, member.Name, req.AppointmentDate, outpatientNum);
             var immediateId = Guid.NewGuid();
             await conn.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO SmsStatus (SmsStatusID, AppointmentID, Mobile, SmsBody, SendDate, Status, CreateDate)
                 VALUES (@id, @appointmentId, @mobile, @body, @send, NULL, @now)
-                """, new { id = immediateId, appointmentId, mobile = member.Mobile, body, send = (DateTime)now, now }, tx, cancellationToken: ct));
+                """, new { id = immediateId, appointmentId, mobile = member.Mobile, body = immediateBody, send = (DateTime)now, now }, tx, cancellationToken: ct));
             await conn.ExecuteAsync(new CommandDefinition("""
                 INSERT INTO SmsStatus (SmsStatusID, AppointmentID, Mobile, SmsBody, SendDate, Status, CreateDate)
                 VALUES (@id, @appointmentId, @mobile, @body, @send, NULL, @now)
-                """, new { id = Guid.NewGuid(), appointmentId, mobile = member.Mobile, body,
+                """, new { id = Guid.NewGuid(), appointmentId, mobile = member.Mobile, body = reminderBody,
                     send = req.AppointmentDate.Date.AddDays(-1), now }, tx, cancellationToken: ct));
 
             tx.Commit();
 
-            // 即時簡訊「發送」（dev no-op：不真的發）→ 回寫狀態
-            var sent = await sms.SendAsync(member.Mobile, body, ct);
+            // 即時簡訊發送（dev/總開關關閉時注入 NoOp、不真的發）→ 回寫狀態。
+            // Status 存供應商原始 status（貼近舊系統），未知時退回 SENT/FAIL。
+            var sent = await sms.SendAsync(member.Mobile, immediateBody, ct);
             await conn.ExecuteAsync(new CommandDefinition("""
                 UPDATE SmsStatus SET Status = @st, UniqID = @uniq, Message = @msg, UpdateDate = @now
                 WHERE SmsStatusID = @id
-                """, new { st = sent.Success ? "DEV" : "FAIL", uniq = sent.UniqId, msg = sent.Message, now = TaiwanNow, id = immediateId }, cancellationToken: ct));
+                """, new { st = sent.RawStatus ?? (sent.Success ? "SENT" : "FAIL"), uniq = sent.UniqId, msg = sent.Message, now = TaiwanNow, id = immediateId }, cancellationToken: ct));
 
             return new CreateAppointmentResult(appointmentId, outpatientNum);
         }
@@ -310,11 +314,14 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
         public int? StartNumber { get; set; }
         public bool IsAutoRowNumber { get; set; }
         public bool IsQuestion { get; set; }
+        public string BranchTitle { get; set; } = "";  // 簡訊文案用（Branchs.Title）
+        public string PeriodTitle { get; set; } = "";   // 簡訊文案用（Periods.Title）
     }
 
     private sealed class MemberRow
     {
         public string Mobile { get; set; } = "";
+        public string Name { get; set; } = "";  // 簡訊文案用（齒科）
         public int Cnt { get; set; }
     }
 

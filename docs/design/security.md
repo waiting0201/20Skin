@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/security.md
   - ../old/modernization.md
 keywords: [security, jwt, auth, authorization, claims, lims, recaptcha, refresh-token]
-last_updated: 2026-07-04T23:00+08:00
+last_updated: 2026-07-24T11:40+08:00
 status: draft
 ---
 
@@ -89,6 +89,8 @@ status: draft
 ## 機密管理
 
 DB 連線字串、SMS API key/帳密、reCAPTCHA secret、JWT 簽章金鑰、Blob 連線 → **Azure Key Vault / App Settings**，移除舊硬編碼（`SmsHandler`/`Definition.cs`/Web.config）。見 [infrastructure.md](infrastructure.md)。
+
+**簡訊（2026-07-24）**：智邦帳密改 Key Vault reference（`Sms-ApiKey`/`Sms-Username`/`Sms-Password`），不再硬編碼於 Controller。另修兩處舊系統安全問題：①`ChiefTelSmsSender` 走 HTTPS 且**保留憑證驗證**（舊系統 `ServerCertificateValidationCallback => true` 一律信任、不照抄）；②排程改內部 `TimerTrigger`（`SmsReminderTimerFunction`），**移除舊系統對外公開、無保護的 `/MainMs/CheckSms` 觸發端點**。真發另有總開關 `Sms:Enabled`（正式預設停用）。見 [blueprints/sms-reminder.md](../blueprints/sms-reminder.md)。
 
 ## 超管處理（weypro）
 

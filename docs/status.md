@@ -8,12 +8,12 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-22T16:30+08:00
+last_updated: 2026-07-24T11:30+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
 > **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）** → **正式環境首次上線（`rg-20skin-prod`，三個可部署單元皆已透過 CI/CD 成功部署並驗證存活：客戶前台/後台 SWA 200、API 401=符合設計）** → **後台儀表板（權限過濾統計 + 未來 7 天趨勢，真實 DB + Playwright 驗證）＋後台登入效期改 10 小時**。
-> 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊一律 no-op（`DevNoOpSmsSender`），測試不真發**。
+> 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊真發引擎已實作（智邦 `ChiefTelSmsSender` + 每日 Timer + 逐字文案），但受總開關 `Sms:Enabled` 控制，dev 與正式皆預設停用（`false`→`DevNoOpSmsSender`，不真發）**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
 ## 🔄 In Progress
@@ -52,7 +52,7 @@ last_updated: 2026-07-22T16:30+08:00
   - 驗證：`ng build` 通過；CORS 已驗（preflight + ACAO :4200）；request/response 欄位與 API 一致（camelCase↔PascalCase）
   - 指定醫師流程已完成（2026-07-01，見 Recently Done）；問卷（`IsQuestion`）已完成。客戶前台三缺口全數補齊。
 - [x] **問卷** ✅ Done 2026-07-01（真實 DB 端對端驗證，見 Recently Done）[blueprints/questionnaire.md](blueprints/questionnaire.md)
-- [ ] **簡訊雙寫 + Timer 排程** [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
+- [x] **簡訊雙寫 + Timer 排程 + 真發引擎 + 逐字文案** ✅ Done 2026-07-24（真實 DB 端對端驗證；正式真發總開關預設停用，待智邦帳號驗證，見 Recently Done） [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
 - [x] **檔案上傳（Blob）** ✅ Done 2026-07-01（客戶預約照片，真實 Blob/DB 驗證，見 Recently Done）[blueprints/file-upload.md](blueprints/file-upload.md)
 
 ### P1 — 客戶前台（2026-07-02 第三輪 audit 發現，使用者裁示「先修 8 項缺陷/矛盾、其餘記錄 backlog」）
@@ -99,6 +99,12 @@ last_updated: 2026-07-22T16:30+08:00
 
 ## ✅ Recently Done
 
+- [x] **簡訊真發引擎 + 每日 Timer 排程 + 逐字文案（一字不差照舊系統，客戶已定稿）** — Done 2026-07-24 [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
+  - **緣起**：使用者確認「簡訊功能還沒做」。查證：`SmsStatus` 雙寫 + CANCEL 已就位，但實際發送仍是 dev no-op，文案是未分診別的精簡佔位字串。使用者裁示「排完整實作、參考舊系統，每則簡訊內容必須跟舊系統一模一樣」。
+  - **三塊補齊**：①`SmsDomain`（純邏輯）6 種逐字模板（診別 Skin/Cosmetic/Dentist × 配號 by `outpatientNum is not null`，照抄 `MainMsController.cs:273-304`）；②`ChiefTelSmsSender` 智邦 client（HttpClient，HTTPS + 憑證驗證，不照抄舊系統停用 SSL）；③`SmsReminderTimerFunction`（`[TimerTrigger("0 0 8 * * *")]`＝每日 08:00，依 `WEBSITE_TIME_ZONE=Asia/Taipei` 以台灣時間解讀）+ `SmsService` 撈當日待發。即時發送接上 `SmsDomain`（`AppointmentService.CreateAsync` 補撈 `Branchs.Title`/`Periods.Title`/`Members.Name`）。
+  - **決策**：真發總開關 `Sms:Enabled`，**正式先停用**（dev 恆 NoOp）；OFF 時 Timer 早退不動待發列。配號判別改 `outpatientNum is not null`（對舊情境等價，安全處理台中現場取號細時段）。機密走 Key Vault reference（`Sms-ApiKey`/`Sms-Username`/`Sms-Password`）。
+  - **驗證**：`dotnet build` 0/0；新增 `Skin.Tests` xUnit `SmsDomainTests` 6/6（逐字守門，含半形冒號/圈碼/醫美現場那個多餘空格/齒科月日）；真實本機 DB 端對端——真正的 `CreateAsync` + 拋棄式排班鏈（台中健保配號）建約門診號 12 → SmsStatus 兩則 `SmsBody` 逐字相符、即時列回寫 SENT、前一天列待發 null、Timer OFF/ON 行為正確，測試資料硬刪零殘留。
+  - **待辦（正式開啟前）**：智邦成功 token 校正（目前以 uniqid 有無判定）、確認 HTTPS 支援、KV 寫入 3 機密（沿用舊智邦帳戶）、staging 送測試門號後再切 `Sms__Enabled='true'`。
 - [x] **後台預約管理列表加效能索引（reused DB 政策例外，DB 擁有者已放行）** — Done 2026-07-22 [blueprints/admin-reserve.md](blueprints/admin-reserve.md)、[design/database-design.md](design/database-design.md) §核心原則·例外、[gotchas.md](gotchas.md)
   - **緣起**：使用者反映「預約管理速度還是很慢」。查證非「一次讀全部」（已分頁 50 筆），根因是 reused DB 禁索引 → `AppointmentAdminService.ListAsync` 每次載入對 Appointments（12.4 萬列）做約 4 次全表掃描（≈12,644 logical reads）。經 AskUserQuestion 確認**DB 擁有者已授權索引例外**後實作。
   - **索引**：`scripts/db/2026-07-22-add-appointment-indexes.sql`（幂等 + 回滾 + 部署注意）——`Appointments(BranchID, AppointmentDate)`、`Appointments(MemberID, Status)`、`Members(Number)`、`Members(Mobile)`。對舊系統透明非破壞。
