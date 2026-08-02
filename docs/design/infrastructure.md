@@ -304,7 +304,21 @@ The client '<CI service principal>' does not have permission to perform action
 驗證：`az bicep build` 通過；本機 what-if 完整跑完無 Authorization 錯誤；**CI `deploy-infra`（whatif 模式）
 2026-08-02 執行成功**（run 30737009043，1m1s）。
 
-⚠️ **尚未執行 `mode=apply`**。what-if 的 11 項 `Modify` 已逐項查證「線上是否真的用到」，結果如下：
+**`mode=apply` 已於 2026-08-02 成功執行**（run 30737580598，1m59s）——2026-07-04 之後首次成功套用 IaC。
+apply 後驗證：API 401／兩個前台 200、CORS 6 個來源、App Settings 23 項（含 8 個 KV reference）、
+兩個 RBAC 角色指派仍在、SWA 自訂網域仍在。
+
+過程中遇到**第二個權限卡關**（apply 階段才觸發，validate/what-if 不檢查）：CI service principal 沒有
+`Microsoft.Authorization/roleAssignments/write`，無法宣告 Function App identity 的兩個角色指派
+（run 30737356965 失敗）。解法同 `sqlFirewall`：新增 `deployRoleAssignments` 參數（預設 `false`），
+指派已存在且線上驗證正確，不需重複宣告；**能指派角色等同能自我提權，刻意不把該權限給 CI**。
+Function App 重建導致 principalId 變更時，由具權限者跑 `-p deployRoleAssignments=true` 一次。
+
+> 那次失敗的 apply **未造成任何影響**：`key-vault`／`swa-*`／`storage`／`log-analytics`／`app-insights`
+> 子部署成功但無實質變更，`function-app` 模組未執行。並且實測確認 **SWA 的 `provider`／`repositoryUrl`／
+> 自訂網域在子部署成功後依然完好**——印證下表「what-if 顯示會被清空」確實是雜訊。
+
+apply 前，what-if 的 11 項 `Modify` 已逐項查證「線上是否真的用到」，結果如下：
 
 | what-if 顯示會被清除／覆寫 | 線上是否用到 | 結論 |
 |---|---|---|

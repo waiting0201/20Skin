@@ -95,18 +95,18 @@ last_updated: 2026-08-02T00:00+08:00
 
 ## 🚧 Blocked
 
-- [ ] **`deploy-infra` 已可執行，但 `mode=apply` 尚未實跑（等使用者確認變更集）** — Blocked 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
-  - **11 項 `Modify` 已逐項查證線上是否真的用到**（2026-08-02）：SWA 的 `repositoryUrl`／`branch`／`stableInboundIP`、Function App `siteConfig` 其他屬性、SWA app settings **皆無人使用**，自訂網域屬子資源不會被 incremental 刪除；**唯一真地雷是 CORS**——線上有 6 個來源而參數檔 `additionalCorsOrigins` 為空，apply 會移除 4 個自訂網域造成正式前台/後台全站 CORS 失敗，**已補進 `main.parameters.json` 並以 what-if 確認 after 為完整 6 個**。
-  - **Waiting on**：使用者決定是否執行 `mode=apply`（變更集現已確認無破壞性項目）。
-  - **已解除的原卡關**：`sqlFirewall` 改條件式部署（`deploySqlFirewall` 預設 false）＋ FQDN 改字串組合，不再需要 `WeyproUS` 權限；CI whatif 2026-08-02 執行成功（run 30737009043）。
-  - **漂移已補平（2026-08-02）**：盤點時 Bicep 宣告 23 項、正式只有 14 項（缺 `Sms__*` 全部 8 個鍵 + `Jwt__AdminAccessTokenMinutes`），已全數以 `az functionapp config appsettings set` 補上，**現為 23/23 一致**，API 驗證存活。
-  - **殘留風險**：Flex Consumption 無法查 KV reference 解析狀態（`configreferences` API 不可用）；權限條件已驗證齊備，但**開啟真發前應以測試門號實證**。
-  - **Waiting on**：使用者決定解法——①給 CI SP `WeyproUS` 權限；②`sqlFirewall` 改條件式參數（預設不部署）；③維持手動 `az` 套用 App Setting。
+（目前無）
 
 （目前無）
 
 ## ✅ Recently Done
 
+- [x] **修復 `deploy-infra` 並完成 2026-07-04 後首次 IaC apply（含補平全部 App Setting 漂移）** — Done 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
+  - **緣起**：要把三個 SMS 分項開關推上正式，才發現 `deploy-infra` 自首次部署後就沒成功過，且正式環境**連 `Sms__Enabled` 都不存在**（Bicep 宣告 23 項、正式只有 14 項）。
+  - **兩個權限卡關，皆以「條件式部署」解除，不擴大 CI 權限**：①`sqlFirewall`（scope 為另一 RG `WeyproUS`）→ `deploySqlFirewall` 參數預設 false，且 `sqlServerFqdn` 改字串組合以免仍需該 RG 讀取權限；②Function App identity 的兩個 RBAC 指派（apply 階段才觸發）→ `deployRoleAssignments` 參數預設 false。理由：兩者皆已存在且線上驗證正確，而「能指派角色等同能自我提權」，刻意不給 CI。
+  - **apply 前逐項查證 what-if 的 11 項 Modify**，抓到一個會弄壞正式站的地雷：線上 CORS 有 6 個來源，但 `main.parameters.json` 的 `additionalCorsOrigins` 是空陣列 → apply 會移除 4 個自訂網域（`booking*.20skin.tw`／`*.4webdemo.com`），正式前台與後台全站 CORS 失敗。已補進參數檔。其餘項目（SWA `repositoryUrl`／`stableInboundIP`、Function App `siteConfig` 其他屬性、SWA app settings）查證後確認無人使用；SWA 自訂網域屬子資源，incremental 不刪——後續實測也印證 what-if 那幾項是雜訊。
+  - **結果**：apply 成功（run 30737580598）。正式驗證 API 401／兩個前台 200、CORS 6 個、App Settings 23 項（含 8 個 KV reference，SMS 四開關值正確）、兩個 RBAC 指派與 SWA 自訂網域皆完好。IaC 與正式環境現已一致。
+  - **殘留**：Flex Consumption 不支援 `configreferences` API，無法查 KV reference 解析狀態；智邦三個機密的 reference 權限條件已驗證齊備，但**開啟真發前仍應以測試門號實證**。
 - [x] **簡訊三種寄送類型各加一個獨立開關（即時／提醒／取消標記）** — Done 2026-08-02 [blueprints/sms-reminder.md](blueprints/sms-reminder.md) §分項開關、[design/infrastructure.md](design/infrastructure.md) §分項開關
   - **緣起**：使用者盤點「目前 sms 的寄送分為哪些」後裁示三種類型各一個開關。經 AskUserQuestion 確認＝**依觸發時機**（非診別）、放 **App Setting／Key Vault**（與現有 `Sms:Enabled` 同一套，非 DB＋後台可調）。
   - **實作**：`SmsOptions` 加 `ImmediateEnabled`／`ReminderEnabled`／`CancelEnabled`（**預設 true＝維持原行為**），`Program.cs` 缺省即 true；`AppointmentService`（即時＋前台取消）、`AppointmentAdminService`（後台取消）、`SmsService`（Timer）分別受控；Bicep/`local.settings.json` 補三個設定。
