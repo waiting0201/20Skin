@@ -37,6 +37,12 @@ Validate 階段被 Authorization failed 擋下（見 docs/design/infrastructure.
 需要重建該規則時，改由具備 WeyproUS 權限的人以 -p deploySqlFirewall=true 手動執行一次。''')
 param deploySqlFirewall bool = false
 
+@description('''是否宣告 Function App identity 對 Key Vault／Storage 的 RBAC 角色指派。
+預設 false，理由同 deploySqlFirewall：指派已存在，且 CI 的 service principal 刻意不具
+Microsoft.Authorization/roleAssignments/write（能指派角色等同能自我提權）。
+Function App 重建導致 principalId 變更時，由具權限者以 -p deployRoleAssignments=true 執行一次。''')
+param deployRoleAssignments bool = false
+
 @description('重複預約視窗天數，key 為既有 Branchs.BranchID GUID，需查真實 prod DB 填入')
 param bookingDuplicateWindowDaysByBranch object = {}
 
@@ -163,6 +169,7 @@ module functionApp 'modules/function-app.bicep' = {
     keyVaultName: names.keyVault
     sqlServerFqdn: sqlServerFqdn
     sqlDatabaseName: existingSqlDatabaseName
+    deployRoleAssignments: deployRoleAssignments
     corsAllowedOrigins: concat(
       [
         'https://${swaCustomer.outputs.defaultHostname}'

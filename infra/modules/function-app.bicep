@@ -23,6 +23,14 @@ param corsAllowedOrigins array
 
 @description('Flex Consumption 執行個體規格：2048 = 2GB，可選 512/2048/4096')
 param instanceMemoryMB int = 2048
+
+@description('''是否由本次部署宣告 Function App identity 對 Key Vault／Storage 的 RBAC 角色指派。
+預設 false：兩個指派 2026-07-04 已建立且持續有效（Key Vault Secrets User + Storage Blob Data Owner），
+而 CI 的 OIDC service principal 只有資源寫入權限、**沒有 Microsoft.Authorization/roleAssignments/write**
+（能指派角色等同能自我提權，刻意不給）。維持 true 會讓 deploy-infra 在 apply 階段被 Authorization failed
+擋下（2026-08-02 實測 run 30737356965）。Function App 重建導致 principalId 變更時，改由具權限者以
+-p deployRoleAssignments=true 執行一次，或手動 az role assignment create 補上。''')
+param deployRoleAssignments bool = false
 param maximumInstanceCount int = 40
 
 @description('''
@@ -164,6 +172,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 }
 
 // ---- RBAC：Function App 的 System-Assigned Identity 取用 Key Vault 機密 + Storage 部署容器 ----
+// 預設不部署（見 deployRoleAssignments 參數說明）：兩個指派已存在，且 CI 沒有 roleAssignments/write 權限。
 // 刻意寫在同一個 module 內（引用 functionApp.identity.principalId 屬性），而非在 main.bicep
 // 用跨 module 的 output 組 guid() 當資源名稱——後者會被 Bicep 擋下（BCP120：roleAssignment 的
 // name 需為部署開始時就能算出的值，跨 module output 不符合）。
@@ -178,7 +187,7 @@ resource storageRef 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
 
-resource functionAppKeyVaultAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppKeyVaultAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployRoleAssignments) {
   name: guid(keyVaultRef.id, functionApp.id, keyVaultSecretsUserRoleId)
   scope: keyVaultRef
   properties: {
@@ -188,7 +197,7 @@ resource functionAppKeyVaultAccess 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
-resource functionAppStorageAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppStorageAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployRoleAssignments) {
   name: guid(storageRef.id, functionApp.id, storageBlobDataOwnerRoleId)
   scope: storageRef
   properties: {
