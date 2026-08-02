@@ -10,7 +10,8 @@ using Skin.Services.Question;
 namespace Skin.Services.Reserve;
 
 /// <summary>後台預約管理（Dapper，reused DB，schema 不可改）。見 docs/blueprints/admin-reserve.md。</summary>
-public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionService questions) : IAppointmentAdminService
+public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionService questions, Skin.Services.Sms.SmsOptions smsOptions)
+    : IAppointmentAdminService
 {
     // 舊系統 ToPagedList(pageSize: 50) 寫死 50，非其他模組常見的 20，這裡刻意維持沿用。
     private const int PageSize = 50;
@@ -198,7 +199,8 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
     }
 
     /// <summary>
-    /// 取消預約（軟刪除）：Status=0 + 標記該預約所有未發送（Status IS NULL）的 SmsStatus 為 CANCEL。
+    /// 取消預約（軟刪除）：Status=0 + 標記該預約所有未發送（Status IS NULL）的 SmsStatus 為 CANCEL
+    /// （標記受分項開關 <c>Sms:CancelEnabled</c> 控制）。
     /// 比舊系統多一條防禦性檢查：已取消狀態重複取消擋下 ALREADY_CANCELLED（見 blueprint 設計決策）。
     /// </summary>
     public async Task CancelAsync(Guid appointmentId, CancellationToken ct = default)
@@ -220,10 +222,14 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
                 "UPDATE Appointments SET Status = @cancelled WHERE AppointmentID = @appointmentId",
                 new { cancelled = AppointmentStatus.Cancelled, appointmentId }, tx, cancellationToken: ct));
 
-            await conn.ExecuteAsync(new CommandDefinition("""
-                UPDATE SmsStatus SET Status = @cancel, Message = N'取消預約', UpdateDate = @now
-                WHERE AppointmentID = @appointmentId AND Status IS NULL
-                """, new { cancel = SmsStatusValue.Cancel, now = DateTime.UtcNow.AddHours(8), appointmentId }, tx, cancellationToken: ct));
+            // 分項開關 Sms:CancelEnabled=false 時跳過標記（待發提醒仍會發給已取消者，正常營運勿關）。
+            if (smsOptions.CancelEnabled)
+            {
+                await conn.ExecuteAsync(new CommandDefinition("""
+                    UPDATE SmsStatus SET Status = @cancel, Message = N'取消預約', UpdateDate = @now
+                    WHERE AppointmentID = @appointmentId AND Status IS NULL
+                    """, new { cancel = SmsStatusValue.Cancel, now = DateTime.UtcNow.AddHours(8), appointmentId }, tx, cancellationToken: ct));
+            }
 
             tx.Commit();
         }

@@ -23,6 +23,13 @@ public sealed class SmsService(IDbConnectionFactory db, ISmsSender sms, SmsOptio
             return 0;
         }
 
+        // 分項開關②：同樣早退不動列（切換即時可逆，不會留下 backlog）。
+        if (!options.ReminderEnabled)
+        {
+            logger.LogInformation("簡訊排程略過：分項開關 Sms:ReminderEnabled=false（前一天提醒停發）。");
+            return 0;
+        }
+
         var today = DateTime.UtcNow.AddHours(8).Date; // 台灣今日
         using var conn = db.Create();
         conn.Open();

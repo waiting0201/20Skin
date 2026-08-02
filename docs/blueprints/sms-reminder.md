@@ -12,9 +12,30 @@ related_docs:
   - ../design/infrastructure.md
   - ../design/api-design.md
   - customer-booking.md
-keywords: [sms, reminder, timer-trigger, smsstatus, dual-write, cancel, 智邦, 文案, sms-content]
-last_updated: 2026-07-24
+keywords: [sms, reminder, timer-trigger, smsstatus, dual-write, cancel, 智邦, 文案, sms-content, 開關, feature-flag]
+last_updated: 2026-08-02
 ---
+
+## 分項開關（2026-08-02）
+
+在原有真發總開關 `Sms:Enabled` 之下，三種寄送類型各有一個獨立開關，皆為 App Setting／Key Vault 同一套機制（決策 2026-08-02：不做 DB + 後台可調，維持與總開關一致的設定來源）。**未設定時預設 `true`＝維持原行為**；三者只在總開關為 `true` 時才有意義（總開關 `false` 時整體仍走 NoOp）。
+
+| 開關 | 控制的寄送類型 | `false` 時的行為 |
+|---|---|---|
+| `Sms:ImmediateEnabled` | ①建立預約當下的「即時確認」 | 仍雙寫 `SmsStatus`（保留稽核），但**不呼叫供應商**，該列直接回寫 `Status='OFF'`、`Message='即時簡訊開關關閉'` |
+| `Sms:ReminderEnabled` | ②每日 08:00 Timer 的「前一天提醒」 | `SmsService` **早退、不動任何列**（待發列保持 `null`） |
+| `Sms:CancelEnabled` | ③取消預約時標記未發列 `CANCEL` | 不標記（前台 `AppointmentService.CancelAsync` 與後台 `AppointmentAdminService.CancelAsync` 皆受控） |
+
+### 設計決策
+- **即時列必須回寫 `OFF` 而非留 `null`**：即時列 `SendDate=今日`，若關閉時留 `null`，當日 08:00 的 Timer 會把它當待發撈走補送，等於開關失效。故新增 `SmsStatusValue.Off = "OFF"`（`SmsStatus.Status` 沿用既有 `nvarchar` 欄位，**未改 schema**）。
+- **提醒開關採「早退不動列」而非寫入時標記**：與總開關同語義，切換**即時可逆**且不留 backlog（開啟後只撈當日）；相對地即時簡訊是「當下錯過就過了」，才用寫入時標記。
+- **⚠️ `CancelEnabled=false` 會讓已取消的預約仍收到前一天提醒**（待發列不再被標記）。此開關僅供除錯／比對舊行為，正常營運勿關。
+
+### 變更檔案
+`SmsOptions.cs`（三個 bool，預設 true）、`Enums.cs`（`SmsStatusValue.Off`）、`Program.cs`（設定解析，缺省為 true）、`AppointmentService.cs`（注入 `SmsOptions`；即時分支 + 取消分支）、`AppointmentAdminService.cs`（注入 `SmsOptions`；取消分支）、`SmsService.cs`（提醒早退）、`local.settings.json`、`infra/modules/function-app.bicep`。
+
+### 驗證（真實本機 DB 端對端，2026-08-02）
+拋棄式排班鏈（台中健保配號）＋假 sender 計數，5 情境 17 項全過、測試資料零殘留：即時關閉→列標 `OFF`／供應商 0 次呼叫／提醒列仍 `null`；即時開啟→`SENT`＋`UniqID`；提醒關閉→回傳 0、列不動，開啟→送出回寫 `SENT`；取消關閉／開啟→前台與後台兩條路徑皆正確。`dotnet build` 0 警告 0 錯誤、`SmsDomainTests` 6/6。
 
 ## 實作紀錄（2026-07-24）
 

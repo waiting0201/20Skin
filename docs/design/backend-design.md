@@ -11,7 +11,7 @@ related_docs:
   - ../old/architecture.md
   - ../old/modernization.md
 keywords: [backend, azure-functions, dotnet10, custom-router, service, domain, ef-core, di]
-last_updated: 2026-07-24
+last_updated: 2026-08-02
 status: draft
 ---
 
@@ -61,7 +61,7 @@ status: draft
 | Domain service | 邏輯 | 規格 |
 |---|---|---|
 | `AppointmentDomain` | 容量檢查（`RosterPeriods.Patients ?? Periods.Patients` vs `COUNT(Status=1)`）、自動門診號（+2 偶數）、重複限制（依 Branch 規則，移除硬編碼 GUID 改設定/DB 驅動） | [blueprints/customer-booking.md](../blueprints/customer-booking.md) |
-| `SmsDomain` | 簡訊內容組裝（純邏輯、可測；6 種逐字模板：診別 Skin/Cosmetic/Dentist × 配號 by `outpatientNum is not null`，一字不差照舊系統）。發送由 `ISmsSender`（`ChiefTelSmsSender` 智邦／`DevNoOpSmsSender`）＋ `SmsService`（Timer 撈當日待發）協調；雙寫/取消 CANCEL 在 `AppointmentService` | [blueprints/sms-reminder.md](../blueprints/sms-reminder.md) |
+| `SmsDomain` | 簡訊內容組裝（純邏輯、可測；6 種逐字模板：診別 Skin/Cosmetic/Dentist × 配號 by `outpatientNum is not null`，一字不差照舊系統）。發送由 `ISmsSender`（`ChiefTelSmsSender` 智邦／`DevNoOpSmsSender`）＋ `SmsService`（Timer 撈當日待發）協調；雙寫/取消 CANCEL 在 `AppointmentService`。三種寄送類型各有分項開關（`Sms:ImmediateEnabled`／`ReminderEnabled`／`CancelEnabled`，皆在總開關 `Sms:Enabled` 之下，預設 true），由 `SmsOptions` 注入各服務 | [blueprints/sms-reminder.md](../blueprints/sms-reminder.md) |
 | `AuthorizationDomain` | Lims/AdminLims → 權限判定（給 JWT claims 與 API 授權用） | [security.md](security.md) |
 | `RosterDomain` | 重複排班展開（每日/每週 + ExpireDate）、RosterPeriods 容量覆蓋 | [blueprints/admin-roster.md](../blueprints/admin-roster.md) |
 

@@ -8,12 +8,12 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-07-24T11:30+08:00
+last_updated: 2026-08-02T00:00+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
 > **目前階段：核心功能實作中**。已完成 = 舊系統分析歸檔 → 新系統設計文件 → 三專案骨架 → **會員認證** → **客戶預約（讀+寫，真實 DB 驗證）** → **客戶 SPA 前端串接 API（登入→預約→查詢/取消）** → **後台地基 + 權限管理（資料驅動選單 + Admins CRUD，真實 DB 驗證）** → **客戶前台問卷（術前病歷，動態題型 + 重填語義，真實 DB 驗證）** → **初診註冊 JoinUs（城市區連動 + 過敏/病史 CSV + 註冊即登入）** → **指定醫師流程（+ 修 router 500 bug）** → **預約照片上傳（Azure Blob）** → **reCAPTCHA v3 前端（動態載入 + 登入/註冊送 token，mock 驗證）** → **Serilog 結構化 log** → **後台基礎資料全數完成（分院/醫師/時段/科別項目/問卷主檔，4 Phase）** → **後台排班管理（重複展開 + diff 編輯，真實 DB 驗證）** → **後台會員管理（列表/編輯/黑名單 + 問卷掃描檔上傳維護，真實 DB 驗證）** → **後台預約管理（3 組變體 + 容量表 + Excel/問卷列印 + 後端真實 DB 驗證 + 前端頁面完整實作，後台六模組全數完成）** → **正式環境首次上線（`rg-20skin-prod`，三個可部署單元皆已透過 CI/CD 成功部署並驗證存活：客戶前台/後台 SWA 200、API 401=符合設計）** → **後台儀表板（權限過濾統計 + 未來 7 天趨勢，真實 DB + Playwright 驗證）＋後台登入效期改 10 小時**。
-> 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊真發引擎已實作（智邦 `ChiefTelSmsSender` + 每日 Timer + 逐字文案），但受總開關 `Sms:Enabled` 控制，dev 與正式皆預設停用（`false`→`DevNoOpSmsSender`，不真發）**。
+> 連線：本機 `(local)` `20Skin` 已可用，連線字串在 `api/20Skin.Api/local.settings.json`（gitignore 排除）。測試會員：`B121583140` / `1978-02-01`。**簡訊真發引擎已實作（智邦 `ChiefTelSmsSender` + 每日 Timer + 逐字文案），但受總開關 `Sms:Enabled` 控制，dev 與正式皆預設停用（`false`→`DevNoOpSmsSender`，不真發）；總開關之下另有三個分項開關 `Sms:ImmediateEnabled`／`ReminderEnabled`／`CancelEnabled`（即時／前一天提醒／取消標記，預設皆 true）**。
 > 本機啟動：API `cd api/20Skin.Api && func start`（:7071，需 Azurite）；前端 `cd web-customer && npx ng serve`（:4200）。CORS 已允許 :4200（`local.settings.json` Host.CORS）；`environment.apiBase` = `http://localhost:7071/api`。
 
 ## 🔄 In Progress
@@ -99,6 +99,11 @@ last_updated: 2026-07-24T11:30+08:00
 
 ## ✅ Recently Done
 
+- [x] **簡訊三種寄送類型各加一個獨立開關（即時／提醒／取消標記）** — Done 2026-08-02 [blueprints/sms-reminder.md](blueprints/sms-reminder.md) §分項開關、[design/infrastructure.md](design/infrastructure.md) §分項開關
+  - **緣起**：使用者盤點「目前 sms 的寄送分為哪些」後裁示三種類型各一個開關。經 AskUserQuestion 確認＝**依觸發時機**（非診別）、放 **App Setting／Key Vault**（與現有 `Sms:Enabled` 同一套，非 DB＋後台可調）。
+  - **實作**：`SmsOptions` 加 `ImmediateEnabled`／`ReminderEnabled`／`CancelEnabled`（**預設 true＝維持原行為**），`Program.cs` 缺省即 true；`AppointmentService`（即時＋前台取消）、`AppointmentAdminService`（後台取消）、`SmsService`（Timer）分別受控；Bicep/`local.settings.json` 補三個設定。
+  - **關鍵決策**：即時關閉時該列必須回寫 `Status='OFF'`（新增 `SmsStatusValue.Off`）而非留 `null`——即時列 `SendDate=今日`，留 null 會被當日 08:00 Timer 撈走補送、開關等同失效。提醒開關則採「Timer 早退不動列」，切換即時可逆、無 backlog。⚠️ `CancelEnabled=false` 會讓已取消預約仍收到提醒，僅供除錯。
+  - **驗證**：真實本機 DB 端對端 5 情境 17 項全過（拋棄式排班鏈＋假 sender 計數，涵蓋前台/後台兩條取消路徑），測試資料零殘留；`dotnet build` 0/0、`SmsDomainTests` 6/6。
 - [x] **簡訊真發引擎 + 每日 Timer 排程 + 逐字文案（一字不差照舊系統，客戶已定稿）** — Done 2026-07-24 [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
   - **緣起**：使用者確認「簡訊功能還沒做」。查證：`SmsStatus` 雙寫 + CANCEL 已就位，但實際發送仍是 dev no-op，文案是未分診別的精簡佔位字串。使用者裁示「排完整實作、參考舊系統，每則簡訊內容必須跟舊系統一模一樣」。
   - **三塊補齊**：①`SmsDomain`（純邏輯）6 種逐字模板（診別 Skin/Cosmetic/Dentist × 配號 by `outpatientNum is not null`，照抄 `MainMsController.cs:273-304`）；②`ChiefTelSmsSender` 智邦 client（HttpClient，HTTPS + 憑證驗證，不照抄舊系統停用 SSL）；③`SmsReminderTimerFunction`（`[TimerTrigger("0 0 8 * * *")]`＝每日 08:00，依 `WEBSITE_TIME_ZONE=Asia/Taipei` 以台灣時間解讀）+ `SmsService` 撈當日待發。即時發送接上 `SmsDomain`（`AppointmentService.CreateAsync` 補撈 `Branchs.Title`/`Periods.Title`/`Members.Name`）。

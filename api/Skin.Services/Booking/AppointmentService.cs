@@ -10,7 +10,8 @@ using Skin.Services.Sms;
 
 namespace Skin.Services.Booking;
 
-public sealed partial class AppointmentService(IDbConnectionFactory db, BookingOptions options, ISmsSender sms, ILogger<AppointmentService> logger)
+public sealed partial class AppointmentService(
+    IDbConnectionFactory db, BookingOptions options, ISmsSender sms, SmsOptions smsOptions, ILogger<AppointmentService> logger)
     : IAppointmentService
 {
     private static DateTime TaiwanNow => DateTime.UtcNow.AddHours(8);
@@ -147,11 +148,24 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
 
             // 即時簡訊發送（dev/總開關關閉時注入 NoOp、不真的發）→ 回寫狀態。
             // Status 存供應商原始 status（貼近舊系統），未知時退回 SENT/FAIL。
-            var sent = await sms.SendAsync(member.Mobile, immediateBody, ct);
-            await conn.ExecuteAsync(new CommandDefinition("""
-                UPDATE SmsStatus SET Status = @st, UniqID = @uniq, Message = @msg, UpdateDate = @now
-                WHERE SmsStatusID = @id
-                """, new { st = sent.RawStatus ?? (sent.Success ? "SENT" : "FAIL"), uniq = sent.UniqId, msg = sent.Message, now = TaiwanNow, id = immediateId }, cancellationToken: ct));
+            // 分項開關 Sms:ImmediateEnabled=false 時不呼叫供應商，仍把該列回寫成 OFF——不可留 null，
+            // 否則 SendDate=今日 的即時列會被當日 08:00 Timer 撈走補送。
+            if (smsOptions.ImmediateEnabled)
+            {
+                var sent = await sms.SendAsync(member.Mobile, immediateBody, ct);
+                await conn.ExecuteAsync(new CommandDefinition("""
+                    UPDATE SmsStatus SET Status = @st, UniqID = @uniq, Message = @msg, UpdateDate = @now
+                    WHERE SmsStatusID = @id
+                    """, new { st = sent.RawStatus ?? (sent.Success ? "SENT" : "FAIL"), uniq = sent.UniqId, msg = sent.Message, now = TaiwanNow, id = immediateId }, cancellationToken: ct));
+            }
+            else
+            {
+                logger.LogInformation("即時簡訊略過：分項開關 Sms:ImmediateEnabled=false。appointmentId={AppointmentId}", appointmentId);
+                await conn.ExecuteAsync(new CommandDefinition("""
+                    UPDATE SmsStatus SET Status = @off, Message = N'即時簡訊開關關閉', UpdateDate = @now
+                    WHERE SmsStatusID = @id
+                    """, new { off = SmsStatusValue.Off, now = TaiwanNow, id = immediateId }, cancellationToken: ct));
+            }
 
             return new CreateAppointmentResult(appointmentId, outpatientNum);
         }
@@ -256,11 +270,15 @@ public sealed partial class AppointmentService(IDbConnectionFactory db, BookingO
             await conn.ExecuteAsync(new CommandDefinition(
                 "UPDATE Appointments SET Status = @cancelled WHERE AppointmentID = @appointmentId",
                 new { cancelled = AppointmentStatus.Cancelled, appointmentId }, tx, cancellationToken: ct));
-            // 未發送的簡訊標記 CANCEL（不再發）
-            await conn.ExecuteAsync(new CommandDefinition("""
-                UPDATE SmsStatus SET Status = @cancel, UpdateDate = @now
-                WHERE AppointmentID = @appointmentId AND Status IS NULL
-                """, new { cancel = SmsStatusValue.Cancel, now = TaiwanNow, appointmentId }, tx, cancellationToken: ct));
+            // 未發送的簡訊標記 CANCEL（不再發）。分項開關 Sms:CancelEnabled=false 時跳過
+            // ——待發提醒會照常發給已取消者，僅供比對舊行為，正常營運勿關。
+            if (smsOptions.CancelEnabled)
+            {
+                await conn.ExecuteAsync(new CommandDefinition("""
+                    UPDATE SmsStatus SET Status = @cancel, UpdateDate = @now
+                    WHERE AppointmentID = @appointmentId AND Status IS NULL
+                    """, new { cancel = SmsStatusValue.Cancel, now = TaiwanNow, appointmentId }, tx, cancellationToken: ct));
+            }
             tx.Commit();
             return (true, "取消成功");
         }

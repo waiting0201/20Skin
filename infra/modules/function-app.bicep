@@ -141,6 +141,13 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         // ---- 智邦 SMS ----
         // 總開關：正式環境先停用（部署後保持 no-op），驗證智邦帳號後手動改 'true' 開啟真發。
         Sms__Enabled: 'false'
+        // 分項開關（在總開關之下再個別控制，未設定時預設 true）：
+        //   ①即時確認（建約當下送；關閉時該列回寫 OFF，不會被 Timer 補送）
+        //   ②前一天提醒（每日 08:00 Timer；關閉時早退不動列，可即時可逆切換）
+        //   ③取消標記 CANCEL（⚠️ 關閉會讓已取消預約仍收到提醒，正常營運勿關）
+        Sms__ImmediateEnabled: 'true'
+        Sms__ReminderEnabled: 'true'
+        Sms__CancelEnabled: 'true'
         Sms__ApiUrl: 'https://pp.url.com.tw/api/msg'
         // 機密：Key Vault reference，實際值由人工一次性寫入（KV secret 名可用連字號）。
         Sms__ApiKey: '@Microsoft.KeyVault(SecretUri=https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/Sms-ApiKey/)'

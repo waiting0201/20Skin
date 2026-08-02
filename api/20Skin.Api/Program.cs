@@ -119,10 +119,14 @@ builder.Services.AddSingleton<Skin.Services.Storage.IFileStorage, Skin.Services.
 
 // 簡訊寄送：總開關 Sms:Enabled 決定真發（智邦 API）或 no-op（不真的發；客人手機）。
 // 正式環境部署後預設停用（Enabled=false → NoOp），驗證智邦帳號後再手動開啟。dev 恆停用。
+// 三個分項開關（即時／提醒／取消標記）在總開關之下再個別控制，未設定時預設 true（＝維持原行為）。
 // 機密（ApiKey/Username/Password）正式環境由 Key Vault 提供。
 var smsOptions = new SmsOptions
 {
     Enabled = bool.TryParse(config["Sms:Enabled"], out var smsEnabled) && smsEnabled,
+    ImmediateEnabled = !bool.TryParse(config["Sms:ImmediateEnabled"], out var smsImmediate) || smsImmediate,
+    ReminderEnabled = !bool.TryParse(config["Sms:ReminderEnabled"], out var smsReminder) || smsReminder,
+    CancelEnabled = !bool.TryParse(config["Sms:CancelEnabled"], out var smsCancel) || smsCancel,
     ApiUrl = config["Sms:ApiUrl"] is { Length: > 0 } smsUrl ? smsUrl : "https://pp.url.com.tw/api/msg",
     ApiKey = config["Sms:ApiKey"] ?? "",
     Username = config["Sms:Username"] ?? "",

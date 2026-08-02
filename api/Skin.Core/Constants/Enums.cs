@@ -26,10 +26,16 @@ public static class AppointmentStatus
     public const int Cancelled = 0;
 }
 
-/// <summary>SmsStatus.Status：null=待發 / "CANCEL"=取消（沿用）。</summary>
+/// <summary>
+/// SmsStatus.Status：null=待發 / "CANCEL"=取消（沿用舊系統）/ "OFF"=分項開關關閉未發（新增）。
+/// 其餘值為智邦回應原始 status（未知時退回 "SENT"/"FAIL"）。
+/// </summary>
 public static class SmsStatusValue
 {
     public const string Cancel = "CANCEL";
+
+    /// <summary>分項開關 <c>Sms:ImmediateEnabled=false</c> 時的即時列狀態（非 null 以免被 Timer 撈走補送）。</summary>
+    public const string Off = "OFF";
 }
 
 /// <summary>

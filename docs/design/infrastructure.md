@@ -13,8 +13,8 @@ related_docs:
   - database-design.md
   - ../conventions.md
   - ../old/design/infrastructure.md
-keywords: [infrastructure, deploy, azure, static-web-apps, functions, flex-consumption, blob, key-vault, managed-identity, oidc, github-actions, bicep, timer, ci-cd, cors]
-last_updated: 2026-07-24
+keywords: [infrastructure, deploy, azure, static-web-apps, functions, flex-consumption, blob, key-vault, managed-identity, oidc, github-actions, bicep, timer, ci-cd, cors, sms-flags]
+last_updated: 2026-08-02
 status: active
 ---
 
@@ -239,6 +239,18 @@ output 串接，不需人工查詢/填入）+ `additionalCorsOrigins` 參數（�
 以台灣時間解讀 → **每日 08:00**。執行：撈 `SmsStatus` 當日待發（`CAST(SendDate AS DATE)=今日 AND Status IS NULL`）
 → 呼叫智邦 API（`ChiefTelSmsSender`）→ 回寫 `Status/Message/UniqID/UpdateDate`。
 無外部 HTTP 觸發、無公開端點（修舊安全問題）。**受總開關 `Sms:Enabled` 控制：`false`（正式預設）時早退、不動任何待發列**。
+
+### 分項開關（2026-08-02）
+
+總開關之下，三種寄送類型各一個 App Setting（未設定＝`true`，維持原行為）；正式環境 Bicep 皆先寫 `'true'`，
+實際是否真發仍由總開關把關。**改值需重新部署／改 App Setting 後重啟**（同總開關，非後台可調——決策 2026-08-02）。
+
+| App Setting | 對應設定鍵 | 控制 | `false` 時 |
+|---|---|---|---|
+| `Sms__ImmediateEnabled` | `Sms:ImmediateEnabled` | 建約當下的即時確認簡訊 | 不呼叫供應商，該列回寫 `Status='OFF'`（非 `null`，以免被當日 Timer 撈走補送） |
+| `Sms__ReminderEnabled` | `Sms:ReminderEnabled` | Timer 的前一天提醒 | Timer 早退、不動任何列（可逆、無 backlog） |
+| `Sms__CancelEnabled` | `Sms:CancelEnabled` | 取消預約時標記 `CANCEL` | 不標記；⚠️ 已取消預約仍會收到提醒，正常營運勿關 |
+
 部署後須以 Timer 首次 `Next` 時間確認 `WEBSITE_TIME_ZONE` 在 Flex Consumption 生效（Linux 未生效則為 UTC，需改回 UTC cron）。見 [blueprints/sms-reminder.md](../blueprints/sms-reminder.md)。
 
 ## refresh token 儲存
