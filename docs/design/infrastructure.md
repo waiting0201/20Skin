@@ -253,8 +253,35 @@ output 串接，不需人工查詢/填入）+ `additionalCorsOrigins` 參數（�
 
 **正式現值由使用者裁示（2026-08-02）**：即時 `true`、提醒 `false`、取消標記 `false`。因總開關 `Sms:Enabled='false'`，
 三者目前都不會造成任何真實簡訊送出（即時走 `DevNoOpSmsSender`）。
+
+> ⚠️ **這 4 個鍵是 2026-08-02 以 `az functionapp config appsettings set` 手動寫入正式的**，不是經由 `deploy-infra`
+> ——因為該 workflow 目前無法執行（見下方 §deploy-infra 卡關）。Bicep 與正式現值目前一致，但**日後 bicep 首次成功 apply 時
+> 要再核對一次**，避免覆蓋成非預期值。
+
 ⚠️ **日後要開啟提醒（`Sms__ReminderEnabled='true'`）之前，必須先把 `Sms__CancelEnabled` 改回 `'true'`**，
 否則在 `CancelEnabled=false` 期間累積的、已取消預約的待發列會被 Timer 一併發出。
+
+### deploy-infra 卡關（2026-08-02 發現，未解）
+
+`deploy-infra` workflow **自 2026-07-04 首次部署後就無法再成功執行**，卡在 `Validate` 階段：
+
+```
+Authorization failed for template resource 'sql-firewall' ...
+The client '<CI service principal>' does not have permission to perform action
+'Microsoft.Resources/deployments/write' at scope '/subscriptions/<sub>/resourceGroups/WeyproUS/...'
+```
+
+根因：`main.bicep` 的 `sqlFirewall` 模組 `scope: resourceGroup('WeyproUS')`（既有 SQL Server 所在的**另一個 RG**），
+但 CI 的 OIDC service principal 只有 `rg-20skin-prod` 的權限，**沒有 `WeyproUS` 的權限**。防火牆規則本身
+2026-07-04 已存在且有效，這是「IaC 想再次宣告它」才需要的權限。
+
+**實際後果（已造成漂移）**：7/04 之後所有加進 Bicep 的 App Setting 都沒進正式環境。2026-08-02 盤點時，
+正式 Function App 缺少 **`Sms__*` 全部 4 個鍵**（已於當日手動補上）與 **`Jwt__AdminAccessTokenMinutes`**
+（後台登入 10 小時的決策未生效，正式仍走程式碼預設值——**尚未處理**）。
+
+**候選解法**（擇一，尚未決定）：①給 CI service principal `WeyproUS` 的 Contributor（或最小權限自訂角色）；
+②把 `sqlFirewall` 模組改為條件式（加 `deploySqlFirewall` 參數，預設 `false`，規則已存在就不重複宣告）；
+③維持現況，App Setting 變更一律以 `az functionapp config appsettings set` 手動套用（需自律同步回 Bicep）。
 
 部署後須以 Timer 首次 `Next` 時間確認 `WEBSITE_TIME_ZONE` 在 Flex Consumption 生效（Linux 未生效則為 UTC，需改回 UTC cron）。見 [blueprints/sms-reminder.md](../blueprints/sms-reminder.md)。
 
