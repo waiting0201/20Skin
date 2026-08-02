@@ -95,10 +95,11 @@ last_updated: 2026-08-02T00:00+08:00
 
 ## 🚧 Blocked
 
-- [ ] **`deploy-infra` workflow 無法執行 → Bicep 自 2026-07-04 起未再套用到正式（IaC 漂移）** — Blocked 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
-  - **Blocker**：`main.bicep` 的 `sqlFirewall` 模組 scope 指向另一個 RG `WeyproUS`（既有 SQL Server 所在），CI 的 OIDC service principal 無該 RG 權限 → 每次 `Validate` 就失敗（2026-08-02 實測 run 30734539439）。
-  - **漂移已補平（2026-08-02）**：盤點時 Bicep 宣告 23 項、正式只有 14 項（缺 `Sms__*` 全部 8 個鍵 + `Jwt__AdminAccessTokenMinutes`），已全數以 `az functionapp config appsettings set` 補上，**現為 23/23 一致**，API 驗證存活。其中 `Jwt__AdminAccessTokenMinutes` 補前無行為影響（程式 fallback 就是 600，後台 10 小時一直有生效）。
-  - **殘留風險**：機密改走 KV reference 後，Flex Consumption 無法查 reference 解析狀態（`configreferences` API 不可用）；權限條件已驗證齊備，但**開啟真發前應以測試門號實證**。
+- [ ] **`deploy-infra` 已可執行，但 `mode=apply` 尚未實跑（等使用者確認變更集）** — Blocked 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
+  - **Waiting on**：what-if 顯示 11 項 `Modify`，需使用者確認兩類後才適合 apply——①兩個 SWA 的 `repositoryUrl`／`branch`／`stableInboundIP` 會被清空（推測不影響走 deployment token 的 CI/CD，未實證）；②Function App `siteConfig` 與 `appsettings` 整批覆寫（Bicep 與正式已 23/23 一致，預期無淨變化）。
+  - **已解除的原卡關**：`sqlFirewall` 改條件式部署（`deploySqlFirewall` 預設 false）＋ FQDN 改字串組合，不再需要 `WeyproUS` 權限；CI whatif 2026-08-02 執行成功（run 30737009043）。
+  - **漂移已補平（2026-08-02）**：盤點時 Bicep 宣告 23 項、正式只有 14 項（缺 `Sms__*` 全部 8 個鍵 + `Jwt__AdminAccessTokenMinutes`），已全數以 `az functionapp config appsettings set` 補上，**現為 23/23 一致**，API 驗證存活。
+  - **殘留風險**：Flex Consumption 無法查 KV reference 解析狀態（`configreferences` API 不可用）；權限條件已驗證齊備，但**開啟真發前應以測試門號實證**。
   - **Waiting on**：使用者決定解法——①給 CI SP `WeyproUS` 權限；②`sqlFirewall` 改條件式參數（預設不部署）；③維持手動 `az` 套用 App Setting。
 
 （目前無）

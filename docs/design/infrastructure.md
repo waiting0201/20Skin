@@ -261,7 +261,7 @@ output 串接，不需人工查詢/填入）+ `additionalCorsOrigins` 參數（�
 ⚠️ **日後要開啟提醒（`Sms__ReminderEnabled='true'`）之前，必須先把 `Sms__CancelEnabled` 改回 `'true'`**，
 否則在 `CancelEnabled=false` 期間累積的、已取消預約的待發列會被 Timer 一併發出。
 
-### deploy-infra 卡關（2026-08-02 發現，未解）
+### deploy-infra 卡關（2026-08-02 發現並解除）
 
 `deploy-infra` workflow **自 2026-07-04 首次部署後就無法再成功執行**，卡在 `Validate` 階段：
 
@@ -291,9 +291,24 @@ The client '<CI service principal>' does not have permission to perform action
 三個 secret 存在，與既有運作中的 `Jwt-SigningKey` 同一組機制）。⚠️ Flex Consumption 不支援 `configreferences` API，
 **無法直接查 reference 解析狀態**；開啟真發（`Sms__Enabled='true'`）前應以實際送測試門號確認機密確實讀得到。
 
-**候選解法**（擇一，尚未決定）：①給 CI service principal `WeyproUS` 的 Contributor（或最小權限自訂角色）；
-②把 `sqlFirewall` 模組改為條件式（加 `deploySqlFirewall` 參數，預設 `false`，規則已存在就不重複宣告）；
-③維持現況，App Setting 變更一律以 `az functionapp config appsettings set` 手動套用（需自律同步回 Bicep）。
+**採用解法（2026-08-02）**：把 `sqlFirewall` 改為條件式部署，**不擴大 CI 權限**。
+
+- 新增參數 `deploySqlFirewall`（預設 `false`）：`AllowAzureServices` 規則 7/04 已建立且持續有效，
+  IaC 不需每次重複宣告；需要重建時由具 `WeyproUS` 權限者跑 `-p deploySqlFirewall=true` 一次。
+- `sqlServerFqdn` 改由 `'${existingSqlServerName}${environment().suffixes.sqlServerHostname}'` 組合，
+  **不再取自 `sqlFirewall` 模組的 output**——那條路徑同樣需要 `WeyproUS` 的讀取權限，且模組在預設關閉時不存在。
+  結果與正式現值 `weyprous.database.windows.net` 相同。
+- 取捨：IaC 不再持續保證該防火牆規則存在（若被人手動刪除，`deploy-infra` 不會補回）。以「不把跨 RG 寫入權限
+  交給 CI」換取這點，判斷依據是該規則屬一次性設定、極少變動。
+
+驗證：`az bicep build` 通過；本機 what-if 完整跑完無 Authorization 錯誤；**CI `deploy-infra`（whatif 模式）
+2026-08-02 執行成功**（run 30737009043，1m1s）。
+
+⚠️ **尚未執行 `mode=apply`**。what-if 顯示 11 項 `Modify`，多數是 what-if 對未宣告屬性的已知雜訊，但有兩類
+需人工確認後才適合套用：①兩個 SWA 的 `repositoryUrl`／`branch`／`stableInboundIP`／`deploymentAuthPolicy`
+會被清空（Bicep 未宣告這些，SWA 部署走 deployment token，推測不影響 CI/CD，但未實證）；②Function App 的
+`siteConfig`（cors／netFrameworkVersion）與 `config/appsettings` 會被整批覆寫成 Bicep 宣告值（目前 Bicep 與
+正式現值已 23/23 一致，且無「正式有而 Bicep 沒宣告」的鍵，故預期無淨變化）。
 
 部署後須以 Timer 首次 `Next` 時間確認 `WEBSITE_TIME_ZONE` 在 Flex Consumption 生效（Linux 未生效則為 UTC，需改回 UTC cron）。見 [blueprints/sms-reminder.md](../blueprints/sms-reminder.md)。
 
