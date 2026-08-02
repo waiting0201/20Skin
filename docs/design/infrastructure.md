@@ -255,8 +255,8 @@ output 串接，不需人工查詢/填入）+ `additionalCorsOrigins` 參數（�
 三者目前都不會造成任何真實簡訊送出（即時走 `DevNoOpSmsSender`）。
 
 > ⚠️ **這 4 個鍵是 2026-08-02 以 `az functionapp config appsettings set` 手動寫入正式的**，不是經由 `deploy-infra`
-> ——因為該 workflow 目前無法執行（見下方 §deploy-infra 卡關）。Bicep 與正式現值目前一致，但**日後 bicep 首次成功 apply 時
-> 要再核對一次**，避免覆蓋成非預期值。
+> ——因為該 workflow 目前無法執行（見下方 §deploy-infra 卡關）。當日已把 Bicep 缺的 9 項全數補平（23/23 一致），
+> 但**日後 bicep 首次成功 apply 時要再核對一次**，避免覆蓋成非預期值。
 
 ⚠️ **日後要開啟提醒（`Sms__ReminderEnabled='true'`）之前，必須先把 `Sms__CancelEnabled` 改回 `'true'`**，
 否則在 `CancelEnabled=false` 期間累積的、已取消預約的待發列會被 Timer 一併發出。
@@ -275,10 +275,21 @@ The client '<CI service principal>' does not have permission to perform action
 但 CI 的 OIDC service principal 只有 `rg-20skin-prod` 的權限，**沒有 `WeyproUS` 的權限**。防火牆規則本身
 2026-07-04 已存在且有效，這是「IaC 想再次宣告它」才需要的權限。
 
-**實際後果（已造成漂移）**：7/04 之後所有加進 Bicep 的 App Setting 都沒進正式環境。2026-08-02 盤點時，
-正式 Function App 缺少 **`Sms__*` 全部 4 個鍵**（已於當日手動補上）與 **`Jwt__AdminAccessTokenMinutes`**
-（正式只有會員的 `Jwt__AccessTokenMinutes='60'`；後台那個鍵缺席，但 `Program.cs`／`JwtOptions` 的 fallback
-本來就是 600，**後台 10 小時實際有生效**，屬純漂移、無行為影響）。
+**實際後果（漂移已於 2026-08-02 全數補平）**：7/04 之後所有加進 Bicep 的 App Setting 都沒進正式環境。
+當日盤點時 Bicep 宣告 23 項、正式只有 14 項，缺 9 項；已全部以 `az functionapp config appsettings set` 補上，
+**現為 23/23 一致**：
+
+| 補上的鍵 | 值 | 備註 |
+|---|---|---|
+| `Sms__Enabled` | `false` | 總開關；先前**完全不存在**（程式讀到 null 也當 false，故正式一直是安全的停用狀態，但屬巧合非設定） |
+| `Sms__ImmediateEnabled` / `ReminderEnabled` / `CancelEnabled` | `true` / `false` / `false` | 使用者裁示 |
+| `Sms__ApiUrl` | 智邦端點 | |
+| `Sms__ApiKey` / `Username` / `Password` | KV reference | secret 早已寫入 `kv-20skin-prod-lnjm`，只是 App Setting 沒掛上 |
+| `Jwt__AdminAccessTokenMinutes` | `600` | 補前無行為影響——`Program.cs`／`JwtOptions` 的 fallback 本來就是 600，**後台 10 小時一直有生效** |
+
+三個新掛的 KV reference 解析條件已驗證齊備（Function App identity 具 `Key Vault Secrets User` + KV 為 RBAC 模式 +
+三個 secret 存在，與既有運作中的 `Jwt-SigningKey` 同一組機制）。⚠️ Flex Consumption 不支援 `configreferences` API，
+**無法直接查 reference 解析狀態**；開啟真發（`Sms__Enabled='true'`）前應以實際送測試門號確認機密確實讀得到。
 
 **候選解法**（擇一，尚未決定）：①給 CI service principal `WeyproUS` 的 Contributor（或最小權限自訂角色）；
 ②把 `sqlFirewall` 模組改為條件式（加 `deploySqlFirewall` 參數，預設 `false`，規則已存在就不重複宣告）；

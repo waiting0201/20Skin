@@ -97,7 +97,8 @@ last_updated: 2026-08-02T00:00+08:00
 
 - [ ] **`deploy-infra` workflow 無法執行 → Bicep 自 2026-07-04 起未再套用到正式（IaC 漂移）** — Blocked 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
   - **Blocker**：`main.bicep` 的 `sqlFirewall` 模組 scope 指向另一個 RG `WeyproUS`（既有 SQL Server 所在），CI 的 OIDC service principal 無該 RG 權限 → 每次 `Validate` 就失敗（2026-08-02 實測 run 30734539439）。
-  - **已造成的漂移**：正式 Function App 原本**完全沒有 `Sms__*` 四個鍵**（2026-08-02 已用 `az functionapp config appsettings set` 手動補上並驗證 API 存活）；**`Jwt__AdminAccessTokenMinutes` 仍缺**（正式只有會員的 `Jwt__AccessTokenMinutes`）——但程式碼 fallback 本來就是 600，**後台 10 小時實際有生效**，屬純 IaC 漂移、無行為影響。
+  - **漂移已補平（2026-08-02）**：盤點時 Bicep 宣告 23 項、正式只有 14 項（缺 `Sms__*` 全部 8 個鍵 + `Jwt__AdminAccessTokenMinutes`），已全數以 `az functionapp config appsettings set` 補上，**現為 23/23 一致**，API 驗證存活。其中 `Jwt__AdminAccessTokenMinutes` 補前無行為影響（程式 fallback 就是 600，後台 10 小時一直有生效）。
+  - **殘留風險**：機密改走 KV reference 後，Flex Consumption 無法查 reference 解析狀態（`configreferences` API 不可用）；權限條件已驗證齊備，但**開啟真發前應以測試門號實證**。
   - **Waiting on**：使用者決定解法——①給 CI SP `WeyproUS` 權限；②`sqlFirewall` 改條件式參數（預設不部署）；③維持手動 `az` 套用 App Setting。
 
 （目前無）
