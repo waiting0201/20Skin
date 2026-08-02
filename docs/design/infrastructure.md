@@ -304,11 +304,26 @@ The client '<CI service principal>' does not have permission to perform action
 驗證：`az bicep build` 通過；本機 what-if 完整跑完無 Authorization 錯誤；**CI `deploy-infra`（whatif 模式）
 2026-08-02 執行成功**（run 30737009043，1m1s）。
 
-⚠️ **尚未執行 `mode=apply`**。what-if 顯示 11 項 `Modify`，多數是 what-if 對未宣告屬性的已知雜訊，但有兩類
-需人工確認後才適合套用：①兩個 SWA 的 `repositoryUrl`／`branch`／`stableInboundIP`／`deploymentAuthPolicy`
-會被清空（Bicep 未宣告這些，SWA 部署走 deployment token，推測不影響 CI/CD，但未實證）；②Function App 的
-`siteConfig`（cors／netFrameworkVersion）與 `config/appsettings` 會被整批覆寫成 Bicep 宣告值（目前 Bicep 與
-正式現值已 23/23 一致，且無「正式有而 Bicep 沒宣告」的鍵，故預期無淨變化）。
+⚠️ **尚未執行 `mode=apply`**。what-if 的 11 項 `Modify` 已逐項查證「線上是否真的用到」，結果如下：
+
+| what-if 顯示會被清除／覆寫 | 線上是否用到 | 結論 |
+|---|---|---|
+| SWA `repositoryUrl`／`branch`／`provider` | **否** — 兩個 SWA 都走 `Azure/static-web-apps-deploy@v1` + `SWA_DEPLOYMENT_TOKEN_*`，非 SWA 的 GitHub 整合模式；Bicep 本就刻意 `provider: 'None'` 裸建 | 安全 |
+| SWA `stableInboundIP`（`20.109.151.31`／`48.192.33.154`） | **否** — repo 全文無引用；`weyprous` 防火牆只有 `0.0.0.0`（AllowAzureServices）+ 一個開發者 IP；Storage／KV 網路規則皆 `defaultAction=Allow` 無 IP 白名單 | 安全（且該屬性唯讀） |
+| SWA 自訂網域（`20skin-booking.4webdemo.com`／`20skin-admin.4webdemo.com`，皆 Ready） | 是，但屬**子資源**，incremental 部署不刪除模板未宣告的子資源 | 安全 |
+| Function App `siteConfig.cors` | **是 —— 這是真地雷**，見下方 | **已修正** |
+| Function App `siteConfig` 其他（`netFrameworkVersion` 等） | 否 — 線上皆為預設值，無人工客製（`healthCheckPath` 空、IP 限制 `Allow all`、`minTlsVersion 1.2`） | 安全 |
+| Function App `config/appsettings` | 是，但 Bicep 與正式已 23/23 一致，且無「正式有而 Bicep 沒宣告」的鍵 | 預期無淨變化 |
+| SWA `config/appsettings` | 否 — 兩個 SWA 都沒有任何 app setting | 安全 |
+
+**CORS 地雷（2026-08-02 發現並修正）**：正式 Function App 線上實際有 **6 個 CORS 來源**，
+但 `main.parameters.json` 的 `additionalCorsOrigins` 是空陣列 → apply 會只留兩個 SWA 預設網域，
+**移除 4 個線上運作中的自訂網域，正式前台與後台立即全站 CORS 失敗**。已把這 4 個補進參數檔
+（`booking.20skin.tw`／`booking-admin.20skin.tw`／`20skin-booking.4webdemo.com`／`20skin-admin.4webdemo.com`），
+重跑 what-if 確認 `after` 為完整 6 個來源。
+
+> 注意：`booking*.20skin.tw` 這兩個**尚未掛在 SWA 上**（SWA 自訂網域只有 4webdemo.com 兩個），
+> 但已在 CORS 白名單內，屬預留或走外部代理，一併保留。
 
 部署後須以 Timer 首次 `Next` 時間確認 `WEBSITE_TIME_ZONE` 在 Flex Consumption 生效（Linux 未生效則為 UTC，需改回 UTC cron）。見 [blueprints/sms-reminder.md](../blueprints/sms-reminder.md)。
 

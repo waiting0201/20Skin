@@ -27,7 +27,13 @@
       }
     },
     "additionalCorsOrigins": {
-      "value": []
+      "comment": "兩個 SWA 的預設網域由 main.bicep 自動加入，這裡只填自訂網域。2026-08-02 盤點正式 Function App 實際 CORS 時發現這 4 個已在線上運作但 IaC 未宣告——若留空 apply，它們會被整批移除，正式前台/後台立即 CORS 失敗。booking*.20skin.tw 目前尚未掛到 SWA（SWA 自訂網域只有 4webdemo.com 兩個），但仍在 CORS 白名單內，一併保留。",
+      "value": [
+        "https://booking.20skin.tw",
+        "https://booking-admin.20skin.tw",
+        "https://20skin-booking.4webdemo.com",
+        "https://20skin-admin.4webdemo.com"
+      ]
     }
   }
 }
