@@ -277,7 +277,8 @@ The client '<CI service principal>' does not have permission to perform action
 
 **實際後果（已造成漂移）**：7/04 之後所有加進 Bicep 的 App Setting 都沒進正式環境。2026-08-02 盤點時，
 正式 Function App 缺少 **`Sms__*` 全部 4 個鍵**（已於當日手動補上）與 **`Jwt__AdminAccessTokenMinutes`**
-（後台登入 10 小時的決策未生效，正式仍走程式碼預設值——**尚未處理**）。
+（正式只有會員的 `Jwt__AccessTokenMinutes='60'`；後台那個鍵缺席，但 `Program.cs`／`JwtOptions` 的 fallback
+本來就是 600，**後台 10 小時實際有生效**，屬純漂移、無行為影響）。
 
 **候選解法**（擇一，尚未決定）：①給 CI service principal `WeyproUS` 的 Contributor（或最小權限自訂角色）；
 ②把 `sqlFirewall` 模組改為條件式（加 `deploySqlFirewall` 參數，預設 `false`，規則已存在就不重複宣告）；
