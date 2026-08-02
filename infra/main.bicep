@@ -30,6 +30,13 @@ param existingSqlServerResourceGroup string = resourceGroup().name
 @description('既有 Azure SQL Database 名稱（沿用，不可改 schema）')
 param existingSqlDatabaseName string = '20Skin'
 
+@description('''是否由本次部署宣告既有 SQL Server 的 AllowAzureServices 防火牆規則。
+預設 false：該規則 2026-07-04 已建立且持續有效，而 SQL Server 位於另一個 RG（WeyproUS），
+CI 的 OIDC service principal 沒有該 RG 的寫入權限——維持 true 會讓每次 deploy-infra 都在
+Validate 階段被 Authorization failed 擋下（見 docs/design/infrastructure.md §deploy-infra 卡關）。
+需要重建該規則時，改由具備 WeyproUS 權限的人以 -p deploySqlFirewall=true 手動執行一次。''')
+param deploySqlFirewall bool = false
+
 @description('重複預約視窗天數，key 為既有 Branchs.BranchID GUID，需查真實 prod DB 填入')
 param bookingDuplicateWindowDaysByBranch object = {}
 
@@ -127,13 +134,20 @@ module swaAdmin 'modules/static-web-app.bicep' = {
 }
 
 // ---- 既有 Azure SQL 的防火牆規則（不動既有伺服器/資料庫本身） ----
-module sqlFirewall 'modules/sql-firewall.bicep' = {
+// 預設不部署（見 deploySqlFirewall 參數說明）：規則已存在，且跨 RG 寫入權限 CI 沒有。
+module sqlFirewall 'modules/sql-firewall.bicep' = if (deploySqlFirewall) {
   name: 'sql-firewall'
   scope: resourceGroup(existingSqlServerResourceGroup)
   params: {
     existingSqlServerName: existingSqlServerName
   }
 }
+
+// SQL Server FQDN 由名稱 + 雲端後綴組合，**不從 sqlFirewall 模組的 output 取得**——
+// 那條路徑需要對 WeyproUS 的讀取權限，且在 deploySqlFirewall=false 時模組根本不存在。
+// AzureCloud 的 environment().suffixes.sqlServerHostname 為 '.database.windows.net'（含前導點），
+// 結果與正式現值 weyprous.database.windows.net 相同。
+var sqlServerFqdn = '${existingSqlServerName}${environment().suffixes.sqlServerHostname}'
 
 // ---- Function App（Flex Consumption，CORS 允許兩個 SWA 的預設網域 + 額外自訂網域） ----
 module functionApp 'modules/function-app.bicep' = {
@@ -147,7 +161,7 @@ module functionApp 'modules/function-app.bicep' = {
     storageAccountName: names.storage
     appInsightsConnectionString: appInsights.outputs.connectionString
     keyVaultName: names.keyVault
-    sqlServerFqdn: sqlFirewall.outputs.sqlServerFqdn
+    sqlServerFqdn: sqlServerFqdn
     sqlDatabaseName: existingSqlDatabaseName
     corsAllowedOrigins: concat(
       [
@@ -182,4 +196,4 @@ output functionAppName string = functionApp.outputs.name
 output functionAppDefaultHostname string = functionApp.outputs.defaultHostname
 output keyVaultName string = names.keyVault
 output storageAccountName string = names.storage
-output sqlServerFqdn string = sqlFirewall.outputs.sqlServerFqdn
+output sqlServerFqdn string = sqlServerFqdn
