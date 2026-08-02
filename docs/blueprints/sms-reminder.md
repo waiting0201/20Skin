@@ -26,6 +26,8 @@ last_updated: 2026-08-02
 | `Sms:ReminderEnabled` | ②每日 08:00 Timer 的「前一天提醒」 | `SmsService` **早退、不動任何列**（待發列保持 `null`） |
 | `Sms:CancelEnabled` | ③取消預約時標記未發列 `CANCEL` | 不標記（前台 `AppointmentService.CancelAsync` 與後台 `AppointmentAdminService.CancelAsync` 皆受控） |
 
+**正式環境現值（使用者裁示 2026-08-02）**：`Sms__ImmediateEnabled='true'`、`Sms__ReminderEnabled='false'`、`Sms__CancelEnabled='false'`；總開關 `Sms__Enabled` 維持 `'false'`，故三者目前都不會送出任何真實簡訊。⚠️ 日後開啟提醒前，必須先把 `CancelEnabled` 改回 `'true'`，否則這段期間累積的、已取消預約的待發列會被 Timer 一併發出。
+
 ### 設計決策
 - **即時列必須回寫 `OFF` 而非留 `null`**：即時列 `SendDate=今日`，若關閉時留 `null`，當日 08:00 的 Timer 會把它當待發撈走補送，等於開關失效。故新增 `SmsStatusValue.Off = "OFF"`（`SmsStatus.Status` 沿用既有 `nvarchar` 欄位，**未改 schema**）。
 - **提醒開關採「早退不動列」而非寫入時標記**：與總開關同語義，切換**即時可逆**且不留 backlog（開啟後只撈當日）；相對地即時簡訊是「當下錯過就過了」，才用寫入時標記。
