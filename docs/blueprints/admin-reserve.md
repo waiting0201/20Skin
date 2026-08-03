@@ -15,7 +15,7 @@ related_docs:
   - admin-roster.md
   - admin-member.md
 keywords: [admin, reserve, appointment, export, excel, questionnaire, capacity, cancel]
-last_updated: 2026-07-22T16:30+08:00
+last_updated: 2026-08-03T14:40+08:00
 ---
 
 ## 背景與動機
@@ -87,6 +87,14 @@ last_updated: 2026-07-22T16:30+08:00
 - **匯出策略最終決定：問卷改用瀏覽器原生列印，不用 `pdfmake`/`html2pdf`**（取代「風險與未解問題」原先記錄的待實作項）：`questionnaire-print.ts` 呼叫 `exportQuestionnaire` 取得結構化 JSON 後渲染唯讀勾選表格（重用 `member-questionnaire-view.ts` 的表格樣式），頁面自帶「列印」按鈕呼叫 `window.print()`（不自動彈窗）。刻意不引入 `pdfmake`/`html2pdf`：避免新增 npm 依賴、避免 CJK（中文）字型嵌入問題（`pdfmake` 預設字型不含中文，需額外處理 base64 字型檔，維護成本高於瀏覽器原生列印）。列印時透過 `web-admin/src/styles.css` 新增的全域 `@media print` 規則隱藏 `AdminLayoutComponent` 的側欄（`aside`）/頂欄（`header`）/Ribbon（新增 `.app-ribbon` class）/頁尾（`footer`），只印內容本體；列印按鈕本身加 Tailwind `print:hidden`。
 - **匯出簽到單 Excel**：`reserve-list.ts` 用 `HttpClient` `responseType:'blob'`+`observe:'response'` 接收，讀 `Content-Disposition` header 解析檔名（失敗則 fallback `${appointmentDate}預約.xlsx`），建立 `<a>`+`URL.createObjectURL`+click 觸發瀏覽器下載後 `revokeObjectURL`。匯出前（Excel 與問卷列印皆同）以 `alert()` 擋下未選 clinic（僅 ta/ch 需要）/appointmentDate 的情況，忠實比照舊系統 `btnExport`/`btnQuestionExport` 的 JS 前置檢查行為（含訊息文案「請選擇項目！」/「請選擇預約日期！」）。
 - **驗證**：`ng build` 0 error；`tsc --noEmit` 額外確認 0 型別錯誤；編譯後 `styles-*.css` 已逐一比對確認新用到的 Tailwind class（含 `lg:w-80`/`lg:flex-row`/`disabled:opacity-30`/`disabled:cursor-not-allowed`/`print:hidden`/`break-inside-avoid`/自訂 `@media print` 選擇器）皆正確產生對應規則。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用，僅型別檢查+編譯+編譯後 CSS 比對，誠實記錄未做的部分，比照本專案其餘模組一貫做法），建議下次有瀏覽器工具時針對「篩選+容量編輯送出+詳情頁瀏覽+取消+Excel 下載+問卷列印頁渲染」逐一驗證。
+
+## 前端修正紀錄（2026-08-03，使用者回報）
+
+- **操作欄防誤按**：`reserve-list.ts` 操作欄由 `gap-3` + 裸 icon 改為 `gap-4` + 兩顆 icon 各 32×32 點擊區（`w-8 h-8 rounded`，瀏覽 `hover:bg-surface`／取消 `hover:bg-red-50`／disabled 時 `disabled:hover:bg-transparent`），`<th>` 寬度 `w-20` → `w-24`。三個變體共用同一元件，一處改動三頁生效。此為全站慣例的**刻意例外**（其餘清單頁維持 `gap-3`），理由與規範已寫入 [design/frontend-backend.md](../design/frontend-backend.md) §欄位寬度規範。
+- **修好「從詳情頁返回會掉日期」**：症狀是篩選某日 → 進詳情 → 返回後回到未篩日期的清單。成因是 `detailQuery` 為 `computed()`，卻讀取普通 class 欄位 `appointmentDate`（`[(ngModel)]` 綁定用、非 signal），computed 實際只相依 `branch()`／`clinic()`，改日期不會使快取失效，放大鏡連結永遠停在初次計算的舊值（通常為空字串）。詳情頁的 `returnQuery` 與列表 `initForBranch()` 的還原機制本來就正確，**壞的只有去程**，故只改列表頁一個檔案。
+- **修法取捨**：新增 `private readonly applied = signal<{clinic, appointmentDate}>` 於 `load()` 開頭快照「實際送出」的條件，`detailQuery` 改讀 `applied()`。**不**把 `appointmentDate` 直接改成 signal——那會讓連結隨打字即時變動（未按「篩選」就進詳情再返回會跳到沒看過的日期），且要連改 `load()`／`exportCheckin()`／`exportQuestionnaire()`／`initForBranch()` 等多處讀取點。快照法同時讓語意正確：返回還原的是「清單當時顯示的那一天」。此類 computed 陷阱已登錄 [gotchas.md](../gotchas.md) §前端。
+- **還原範圍刻意只含日期＋項目（clinic）**（使用者確認）：科別項目／身分證號／手機／姓名／生日／頁碼維持返回後清空、回第 1 頁，避免 URL 過長與 `initForBranch()` 重置邏輯複雜化。
+- **驗證**：`tsc --noEmit` 0 error、`ng build` 成功；編譯後 `styles-*.css` 已確認 `w-8`/`h-8`/`gap-4`/`hover:bg-red-50`/`disabled:hover:bg-transparent`/`w-24` 皆產生規則，且 `.disabled\:hover\:bg-transparent:disabled:hover` 特異度與順序都勝過 `.hover\:bg-red-50:hover`（disabled 態不會亮底色）。**未做**：瀏覽器互動實測（同本模組既有紀錄，誠實標示）。
 
 ## 風險與未解問題
 - **二林．齒科（ChDentist）分院基礎資料缺口**：本機開發 DB 目前無任何 `Clinic='Dentist'` 的 `Categorys`/`Periods` 資料，正式環境資料庫是否有對應資料未經本次驗證（僅驗證程式邏輯正確，未驗證正式環境資料完整性）；若正式環境同樣缺漏，`ch-dentist` 端點會因缺少可選科別/時段而無法正常預約流程（非本模組問題，但會影響驗收體感）。

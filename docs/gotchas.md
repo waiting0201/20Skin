@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-07-22T14:00+08:00
+last_updated: 2026-08-03T14:40+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -88,6 +88,12 @@ last_updated: 2026-07-22T14:00+08:00
 - **原因**：Angular 編譯後的樣板指令是依「宣告順序」執行：對同一個元素，**先套用該元素自身的屬性繫結（如 `[value]`），才會建立子節點（`@for` 產生的 `<option>`）**。若「表單第一次被建立到 DOM」的那一輪 render，剛好同時把 `selectedCity`/`zipcodeId` 設成非空值（例如整段表單包在 `@if(loaded())`，而 `loaded.set(true)` 與 `selectedCity.set(...)` 在同一顆 callback 內同步呼叫），瀏覽器原生 `<select>.value = X` 賦值當下對應的 `<option value="X">` 根本還不存在，賦值被瀏覽器靜默忽略（不丟例外）；且因為 `selectedCity` 訊號的值之後不再變動，Angular 不會再有理由重新套用這條繫結，永遠停留在空白狀態。**巢狀連動**（區依賴城市）會在下一層再犯一次同樣的問題：城市選好後，區的 `<option>` 才剛因 `areas()` 重新計算而出現，若這時同一輪就把 `zipcodeId` 設下去，一樣失敗。
 - **修法**：把「讓表單第一次以空值掛載」和「回填既有值」拆成不同輪 render，用 `setTimeout(() => …)`（必要時巢狀多層，對應巢狀連動的下拉）延後賦值，確保賦值當下對應的 `<option>` 已經在上一輪 render 落地過。範例見 `web-admin/src/app/pages/member/member-form.ts` 的 `loadMember()`。
 - **預防**：**任何「原生 `[value]` 綁定 + 選項來自 async 資料 + 需要預帶入既有值」的下拉，都要假設有此問題**，不能只看 `ng build` 過或訊號值正確就當作沒事——本案例的訊號值（`selectedCity`）與下游 computed（`areas()`）其實從頭到尾都是對的，唯獨 DOM 顯示是錯的，必須實際用瀏覽器（Playwright）讀 `<select>.value`/`<option selected>` 才驗得出來，光看 API 回應或型別檢查看不出來。若下拉改用 Reactive Forms 的 `formControlName` + `NgSelectOption`，**同樣的問題依然存在**（`SelectControlValueAccessor.writeValue` 一樣依賴當下已註冊的 option），並非「改用 Angular Forms 就沒事」。
+
+### `computed()` 內讀取普通 class 欄位（`[(ngModel)]` 綁的表單欄位）→ 靜默停在舊快照（已修 2026-08-03）
+- **症狀**：後台預約列表（`reserve-list.ts`）選好「預約日期」按「篩選」後，清單內容正確，但操作欄放大鏡連到詳情頁的網址**沒有帶 `appointmentDate`**，導致詳情頁「返回」回到未篩日期的清單，使用者得重選一次日期。
+- **原因**：`detailQuery` 是 `computed()`，但它讀的 `this.appointmentDate` 是**普通 class 欄位**（`[(ngModel)]` 綁定用），不是 signal。computed 只會對讀到的 **signal** 建立相依，此例實際相依只有 `branch()`／`clinic()`；日期改變不會使快取失效，computed 永遠回傳第一次算出的值（通常 `appointmentDate` 還是空字串）。**不會有任何錯誤或警告**，`ng build`／`tsc` 全過。
+- **修法**：在真正「套用」條件的地方（本例 `load()`）把值快照進一個 signal（`applied`），computed 改讀該 signal。副帶好處：語意變成「還原清單當時顯示的內容」，而非使用者剛打字但尚未按篩選的值。
+- **預防**：**寫 `computed()` 前先確認它讀到的每個值都是 signal**；`[(ngModel)]` 綁的普通欄位與 signal 混用是本專案常態（多數列表頁篩選欄位都是裸欄位 + 手動按鈕觸發 `load()`），只要有 computed 想讀這些欄位，就必須先轉成 signal 或快照成 signal。同類風險存在於任何「computed 讀 `this.xxx` 純欄位」的寫法，review 時當作紅旗。
 
 ## 檔案上傳 / Blob
 

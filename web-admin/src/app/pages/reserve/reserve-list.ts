@@ -153,7 +153,7 @@ interface CapacityRow {
                   <th class="px-3 py-2.5 font-medium text-center w-20 whitespace-nowrap">編號</th>
                 }
                 <th class="px-3 py-2.5 font-medium text-center w-20 whitespace-nowrap">狀態</th>
-                <th class="px-3 py-2.5 font-medium text-center w-20 whitespace-nowrap">操作</th>
+                <th class="px-3 py-2.5 font-medium text-center w-24 whitespace-nowrap">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -176,12 +176,13 @@ interface CapacityRow {
                     @if (a.status === 1) { <span class="text-green-600">成功</span> } @else { <span class="text-red-500">取消</span> }
                   </td>
                   <td class="px-3 py-2.5 text-center whitespace-nowrap">
-                    <span class="inline-flex items-center gap-3">
+                    <!-- 防誤按例外：icon 各自 32×32 點擊區 + gap-4（其餘清單頁維持 gap-3 裸 icon），因「取消」不可逆 -->
+                    <span class="inline-flex items-center gap-4">
                       <a [routerLink]="['/reserve', a.appointmentId]" [queryParams]="detailQuery()"
-                         class="text-brand hover:text-brand-deep" title="瀏覽"><i class="fa fa-search"></i></a>
+                         class="inline-flex items-center justify-center w-8 h-8 rounded text-brand hover:text-brand-deep hover:bg-surface" title="瀏覽"><i class="fa fa-search"></i></a>
                       @if (auth.can(resourceKey(), 'delete')) {
                         <button (click)="cancel(a)" [disabled]="a.status !== 1"
-                                class="text-red-500 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed" title="取消">
+                                class="inline-flex items-center justify-center w-8 h-8 rounded text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent" title="取消">
                           <i class="fa fa-trash"></i>
                         </button>
                       }
@@ -245,11 +246,19 @@ export class ReserveListComponent {
   readonly capacitySaving = signal(false);
   readonly error = signal<string | null>(null);
 
+  /**
+   * 最近一次 `load()` 實際套用的還原用條件（項目＋日期）。
+   * **必須是 signal**：`detailQuery` 是 `computed`，若直接讀 `appointmentDate` 這種普通 class 欄位不會建立相依，
+   * 改日期後 computed 不重算，放大鏡連結會停在舊值（返回時掉日期）。見 gotchas.md。
+   */
+  private readonly applied = signal<{ clinic: string; appointmentDate: string }>({ clinic: '', appointmentDate: '' });
+
   /** 返回列表 / 進詳情頁時攜帶的還原篩選條件（僅 branch/clinic/appointmentDate，比照其他模組 returnQuery 慣例）。 */
   readonly detailQuery = computed(() => {
+    const a = this.applied();
     const q: Record<string, string> = { branch: this.branch() };
-    if (!this.isDentist() && this.clinic()) q['clinic'] = this.clinic();
-    if (this.appointmentDate) q['appointmentDate'] = this.appointmentDate;
+    if (!this.isDentist() && a.clinic) q['clinic'] = a.clinic;
+    if (a.appointmentDate) q['appointmentDate'] = a.appointmentDate;
     return q;
   });
 
@@ -294,6 +303,8 @@ export class ReserveListComponent {
   }
 
   private load(): void {
+    // 快照「實際送出」的條件（非表單當下值），詳情頁「返回」才能回到清單當時顯示的那一天。
+    this.applied.set({ clinic: this.isDentist() ? '' : this.clinic(), appointmentDate: this.appointmentDate });
     this.loading.set(true);
     this.error.set(null);
     this.api

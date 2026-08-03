@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-08-02T00:00+08:00
+last_updated: 2026-08-03T14:40+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -101,6 +101,11 @@ last_updated: 2026-08-02T00:00+08:00
 
 ## ✅ Recently Done
 
+- [x] **後台預約維護清單：操作欄防誤按 + 修好「返回掉日期」** — Done 2026-08-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §前端修正紀錄、[gotchas.md](gotchas.md) §前端
+  - **緣起**：使用者回報三個預約維護清單（台中/二林/二林齒科，共用同一元件）兩個問題——操作欄「瀏覽/取消」兩顆 icon 太近容易按錯；從詳情頁「返回」會回到未篩日期的清單。
+  - **操作欄**：`gap-3` + 裸 icon → `gap-4` + 各 32×32 點擊區（`w-8 h-8 rounded` + hover 底色，disabled 不亮底色），`<th>` `w-20` → `w-24`。全站慣例的刻意例外（取消預約不可逆），已在 [design/frontend-backend.md](design/frontend-backend.md) 註明勿改回。
+  - **返回掉日期是 bug 不是缺功能**：`detailQuery` 為 `computed()` 卻讀普通 class 欄位 `appointmentDate`（非 signal），computed 不建立相依 → 快取永不失效，放大鏡連結停在初次計算的空值。修法是在 `load()` 快照「實際套用條件」進 `applied` signal，computed 改讀它；詳情頁與路由皆無需改動。還原範圍經確認只含日期＋項目。
+  - **驗證**：`tsc --noEmit` + `ng build` 0 error、編譯後 CSS 逐一比對（含 disabled/hover 特異度）。未做瀏覽器互動實測。
 - [x] **修復 `deploy-infra` 並完成 2026-07-04 後首次 IaC apply（含補平全部 App Setting 漂移）** — Done 2026-08-02 [design/infrastructure.md](design/infrastructure.md) §deploy-infra 卡關
   - **緣起**：要把三個 SMS 分項開關推上正式，才發現 `deploy-infra` 自首次部署後就沒成功過，且正式環境**連 `Sms__Enabled` 都不存在**（Bicep 宣告 23 項、正式只有 14 項）。
   - **兩個權限卡關，皆以「條件式部署」解除，不擴大 CI 權限**：①`sqlFirewall`（scope 為另一 RG `WeyproUS`）→ `deploySqlFirewall` 參數預設 false，且 `sqlServerFqdn` 改字串組合以免仍需該 RG 讀取權限；②Function App identity 的兩個 RBAC 指派（apply 階段才觸發）→ `deployRoleAssignments` 參數預設 false。理由：兩者皆已存在且線上驗證正確，而「能指派角色等同能自我提權」，刻意不給 CI。

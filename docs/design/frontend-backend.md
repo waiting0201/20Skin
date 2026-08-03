@@ -17,7 +17,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-07-22T10:00+08:00
+last_updated: 2026-08-03T14:40+08:00
 status: draft
 ---
 
@@ -111,7 +111,11 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | `authority/admins-list` | `w-32` `w-auto` `w-20` |
 | `roster/rosters-list` | `w-32` `w-28` `w-auto` `w-24` `w-20`（欄位依序：醫師/日期/項目/需預約/操作） |
 | `member/members-list` | `w-20` `w-32` `w-32` `w-32` `w-28` `w-auto` `w-24` `w-28`（操作欄 3 icon，比其餘頁面 2 icon 的 `w-20` 略寬） |
-| `reserve/reserve-list` | `w-20` `w-32` `w-28` `w-24` `w-28` `w-24` `w-auto` `w-32` `w-28` `w-32` `w-20`（編號，可選）`w-24` `w-20` |
+| `reserve/reserve-list` | `w-20` `w-32` `w-28` `w-24` `w-28` `w-24` `w-auto` `w-32` `w-28` `w-32` `w-20`（編號，可選）`w-24` `w-24`（操作，防誤按例外見下） |
+
+- **操作欄 icon 間距**：全站慣例為包裹 `<span class="inline-flex items-center gap-3">` + 裸 icon（點擊區僅 icon 本身）。
+  **唯一例外 `reserve/reserve-list`（2026-08-03 定案）**：改為 `gap-4` + 兩個 icon 各自 `inline-flex items-center justify-center w-8 h-8 rounded` 的 32×32 點擊區（瀏覽 `hover:bg-surface`、取消 `hover:bg-red-50`、disabled 時 `disabled:hover:bg-transparent` 不亮底色），操作欄寬度連帶 `w-20` → `w-24`。
+  **理由**：該頁兩顆 icon 是「瀏覽（無害）」與「取消預約（不可逆、且會觸發 SMS 標記 CANCEL）」，誤按代價不對稱，使用者實際回報過容易按錯。其餘清單頁的刪除多為可重建的主檔資料，維持 `gap-3` 不動——**這是刻意的局部強化，不是不一致，勿「修正」回 `gap-3`**。
 
 ### 欄位對齊規範（**已定案 2026-07-03**，忠於舊系統逐欄比對，非統一規則）
 
