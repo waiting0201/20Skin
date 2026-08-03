@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-08-03T15:40+08:00
+last_updated: 2026-08-03T17:37+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -75,7 +75,7 @@ last_updated: 2026-08-03T15:40+08:00
 ### `[ngModel]` 置於 `<form>` 內未加 `standalone` → NG01352（已修 2026-07-01）
 - **症狀**：`appointment-form` 的預約人數/日期 `<input [ngModel]="...">` 包在 `<form>` 內、且無 `name` 也無 `[ngModelOptions]="{standalone:true}"` → 執行時瀏覽器丟 `NG01352`，**日期輸入失效 → 無法載入時段 → 無法預約**。`ng build` 不會報錯（僅執行期才炸），故只有實際跑起前端才會發現。
 - **修法**：所有 `<form>` 內的 `[ngModel]` 一律加 `[ngModelOptions]="{ standalone: true }"`（本專案表單狀態走 signals，不需 Angular form control 註冊）。
-- **預防**：新頁面若在 `<form>` 內用 `[ngModel]`，務必加 `standalone`；**每個前端頁面至少用瀏覽器（Playwright headless）跑過一次**，別只信 `ng build`。可用 scratchpad 的 Playwright E2E（登入→分院→診別→項目→日期/時段/指定醫師→送出→查詢/詳情→JoinUs 城市區連動）當回歸。
+- **預防**：新頁面若在 `<form>` 內用 `[ngModel]`，務必加 `standalone`；**每個前端頁面至少用瀏覽器（Playwright headless）跑過一次**，別只信 `ng build`。可用 scratchpad 的 Playwright E2E（登入→分院→診別→項目→日期/時段→送出→查詢/詳情→JoinUs 城市區連動）當回歸（指定醫師步驟已於 2026-08-03 從前台移除）。
 
 ### 選單資料表把 `path?query` 烤成單一字串餵給 `[routerLink]` → 點擊沒反應（已修 2026-07-03）
 - **症狀**：後台左側選單點擊「台中健保時段」（及所有帶 query 參數的變體項目：時段 5 變體、排班 5 變體、科別項目 2 變體）完全沒反應，畫面不會導頁，也沒有任何錯誤訊息。使用者回報為「新系統還沒做此功能」，但實際上後端 API、前端頁面、選單資料全部都已存在且已 commit——問題出在選單本身的連結壞了，跟功能有沒有做無關。
@@ -114,6 +114,12 @@ last_updated: 2026-08-03T15:40+08:00
 - **症狀**：以「時段有 `outpatientTimeTitle` 就是台中早晚診」做資料驅動判斷，二林會誤顯示「選擇早晚診」與「早上/下午/晚上」按鈕（時段選擇、完成/詳情頁時間欄同時中招）。
 - **原因**：`Periods.OutpatientTimeID` 是 NOT NULL + FK，**二林全部 45 個時段也綁著早上/下午/晚上**；舊系統其實是硬編碼「台中 GUID + Clinic=='Skin'」才顯示早晚診（`AjaxController.cs:177`、`Complete.cshtml:51`）。
 - **修法/預防**：判斷一律用「配號時段」＝`Branchs.IsAutoRowNumber=true` 且 `COALESCE(RosterPeriods.StartNumber, Periods.StartNumber) IS NOT NULL`（`BookingService.GetTimeSlotsAsync`／`AppointmentService.CreateAsync`／`GetByIdAsync` 三處同一條件）。真實資料：台中早/晚診 StartNumber=12、二林全 NULL。見 [blueprints/customer-booking.md](blueprints/customer-booking.md)。
+
+### 後台仍可排「需預約（指定醫師）」班表，但客戶前台已選不到 → 孤兒班表（2026-08-03 起）
+
+- **症狀**：後台排班表單選了醫師並勾「需預約」（`Rosters.IsAppointment=1`）存檔成功，該班表卻**完全不會出現在客戶線上預約的時段清單**，容量看似永遠沒人預約。維護人員容易誤判為「排班沒生效」或系統壞了。
+- **原因**：客戶前台的指定醫師欄位已於 2026-08-03 下架（改為「指定醫師請在櫃檯報到時主動告知」），前端固定送 `doctorId: null`＋`isAppointment: false`；而 `BookingService.GetTimeSlotsAsync` 是以 `isAppointment = doctorId.HasValue ? 1 : 0` **切換兩條互斥的班表路徑**——不帶 `doctorId` 就只撈 `IsAppointment=0` 的班。`IsAppointment=1` 的班因此對線上預約等同關閉，只剩後台建檔與現場作業看得到。**這是刻意的取捨，不是 bug**（使用者裁示：僅動前台 UI，後台排班先不動）。
+- **預防**：目前靠營運端知悉即可——若要線上開放，排班請**不要**勾「需預約」。日後若決定徹底收斂，選項有二：①後台排班一併移除醫師/「需預約」欄位；②客戶端改為無視 `IsAppointment`（兩條路徑合一），但後者會改變容量與門診號語義，需重新驗證。相關決策見 [blueprints/customer-booking.md](blueprints/customer-booking.md) §指定醫師：客戶前台已下架。
 
 ### 台中時段「起始編號」是行為開關，清空會停止配號（2026-07-04）
 - **症狀**：後台把台中健保某時段的「起始編號」清空，該時段立即變成「不配號＋時間文字呈現」（比照二林）。

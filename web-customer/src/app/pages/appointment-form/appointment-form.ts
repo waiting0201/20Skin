@@ -6,7 +6,7 @@ import { AppointmentService } from '../../core/services/appointment.service';
 import { UploadService } from '../../core/services/upload.service';
 import { ReservationStore } from '../../store/reservation.store';
 import { AuthService } from '../../core/services/auth.service';
-import { Doctor, TimeSlot } from '../../core/models';
+import { TimeSlot } from '../../core/models';
 
 /** 預約表單：日期 → 載入時段 → 選時段 → 送出。對應舊 AppointmentForm.cshtml。 */
 @Component({
@@ -55,37 +55,9 @@ import { Doctor, TimeSlot } from '../../core/models';
                 </div>
               </div>
 
-              @if (date() && dateAvailable()) {
-                <div class="form-block">
-                  <div class="from-title"></div>指定醫師<span class="form-red">*</span>
-                  <div class="form-box">
-                    <label style="margin-right:16px;">
-                      <input type="radio" name="designate" [checked]="!designate()" (change)="setDesignate(false)" /> 不指定
-                    </label>
-                    <label>
-                      <input type="radio" name="designate" [checked]="designate()" (change)="setDesignate(true)" /> 指定醫師
-                    </label>
-                  </div>
-                </div>
-              }
-
-              @if (designate() && date() && dateAvailable()) {
-                <div class="form-block">
-                  <div class="from-title"></div>選擇醫師<span class="form-red">*</span>
-                  <div class="form-box">
-                    @if (loadingDoctors()) {
-                      載入醫師中…
-                    } @else if (doctors().length === 0) {
-                      <p>此日期無可指定的醫師，請改選日期或改為不指定。</p>
-                    } @else {
-                      <select [value]="doctorId() ?? ''" (change)="onDoctorChange($any($event.target).value)">
-                        <option value="">請選擇醫師</option>
-                        @for (d of doctors(); track d.doctorId) { <option [value]="d.doctorId">{{ d.name }}</option> }
-                      </select>
-                    }
-                  </div>
-                </div>
-              }
+              <div class="form-block">
+                <div class="form-box"><p>指定醫師請在櫃檯報到時主動告知</p></div>
+              </div>
 
               @if (loadingSlots()) {
                 <div class="form-block"><div class="form-box">載入時段中…</div></div>
@@ -163,21 +135,14 @@ export class AppointmentFormComponent {
   readonly dateError = signal<string | null>(null);
   readonly dateAvailable = signal(true);
 
-  // 指定醫師
-  readonly designate = signal(false);
-  readonly doctors = signal<Doctor[]>([]);
-  readonly doctorId = signal<string | null>(null);
-  readonly loadingDoctors = signal(false);
-
   // 圖片上傳（存 Blob，回檔名存 Appointments.Photo）
   readonly photoFilename = signal<string | null>(null);
   readonly photoUrl = signal<string | null>(null);
   readonly uploadingPhoto = signal(false);
   readonly photoError = signal<string | null>(null);
 
-  /** 時段區塊顯示時機：日期通過重複預約檢查，且（不指定+已選日期，或指定+已選醫師）。 */
-  readonly showSlots = computed(() =>
-    !!this.date() && this.dateAvailable() && (!this.designate() || !!this.doctorId()));
+  /** 時段區塊顯示時機：已選日期且通過重複預約檢查。 */
+  readonly showSlots = computed(() => !!this.date() && this.dateAvailable());
   /** 對應舊 Categorys.IsOnly 系列：此分院＋此項目鎖定人數固定 1。 */
   readonly amountLocked = computed(() => !!this.store.category()?.isAmountLocked);
   /** 目前選中的時段（依 periodId 比對），用於人數上限＝該時段剩餘名額。 */
@@ -192,8 +157,7 @@ export class AppointmentFormComponent {
   readonly periodSectionTitle = computed(() => (this.slots().some((s) => !!s.outpatientTimeTitle) ? '選擇早晚診' : '選擇時段'));
   readonly canSubmit = computed(() =>
     !!this.date() && this.dateAvailable() && !!this.periodId() &&
-    (this.amountLocked() || (this.amount() >= 1 && !this.amountExceedsCapacity())) &&
-    (!this.designate() || !!this.doctorId()));
+    (this.amountLocked() || (this.amount() >= 1 && !this.amountExceedsCapacity())));
 
   constructor() {
     if (!this.store.branch() || !this.store.clinic() || !this.store.category()) this.router.navigate(['/']);
@@ -202,8 +166,6 @@ export class AppointmentFormComponent {
   onDateChange() {
     this.periodId.set(null);
     this.slots.set([]);
-    this.doctorId.set(null);
-    this.doctors.set([]);
     this.dateError.set(null);
     this.dateAvailable.set(true);
     if (!this.date()) return;
@@ -219,39 +181,9 @@ export class AppointmentFormComponent {
         this.checkingDate.set(false);
         this.dateAvailable.set(r.available);
         if (!r.available) { this.dateError.set(r.reason ?? '三日內不可重複預約'); return; }
-        if (this.designate()) this.loadDoctors();
-        else this.loadSlots();
+        this.loadSlots();
       },
       error: () => { this.checkingDate.set(false); this.dateError.set('日期檢查失敗，請重新選擇'); this.dateAvailable.set(false); },
-    });
-  }
-
-  setDesignate(value: boolean) {
-    if (this.designate() === value) return;
-    this.designate.set(value);
-    this.periodId.set(null);
-    this.slots.set([]);
-    this.doctorId.set(null);
-    this.doctors.set([]);
-    if (!this.date() || !this.dateAvailable()) return;
-    if (value) this.loadDoctors();
-    else this.loadSlots();
-  }
-
-  onDoctorChange(id: string) {
-    this.doctorId.set(id || null);
-    this.periodId.set(null);
-    this.slots.set([]);
-    if (id) this.loadSlots();
-  }
-
-  private loadDoctors() {
-    const b = this.store.branch()!, clinic = this.store.clinic()!, cat = this.store.category()!;
-    this.loadingDoctors.set(true);
-    this.error.set(null);
-    this.booking.doctors(b.branchId, clinic, cat.categoryId, this.date()).subscribe({
-      next: (d) => { this.doctors.set(d); this.loadingDoctors.set(false); },
-      error: () => { this.error.set('載入醫師失敗'); this.loadingDoctors.set(false); },
     });
   }
 
@@ -259,7 +191,7 @@ export class AppointmentFormComponent {
     const b = this.store.branch()!, clinic = this.store.clinic()!, cat = this.store.category()!;
     this.loadingSlots.set(true);
     this.error.set(null);
-    this.booking.timeSlots(b.branchId, clinic, cat.categoryId, this.date(), this.doctorId() ?? undefined).subscribe({
+    this.booking.timeSlots(b.branchId, clinic, cat.categoryId, this.date()).subscribe({
       next: (s) => { this.slots.set(s); this.loadingSlots.set(false); },
       error: () => { this.error.set('載入時段失敗'); this.loadingSlots.set(false); },
     });
@@ -292,7 +224,7 @@ export class AppointmentFormComponent {
     this.error.set(null);
     this.appointments.create({
       branchId: b.branchId, clinic, categoryId: cat.categoryId,
-      periodId: this.periodId()!, doctorId: this.designate() ? this.doctorId() : null, isAppointment: this.designate(),
+      periodId: this.periodId()!, doctorId: null, isAppointment: false,
       appointmentDate: this.date(), amount: this.amountLocked() ? 1 : this.amount(),
       questionTypeId: this.store.questionTypeId(), photo: this.photoFilename(),
     }).subscribe({

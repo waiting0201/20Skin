@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-08-03T15:40+08:00
+last_updated: 2026-08-03T17:37+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -50,10 +50,12 @@ last_updated: 2026-08-03T15:40+08:00
   - 頁面（standalone + signals + Tailwind）：login、index(分院)、clinic、category、appointment-form(日期→即時時段→送出)、complete、appointment-list、appointment-detail(含取消)
   - 服務：`BookingService` / `AppointmentService`（呼叫 9 端點）、`authInterceptor`(Bearer)、`authGuard`、`ReservationStore`(signals + sessionStorage 防 F5)
   - 驗證：`ng build` 通過；CORS 已驗（preflight + ACAO :4200）；request/response 欄位與 API 一致（camelCase↔PascalCase）
-  - 指定醫師流程已完成（2026-07-01，見 Recently Done）；問卷（`IsQuestion`）已完成。客戶前台三缺口全數補齊。
+  - 指定醫師流程曾於 2026-07-01 完成，**已於 2026-08-03 依使用者裁示從前台下架**（改為「指定醫師請在櫃檯報到時主動告知」，後端保留，見 Recently Done）；問卷（`IsQuestion`）已完成。客戶前台三缺口全數補齊。
 - [x] **問卷** ✅ Done 2026-07-01（真實 DB 端對端驗證，見 Recently Done）[blueprints/questionnaire.md](blueprints/questionnaire.md)
 - [x] **簡訊雙寫 + Timer 排程 + 真發引擎 + 逐字文案** ✅ Done 2026-07-24（真實 DB 端對端驗證；正式真發總開關預設停用，待智邦帳號驗證，見 Recently Done） [blueprints/sms-reminder.md](blueprints/sms-reminder.md)
 - [x] **檔案上傳（Blob）** ✅ Done 2026-07-01（客戶預約照片，真實 Blob/DB 驗證，見 Recently Done）[blueprints/file-upload.md](blueprints/file-upload.md)
+
+- [ ] **決定「需預約（IsAppointment=1）」排班是否徹底收斂** — 前台指定醫師已於 2026-08-03 下架，後台仍可排 `IsAppointment=1` 的班但客戶端永遠選不到（孤兒班表，見 [gotchas.md](gotchas.md)）。Why：目前靠營運端知悉「線上要開放就別勾需預約」，屬人工約定；若誤勾會出現「排了班卻沒人預約」的誤判。選項：①後台排班一併移除醫師/「需預約」欄位 ②客戶端改為無視 `IsAppointment`（會改變容量與門診號語義，需重新驗證）。待業務決定。
 
 ### P1 — 客戶前台（2026-07-02 第三輪 audit 發現，使用者裁示「先修 8 項缺陷/矛盾、其餘記錄 backlog」）
 - [ ] **登入頁黑名單訊息文案精簡，遺失「臨櫃註銷即可重新開通」引導** — 舊 `MainMsController.cs` 有完整說明，新 `AuthController.cs` 僅回「請洽診所」，使用者不知如何解除限制。Why：影響被限制會員的自助解決率。
@@ -101,6 +103,12 @@ last_updated: 2026-08-03T15:40+08:00
 
 ## ✅ Recently Done
 
+- [x] **客戶前台下架「指定醫師」欄位，改為臨櫃告知** — Done 2026-08-03 [blueprints/customer-booking.md](blueprints/customer-booking.md) §指定醫師：客戶前台已下架、[design/frontend-customer.md](design/frontend-customer.md)、[gotchas.md](gotchas.md) §孤兒班表
+  - **緣起**：使用者要求把前台預約表單的「指定醫師」欄位刪掉，並補一句「指定醫師請在櫃檯報到時主動告知」——需求仍在，只是改由臨櫃處理。
+  - **三項裁示**：①移除**僅限前台 UI**（後端 API／DB 欄位／後台顯示全部原封不動，隨時可復原）②後台排班的「需預約」勾選先不動，後果記入 gotchas ③舊預約的醫師名字在前台完成頁／詳情頁繼續顯示。
+  - **改動**：只有 `web-customer/.../appointment-form.ts` 一個檔案——移除 radio＋醫師下拉（原位置改放無條件顯示的提示行）、4 個 signal、3 個方法，`showSlots` 簡化，送出固定 `doctorId: null`＋`isAppointment: false`。刻意保留 `BookingService.doctors()`、`Doctor` 型別、後端 `doctorId` 分支以便復原。
+  - **關鍵認知**：`isAppointment` 不只是多存一個醫師名字，而是在 `GetTimeSlotsAsync`／`AppointmentService` **切換兩條互斥的班表路徑**。因此後台仍可排 `IsAppointment=1` 的班，但客戶端永遠選不到 → **孤兒班表**（刻意取捨，已入 gotchas，並列入 Backlog 待業務決定是否徹底收斂）。「指定醫師＋自動配號分院需提前 2 天」規則因此實質休眠。簡訊不受影響（`SmsDomain.Compose()` 不吃 doctorId）。
+  - **驗證**：`ng build` 0 error（`Unable to locate stylesheet` 為既有警告，與本次無關）。**未做**：瀏覽器互動實測與真實 DB 端對端。
 - [x] **後台預約「瀏覽」詳情頁改版：補上舊系統缺的預約本身欄位 + 摘要條版面** — Done 2026-08-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §詳情頁改版、[design/frontend-backend.md](design/frontend-backend.md) §詳情頁版面
   - **緣起**：使用者要求「預約的瀏覽詳細頁要設計一下」。查證後發現不只是版面問題——舊 `ViewTaAppointments.cshtml` **只印會員資料 + 診別 + 項目**，看不到預約日期/診次/時段/醫師/門診號，也看不出是否已取消；新系統照抄後連同缺口一起繼承。經 AskUserQuestion 三項裁示：①補完整預約區塊（動後端）②摘要條 + 分卡 ③操作只留返回（取消預約維持清單頁單一入口）。
   - **後端**：`AppointmentAdminDetailDto` + `GetAsync` 補 9 欄（`AppointmentDate`/`PeriodTitle`/`SlotTitle`/`DoctorName`/`OutpatientNum`/`Status`/`IsFirstVisit`/`BranchIsAutoRowNumber`/`CreateDate`），JOIN 路徑逐字沿用 `ListAsync` 確保與列表同口徑（含「時間」欄的 Rosters→Periods fallback、初診動態計算）。屬**刻意偏離「忠於舊系統」**。

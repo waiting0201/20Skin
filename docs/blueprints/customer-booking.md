@@ -1,6 +1,6 @@
 ---
 title: 客戶線上預約
-purpose: 病患多步驟預約流程（分院→診別→項目→問卷→日期/醫師/時段→建立），含容量計算、自動門診號、重複預約限制
+purpose: 病患多步驟預約流程（分院→診別→項目→問卷→日期/時段→建立），含容量計算、自動門診號、重複預約限制
 status: draft
 applicable_when: 要實作或修改預約流程、容量/編號/重複規則、預約查詢與取消時
 related_agents:
@@ -15,7 +15,7 @@ related_docs:
   - sms-reminder.md
   - questionnaire.md
 keywords: [booking, appointment, capacity, outpatient-number, duplicate, cancel, doctor, designated, numbered-slot, erlin-mode]
-last_updated: 2026-07-22
+last_updated: 2026-08-03
 ---
 
 ## 台中特定診療項目「二林模式」＋配號時段概念（2026-07-04）
@@ -65,7 +65,7 @@ last_updated: 2026-07-22
 1. **時段可用性完全沒做日期/時間過濾** — `GetTimeSlotsAsync` 原本只檢查容量。舊系統 `GetRosters`/`GetDoctorRosters` 額外擋：
    - **週日一律不可預約**（`dt.DayOfWeek != DayOfWeek.Sunday`，兩流程皆有）→ `GetTimeSlotsAsync` 補：`date.DayOfWeek == Sunday` 直接回空陣列。
    - **已過去的時段不可選**（`dt > dtnow`）→ 用 `Periods.Title`（形如 `"9:00~9:30"`）取 `~` 前的起始時間解析出 `slotStart`，`slotStart <= TaiwanNow` 則排除；解析失敗（非預期格式）不擋，避免資料異常時整段時段消失。
-   - **指定醫師 + 自動配號分院（IsAutoRowNumber）需至少提前 2 天**（`GetDoctorRosters` 的 `t1 > t2` 比較）→ 一併補上。**注意**：此規則舊系統從未真正上線過（指定醫師整體功能被 `1==2` 停死），是新系統啟用指定醫師時一併沿用的規則，如與業務認知不符可調整/移除 `BookingService.GetTimeSlotsAsync` 內該段判斷。
+   - **指定醫師 + 自動配號分院（IsAutoRowNumber）需至少提前 2 天**（`GetDoctorRosters` 的 `t1 > t2` 比較）→ 一併補上。**注意**：此規則舊系統從未真正上線過（指定醫師整體功能被 `1==2` 停死），是新系統啟用指定醫師時一併沿用的規則，如與業務認知不符可調整/移除 `BookingService.GetTimeSlotsAsync` 內該段判斷。**2026-08-03 起前台已無指定醫師入口，此規則實質休眠**（見上方「指定醫師：客戶前台已下架」）。
    - 實作見 [BookingService.cs](../../api/Skin.Services/Booking/BookingService.cs) `GetTimeSlotsAsync`/`TryGetSlotStart`。
 2. **「限定人數 1 人」（IsOnly/ChIsOnly/ChDentistIsOnly）未實作** — 舊系統依 `Categorys.IsOnly`（台中）/`ChIsOnly`（二林皮膚）/`ChDentistIsOnly`（二林齒科）鎖定「預約人數」欄位唯讀=1。這 3 欄位後台 CRUD 已存在，但客戶端 `CategoryDto` 未曾暴露。已補：`GetCategoriesByClinicAsync(branchId, clinic)` 依 `branchId` 用 `PeriodsOptions.AliasFor`（重用既有 Ta/Ch/ChDentist 分院別名設定，不新增硬編碼 GUID）解析出對應旗標，回傳單一 `CategoryDto.IsAmountLocked`；`GET /api/categories` 加 `branchId` 必填參數；前端 `appointment-form.ts` 依 `store.category()?.isAmountLocked` 將人數欄位改唯讀顯示 1，送出強制 `amount=1`。
 3. **時段區塊標題「選擇早晚診」/「選擇時段」未依分院切換** — 舊系統台中顯示「選擇早晚診」（`ViewBag.SelectPeriodTitle`），其餘「選擇時段」。前端 `periodSectionTitle` computed 依已載入的時段是否帶 `outpatientTimeTitle` 決定標題。~~「僅台中門診設定會有值」~~ **此假設已於 2026-07-04 被真實資料證偽並修正**：後端改依「配號時段」決定是否輸出 `outpatientTimeTitle`（見上方「台中特定診療項目二林模式」段）；前端判斷式不變。
@@ -77,20 +77,34 @@ last_updated: 2026-07-22
 - **前端 `appointment-form.ts` 原先未呼叫此 API**，選日期後直接進指定醫師/選時段——已補上：`onDateChange()` 先呼叫 `checkAvailability`，未通過則顯示 `dateError`（fallback 文案沿用舊系統「三日內不可重複預約」）並擋住後續指定醫師/選時段區塊（`dateAvailable` signal 控制 `showSlots`/`canSubmit`）。
 - 建立時仍保留伺服器端二次檢查作為最終防線（防競態：check 通過後、送出前被其他分頁搶先預約）。
 
-## 指定醫師流程（2026-07-01 完成，真實 DB 驗證）
+## 指定醫師：客戶前台已下架，改為臨櫃告知（2026-08-03 決策，取代 2026-07-01 上線版本）
 
-舊系統將此功能以 `1 == 2` 停用（資料稀少）；新系統補齊：
-- **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`——null → 不指定（`IsAppointment=0`）；有值 → 該醫師（`IsAppointment=1 且 DoctorID=doctorId`）。`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援（roster context 依 `IsAppointment=@IsAppointment` + `(@DoctorId IS NULL OR r.DoctorID=@DoctorId)` 解析），指定時 `isAppointment=true`＋`doctorId` 即綁定該醫師排班。
-- **前端**：`appointment-form` 加「不指定／指定」切換；選「指定」→ 載入 `/api/rosters/doctors` → 選醫師 → 載入該醫師時段（`/api/rosters?...&doctorId=`）→ 送出帶 `doctorId`＋`isAppointment=true`。
-- **順帶修 router bug**：async action 拋 `BusinessException`（如 FULL/DUPLICATE）原誤回 500，已修為 200 Fail（見 [gotchas.md](../gotchas.md)）。
-- **驗證**（施百潤 2022-03-18 指定排班）：醫師清單、指定 vs 不指定時段差異、FULL 回 200、暫解容量後建立成功（`DoctorID`＝該醫師、`RosterID`＝該 `IsAppointment=1` 排班）、硬刪＋還原零殘留。
+**現行行為**：客戶前台**不提供**線上指定醫師。預約表單在原欄位位置改放一行靜態提示 **「指定醫師請在櫃檯報到時主動告知」**，需求本身仍在，只是改由臨櫃處理。前端固定送 `doctorId: null`＋`isAppointment: false`，因此線上預約一律只撈 `Rosters.IsAppointment = 0` 的一般班表。
+
+**使用者三項裁示**：①移除**僅限前台 UI**，後端 API、DB 欄位、後台顯示全部原封不動；②後台排班的「需預約」勾選**先不動**，後果記錄於 [gotchas.md](../gotchas.md)；③舊預約的醫師名字在前台完成頁／詳情頁**繼續顯示**（`@if (a.doctorName)`，新預約無醫師自然不顯示）。
+
+**改動範圍**：只有 [appointment-form.ts](../../web-customer/src/app/pages/appointment-form/appointment-form.ts) 一個檔案——移除 radio／醫師下拉、`designate`/`doctors`/`doctorId`/`loadingDoctors` 四個 signal、`setDesignate`/`onDoctorChange`/`loadDoctors` 三個方法，`showSlots` 簡化為「已選日期且通過重複檢查」，流程變成**選日期 → 檢查重複 → 直接載時段**。
+
+**刻意保留以便復原**：`BookingService.doctors()` 與 `GET /api/rosters/doctors` 端點（前端已無呼叫者）、`models.ts` 的 `Doctor` 型別與 `CreateAppointmentRequest.doctorId`/`isAppointment` 欄位、後端 `GetTimeSlotsAsync` 的 `doctorId` 分支。要復原只需還原這一個元件檔。
+
+**連帶效應**：`GetTimeSlotsAsync` 的「指定醫師 + 自動配號分院需提前 2 天」規則（見下方第二輪 audit 第 1 點）**前台已無觸發路徑**，程式碼保留但實質休眠。簡訊完全不受影響——`SmsDomain.Compose()` 不吃 `doctorId`，文案中「若需指定醫師請於關診前半小時報到」本來就是固定字串。
+
+<details><summary>2026-07-01 的原上線內容（已被前台移除取代，後端仍在）</summary>
+
+舊系統將此功能以 `1 == 2` 停用（資料稀少）；新系統當時補齊：
+- **後端**：`GetTimeSlotsAsync` 加選用 `doctorId`——null → 不指定（`IsAppointment=0`）；有值 → 該醫師（`IsAppointment=1 且 DoctorID=doctorId`）。`GET /api/rosters` 加 `doctorId` 參數。`POST /api/appointments` 早已支援（roster context 依 `IsAppointment=@IsAppointment` + `(@DoctorId IS NULL OR r.DoctorID=@DoctorId)` 解析）。**此後端行為至今未變**。
+- **前端**：`appointment-form` 的「不指定／指定」切換 → `/api/rosters/doctors` → 選醫師 → 載該醫師時段。**已於 2026-08-03 移除**。
+- **順帶修 router bug**：async action 拋 `BusinessException`（如 FULL/DUPLICATE）原誤回 500，已修為 200 Fail（見 [gotchas.md](../gotchas.md)）。此修正與本功能無關，仍有效。
+- **當時驗證**（施百潤 2022-03-18 指定排班）：醫師清單、指定 vs 不指定時段差異、FULL 回 200、暫解容量後建立成功、硬刪＋還原零殘留。
+
+</details>
 
 ## 背景與動機
 系統核心。重寫保留全部預約業務行為（需求 7），改為 SPA + JSON API + 前端 signal store。
 
 ## 範圍
 ### 做什麼
-- 多步驟預約：分院 → 診別(Skin/Cosmetic/Dentist) → 項目(Category) → (需問卷則填) → 日期/醫師/時段 → 建立。
+- 多步驟預約：分院 → 診別(Skin/Cosmetic/Dentist) → 項目(Category) → (需問卷則填) → 日期/時段 → 建立（**指定醫師已於 2026-08-03 從前台下架**，見上方對應段落）。
 - 容量檢查、自動門診號、重複預約限制、可選上傳照片。
 - 預約查詢（分頁）、詳情、取消（>1 小時）。
 - 建立成功觸發簡訊雙寫（見 [sms-reminder.md](sms-reminder.md)）。

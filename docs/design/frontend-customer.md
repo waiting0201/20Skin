@@ -12,7 +12,7 @@ related_docs:
   - ../old/design/frontend-customer.md
   - ../blueprints/customer-booking.md
 keywords: [frontend, customer, angular, signals, spa, main.css, reservation-store, recaptcha]
-last_updated: 2026-07-04
+last_updated: 2026-08-03
 status: draft
 ---
 
@@ -50,16 +50,18 @@ Angular standalone components · **signals**（state/computed/effect）· Reacti
 | `/booking/category` | CategoryComponent | Category.cshtml | 項目卡片 → store；`IsQuestion` 則先跳問卷 |
 | `/booking/questionnaire` | QuestionnaireComponent | Questions.cshtml | 動態問卷（真實 DB `OptionType` 僅 1=單選/2=複選，無文字/檔案題型，見 [gotchas.md](../gotchas.md)）→ `/api/member-questions` |
 | `/questionnaire` | QuestionnaireListComponent | QuestionTypes.cshtml | 含問卷項目入口 |
-| `/booking/appointment-form` | AppointmentFormComponent | AppointmentForm.cshtml | 人數/日期/指定醫師/時段(JSON 渲染)/上傳 → `/api/appointments` |
+| `/booking/appointment-form` | AppointmentFormComponent | AppointmentForm.cshtml | 人數/日期/時段(JSON 渲染)/上傳 → `/api/appointments`（指定醫師已下架，見下方） |
 | `/booking/complete/:id` | CompleteComponent | Complete.cshtml | 預約成功詳情（含 outpatientNum） |
 | `/appointments` | AppointmentListComponent | Appointment.cshtml + Visit.cshtml | 個人預約分頁清單 |
 | `/appointments/:id` | AppointmentDetailComponent | AppointmentDetail.cshtml | 詳情（API 端做歸屬檢查；含取消按鈕，見下方註記） |
 
 **麵包屑「初診/複診」（2026-07-02 完成）**：`ClinicComponent`/`CategoryComponent`/`AppointmentFormComponent` 的 `.stitle-choose` 開頭補 `{{ auth.visitTitle() }}`（對應舊 `@ViewBag.VisitTitle`），值來自登入/註冊回應 `isFirstVisit`，`AuthService` 存 `localStorage` 供整個登入期間顯示，`logout()` 一併清除。詳見 [blueprints/member-auth.md](../blueprints/member-auth.md)。
 
-**預約日期重複檢查（2026-07-02 完成）**：`AppointmentFormComponent.onDateChange()` 選日期後即呼叫 `BookingService.checkAvailability`（`POST /api/rosters/check-availability`），對應舊 `AppointmentForm.AppointmentDate` 的 `[Remote("CheckAppointmentDate")]`；未通過顯示 `dateError`（沿用舊訊息「三日內不可重複預約」為 fallback，實際文案依分院視窗天數由後端回傳），並以 `dateAvailable` signal 擋住後續「指定醫師/選時段」區塊與送出按鈕。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
+**預約日期重複檢查（2026-07-02 完成）**：`AppointmentFormComponent.onDateChange()` 選日期後即呼叫 `BookingService.checkAvailability`（`POST /api/rosters/check-availability`），對應舊 `AppointmentForm.AppointmentDate` 的 `[Remote("CheckAppointmentDate")]`；未通過顯示 `dateError`（沿用舊訊息「三日內不可重複預約」為 fallback，實際文案依分院視窗天數由後端回傳），並以 `dateAvailable` signal 擋住後續選時段區塊與送出按鈕。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
 
-**預約表單老系統對齊補完（2026-07-02，第二輪 audit）**：`AppointmentFormComponent` 補 3 個 computed signal：`amountLocked`（依 `store.category()?.isAmountLocked`，鎖定人數欄位唯讀=1，對應舊 `Categorys.IsOnly` 系列）、`periodSectionTitle`（依已載入時段是否帶 `outpatientTimeTitle` 動態顯示「選擇早晚診」/「選擇時段」）；時段可用性過濾（週日/已過去時段/指定醫師 2 天前）移至後端 `BookingService.GetTimeSlotsAsync`。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
+**指定醫師欄位下架，改為臨櫃告知（2026-08-03）**：`AppointmentFormComponent` 移除「不指定／指定醫師」radio 與「選擇醫師」下拉，原位置改放一行靜態提示 **「指定醫師請在櫃檯報到時主動告知」**（沿用既有 `form-block`/`form-box` 版型的純訊息行寫法，**不加 `@if` 條件**——一進表單即顯示，不必先選到日期；不用 `form-red`，該 class 在本頁是必填星號與錯誤訊息的語義）。連帶移除 `designate`/`doctors`/`doctorId`/`loadingDoctors` 四個 signal 與 `setDesignate`/`onDoctorChange`/`loadDoctors` 三個方法，`showSlots` 簡化為「已選日期且通過重複檢查」，送出固定帶 `doctorId: null`＋`isAppointment: false`。**僅動前台 UI**：後端 API、DB 欄位、後台顯示、`BookingService.doctors()` 皆保留以便復原；完成頁／詳情頁的醫師顯示區塊亦保留給舊資料。決策與連帶效應見 [blueprints/customer-booking.md](../blueprints/customer-booking.md) §指定醫師：客戶前台已下架。
+
+**預約表單老系統對齊補完（2026-07-02，第二輪 audit）**：`AppointmentFormComponent` 補 3 個 computed signal：`amountLocked`（依 `store.category()?.isAmountLocked`，鎖定人數欄位唯讀=1，對應舊 `Categorys.IsOnly` 系列）、`periodSectionTitle`（依已載入時段是否帶 `outpatientTimeTitle` 動態顯示「選擇早晚診」/「選擇時段」）；時段可用性過濾（週日/已過去時段/指定醫師 2 天前——最後一項自 2026-08-03 前台下架指定醫師後已無觸發路徑）移至後端 `BookingService.GetTimeSlotsAsync`。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md)。
 
 **時段呈現改依「配號時段」驅動（2026-07-04，前端零改動）**：真實資料查證發現二林時段也全綁 `OutpatientTimes`，「有 `outpatientTimeTitle` 即台中」是錯誤假設（二林先前誤顯示「選擇早晚診」與早/午/晚按鈕）。後端改為只有「配號時段」（`IsAutoRowNumber` 分院＋時段 `StartNumber` 有值）才輸出 `outpatientTimeId`/`outpatientTimeTitle`，其餘回 null——前端 `periodSectionTitle` 與時段按鈕 `{{ s.outpatientTimeTitle || s.title }}` 判斷式不變即自動正確；完成頁/詳情頁 `periodTitle`、門診號「請至現場取號」同樣由後端欄位驅動。台中細時段項目（比照二林）因此無需任何前端改動。詳見 [blueprints/customer-booking.md](../blueprints/customer-booking.md) §台中特定診療項目二林模式。
 
