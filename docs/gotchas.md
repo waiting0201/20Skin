@@ -11,7 +11,7 @@ related_docs:
   - design/security.md
   - old/gotchas.md
 keywords: [gotchas, 陷阱, 踩雷, 反模式, 新系統]
-last_updated: 2026-08-03T14:40+08:00
+last_updated: 2026-08-03T15:40+08:00
 ---
 
 > 新系統陷阱。**舊系統**陷阱見 [old/gotchas.md](old/gotchas.md)（含 reused DB 既有怪癖：時間戳命名不一致、無 FK、列舉值散落等，沿用時務必先讀）。
@@ -148,6 +148,7 @@ last_updated: 2026-08-03T14:40+08:00
 - **原因**：`COALESCE(c.IsQuestion, 0)` 中 int 字面值使結果型別升為 **int**，但 `AppointmentDetailDto.IsQuestion` 是 `bool`——Dapper 對 positional record 的建構子匹配不做 int→bool 轉換，直接找不到建構子而拋例外。
 - **修法**：`CAST(COALESCE(c.IsQuestion, 0) AS BIT)`（同查詢 `QuestionAnswered` 本來就有 CAST，正確）。
 - **預防**：回傳 record DTO 的查詢，凡 `COALESCE`/`CASE` 混入 int 字面值的 bit 欄位一律補 `CAST(... AS BIT)`；驗證要真的打到該 endpoint，不能只驗 build。
+- **2026-08-03 差點再犯一次**：後台預約詳情擴充時寫下 `COALESCE(b.IsAutoRowNumber, 0) AS BranchIsAutoRowNumber`，同一個雷。已改 `CAST(0 AS BIT)` 並在 SQL 內留註解。**這條規則反覆被觸發，寫 `COALESCE(bit欄位, …)` 時請直接條件反射補 CAST**。
 
 ## 開發環境 / 編輯器
 

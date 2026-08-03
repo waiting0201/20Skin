@@ -8,7 +8,7 @@ related_docs:
   - blueprints/README.md
   - old/modernization.md
 keywords: [status, 狀態, 進度, todo, backlog, in-progress, blocked, done, roadmap]
-last_updated: 2026-08-03T14:40+08:00
+last_updated: 2026-08-03T15:40+08:00
 ---
 
 > 本檔由 Claude **自動維護**。任務開始/完成/卡住都必須更新。詳細規則見 [../CLAUDE.md](../CLAUDE.md) 「狀態追蹤規則」。
@@ -101,6 +101,12 @@ last_updated: 2026-08-03T14:40+08:00
 
 ## ✅ Recently Done
 
+- [x] **後台預約「瀏覽」詳情頁改版：補上舊系統缺的預約本身欄位 + 摘要條版面** — Done 2026-08-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §詳情頁改版、[design/frontend-backend.md](design/frontend-backend.md) §詳情頁版面
+  - **緣起**：使用者要求「預約的瀏覽詳細頁要設計一下」。查證後發現不只是版面問題——舊 `ViewTaAppointments.cshtml` **只印會員資料 + 診別 + 項目**，看不到預約日期/診次/時段/醫師/門診號，也看不出是否已取消；新系統照抄後連同缺口一起繼承。經 AskUserQuestion 三項裁示：①補完整預約區塊（動後端）②摘要條 + 分卡 ③操作只留返回（取消預約維持清單頁單一入口）。
+  - **後端**：`AppointmentAdminDetailDto` + `GetAsync` 補 9 欄（`AppointmentDate`/`PeriodTitle`/`SlotTitle`/`DoctorName`/`OutpatientNum`/`Status`/`IsFirstVisit`/`BranchIsAutoRowNumber`/`CreateDate`），JOIN 路徑逐字沿用 `ListAsync` 確保與列表同口徑（含「時間」欄的 Rosters→Periods fallback、初診動態計算）。屬**刻意偏離「忠於舊系統」**。
+  - **踩雷（同型第二次）**：`COALESCE(bit, 0)` 依型別優先序回 int → record 的 bool 參數會 500，與 2026-07-04 `COALESCE(c.IsQuestion,0)` 完全同型；已改 `CAST(0 AS BIT)` 並在 SQL 留註解。
+  - **前端**：頂卡狀態徽章（綠成功／紅已取消）＋摘要條（左色條，已取消整條轉紅；大字日期含星期／診次／時段／門診號／醫師，次排診別/項目/初診/建立時間）→ 會員資料卡（`dt` 對齊、過敏與病史改 chip、空值 `—`）→ 照片卡（點圖開原圖）→ 問卷卡。**順手解掉一個已知簡化**：問卷改三態（不需填寫／尚未作答／作答內容），已勾選列強調。
+  - **驗證**：`dotnet build` 0/0、`ng build` 0 error、`tsc --noEmit` 乾淨、`SmsDomainTests` 6/6、編譯後 CSS 逐一比對新 class。**真實本機 DB**（拋棄式 xUnit 直呼服務，只讀不寫、驗完刪檔）：三分院各抽有效＋已取消各一筆，詳情 8 欄與列表逐欄相等、`BranchIsAutoRowNumber` 與 `Branchs` 相符；另補驗有醫師／有照片／問卷已作答／問卷未作答四條路徑皆正確。**未做**：瀏覽器互動實測（本機 API 已設 reCAPTCHA secret，無法取得後台 token 走 UI）。
 - [x] **後台預約維護清單：操作欄防誤按 + 修好「返回掉日期」** — Done 2026-08-03 [blueprints/admin-reserve.md](blueprints/admin-reserve.md) §前端修正紀錄、[gotchas.md](gotchas.md) §前端
   - **緣起**：使用者回報三個預約維護清單（台中/二林/二林齒科，共用同一元件）兩個問題——操作欄「瀏覽/取消」兩顆 icon 太近容易按錯；從詳情頁「返回」會回到未篩日期的清單。
   - **操作欄**：`gap-3` + 裸 icon → `gap-4` + 各 32×32 點擊區（`w-8 h-8 rounded` + hover 底色，disabled 不亮底色），`<th>` `w-20` → `w-24`。全站慣例的刻意例外（取消預約不可逆），已在 [design/frontend-backend.md](design/frontend-backend.md) 註明勿改回。

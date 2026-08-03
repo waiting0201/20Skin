@@ -468,6 +468,20 @@ export interface AppointmentAdminDetail {
   clinic: string;
   categoryTitle: string;
   photo: string | null;
+  /** 以下 9 個為預約本身欄位，舊 ViewXxxAppointments.cshtml 沒有，2026-08-03 補（見 blueprints/admin-reserve.md）。 */
+  appointmentDate: string;
+  /** 「時間」＝診次（早/午/晚診），走 Rosters→Periods 的 OutpatientTimes fallback，口徑同列表頁。 */
+  periodTitle: string | null;
+  /** 「時段」＝ Periods.Title（HH:MM）。 */
+  slotTitle: string;
+  doctorName: string | null;
+  outpatientNum: number | null;
+  /** 1=成功／0=取消。 */
+  status: number;
+  isFirstVisit: boolean;
+  /** Branchs.IsAutoRowNumber：false 時不顯示門診號碼（同列表頁「編號」欄的判斷）。 */
+  branchIsAutoRowNumber: boolean;
+  createDate: string | null;
   memberNumber: string;
   memberMobile: string;
   memberBirthday: string;

@@ -17,7 +17,7 @@ related_docs:
   - ../old/design/frontend-backend.md
   - ../old/blueprints/backend-admin.md
 keywords: [frontend, backend-admin, angular, signals, tailwind, smartadmin, permission-menu, export, grid, table, 列表頁, 欄位, 欄位順序, 欄位寬度, column-width, 分頁, pagination, paged-list, 對齊, 置中, 靠左, text-align, text-center]
-last_updated: 2026-08-03T14:40+08:00
+last_updated: 2026-08-03T15:40+08:00
 status: draft
 ---
 
@@ -46,7 +46,7 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
 | 權限 | `/authority/admins...` | AuthorityMsController | 管理員 CRUD + 權限樹（Lims）勾選 |
 | 基礎資料 | `/basic/{branches\|doctors\|periods\|categories\|question-types\|questions}` | BasicMsController | 主檔 CRUD + 排序，**clinic 參數化** |
 | 班表 | `/roster?clinic=&branch=` | ShiftMsController | 排班 CRUD + 重複展開 + RosterPeriods 容量 |
-| 預約 | `/reserve?clinic=&branch=`、`/reserve/:id`、`/reserve/print/questionnaire` | ReserveMsController | 查詢/詳情/取消 + 匯出簽到單 Excel + 問卷列印頁（瀏覽器原生 `window.print()`）+ 時段容量批次更新 |
+| 預約 | `/reserve?clinic=&branch=`、`/reserve/:id`、`/reserve/print/questionnaire` | ReserveMsController | 查詢/詳情（摘要條 + 分卡，見下方「詳情頁版面」）/取消 + 匯出簽到單 Excel + 問卷列印頁（瀏覽器原生 `window.print()`）+ 時段容量批次更新 |
 | 會員 | `/member...` | MemberMsController | 會員查詢/編輯/黑名單 + 問卷答案 |
 
 > **參數化取代變體**：舊 Ta/Ch/ChDentist(+Cosmetic) 的 ~70 頁 → 單一元件吃 `clinic`/`branch` 參數，大幅消除重複（對應 [old/modernization.md](../old/modernization.md) A5）。
@@ -221,6 +221,20 @@ Angular standalone + **signals** + Tailwind；Reactive Forms；`HttpInterceptor`
   - **前端送出前檢查**（`roster-form.submit()`，僅 `isAutoRowNumber()`）：用 `templateStartNumber`／`patients` 計 `hasNumberedFilled`＋`hasWalkinFilled`，皆真則 `error.set('配號與現場取號時段不能排在同一張排班，請分開建立')` 中止、不打 API（即時回饋，後端為保底）。
   - 客戶前台不動：後端硬擋後不會再產生混掛資料。
 - **驗證**：`dotnet build` 0 error、`ng build` 0 error、`tsc --noEmit` 乾淨、新 Tailwind class（`bg-surface/70` 等）比對編譯後 CSS 確認產生。真實 DB 端對端：`branch-meta` 未帶 token 401、`ta`→`true`／`ch`／`chDentist`→`false`；建立台中健保現場取號細時段（StartNumber=null）→ 清單正確分「配號 [09:00,17:00] / 現場取號 [10:00]」兩區 → 硬刪剩 2 筆零殘留。**混掛防呆**：台中健保排班 create 送「配號人數3＋現場人數2」→ `ROSTER_MODE_MIXED`；只填一種 → 成功；把該排班 update 成混掛 → `ROSTER_MODE_MIXED`；測試資料硬刪零殘留。**未做**：三頁的瀏覽器互動實測（模式切換動態欄位、分組視覺、排班警語與送出前擋下渲染），本次會話未跑 Playwright，建議下次補。
+
+### 詳情頁版面：摘要條 + 分卡（**已定案 2026-08-03**，目前僅 `reserve/appointment-detail` 採用）
+
+**背景**：後台唯一的「唯讀詳情頁」是預約瀏覽頁。舊 `ViewTaAppointments.cshtml` 只印會員資料 + 診別 + 項目（沒有預約日期/診次/時段/醫師/門診號/狀態），照抄過來的初版是一張白卡 + `dl` 平鋪 13 欄，櫃檯看不出這筆是哪一天、也看不出是否已取消。使用者裁示改版，選定「摘要條 + 分卡」。
+
+- **結構**（由上而下，外層 `max-w-4xl space-y-4`）：
+  1. **頂卡**＝標題列（`fa-search` + 「瀏覽{分院}」，右側狀態徽章：`rounded-full` 綠底「預約成功」／紅底「已取消」）＋ **摘要條**（`border-l-4` 色條 + 淺底；正常 `border-l-brand`/`bg-surface`，已取消整條轉 `border-l-red-500`/`bg-red-50`）。摘要條上排為大字關鍵值（`text-lg font-semibold`，各自配 `text-xs text-muted` 小標）：預約日期（民國年 + 星期）／時間（診次）／時段／門診號碼（`text-brand`）／醫師；下排 `border-t` 分隔後放次要資訊：預約門診、項目、初診徽章（`bg-brand-tint`）、右端「建立於 …」。
+  2. **內容分卡**：每張獨立白卡、卡頭 `px-5 py-3 border-b` 放 `text-sm font-semibold` 標題 —— 會員資料 / 預約照片（無照片不渲染整張卡）/ 問卷。
+  3. 卡片外底部放單一「返回」按鈕（`border-hairline` 次要按鈕樣式 + `fa-arrow-left`），沿用既有 `returnQuery` 還原機制。
+- **唯讀資料欄呈現**：`dl` 用 `grid sm:grid-cols-2 gap-x-8 gap-y-3`，每列 `flex gap-3` + `dt` 固定 `w-28 shrink-0 text-muted`（標籤右緣對齊，取代原本標籤在上、值在下的鬆散排法）；長欄位（地址/過敏/病史）`sm:col-span-2`；**空值一律顯示 `—`**，不留空白。多值欄位（藥物過敏史、慢性病史）改 **chip**（`rounded border border-hairline bg-surface px-2 py-0.5 text-xs`），CSV 陣列 + 「其他」自填合併後逐一渲染。
+- **依分院旗標顯示門診號碼**：僅 `branchIsAutoRowNumber` 為真才顯示該欄，與列表頁「編號」欄同一規則（資料驅動，不硬編碼分院）。
+- **唯讀勾選表格**：已勾選列 `text-ink font-medium`、未勾選列 `text-muted`，勾號 `fa-check text-brand`（原本兩者同色，需逐列找勾號）。
+- **不放動作**：詳情頁只有「返回」。取消預約維持清單頁單一入口，避免不可逆操作出現在兩處（使用者裁示，2026-08-03）。
+- **適用範圍**：本規範是為「唯讀詳情頁」而定；表單頁（新增/編輯）不適用，仍依各自「忠於舊系統」的欄位規範。
 
 ### 分頁規範（**已定案 2026-07-03**，忠於舊系統 `IPagedList` + `Html.PagedListPager`）
 

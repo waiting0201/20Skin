@@ -55,15 +55,33 @@ public sealed record PeriodAmountDto(
     Guid? RosterPeriodId);
 
 /// <summary>
-/// 預約詳情：會員完整資料 + 預約本身（Clinic/CategoryTitle/Photo，Photo 為 Appointments.Photo 上傳圖檔名，
-/// 非 Categorys 的圖片）+ 問卷（QuestionFormDto 重用 IQuestionService.GetFormAsync，見 Skin.Core.Dtos.QuestionDtos）。
+/// 預約詳情：預約本身 + 會員完整資料 + 問卷（QuestionFormDto 重用 IQuestionService.GetFormAsync，
+/// 見 Skin.Core.Dtos.QuestionDtos）。Photo 為 Appointments.Photo 上傳圖檔名，非 Categorys 的圖片。
 /// MemberAllergy/MemberMedicalHistory 為 CSV 轉陣列（沿用 MemberAdminService 慣例，查無選項回空陣列而非 null）。
+///
+/// <para>
+/// AppointmentDate/PeriodTitle/SlotTitle/DoctorName/OutpatientNum/Status/IsFirstVisit/BranchIsAutoRowNumber/CreateDate
+/// 是**舊 ViewXxxAppointments.cshtml 沒有的**（舊詳情頁只印會員資料 + 診別 + 項目，看不出這筆是哪一天幾點、
+/// 也看不出是否已取消）。使用者 2026-08-03 裁示補上，屬刻意偏離「忠於舊系統」，見 docs/blueprints/admin-reserve.md。
+/// 三個口徑刻意與列表頁一致：PeriodTitle 走 Rosters→Periods 的 OutpatientTimes fallback、
+/// IsFirstVisit 依會員 Status=1 預約總數 &lt;=1 動態判斷（不讀 Appointments.IsFirstVisit）、
+/// BranchIsAutoRowNumber 供前端決定是否顯示門診號碼。
+/// </para>
 /// </summary>
 public sealed record AppointmentAdminDetailDto(
     Guid AppointmentId,
     string Clinic,
     string CategoryTitle,
     string? Photo,
+    DateTime AppointmentDate,
+    string? PeriodTitle,
+    string SlotTitle,
+    string? DoctorName,
+    int? OutpatientNum,
+    int Status,
+    bool IsFirstVisit,
+    bool BranchIsAutoRowNumber,
+    DateTime? CreateDate,
     string MemberNumber,
     string MemberMobile,
     DateTime MemberBirthday,

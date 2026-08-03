@@ -168,8 +168,16 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
     public async Task<AppointmentAdminDetailDto?> GetAsync(Guid appointmentId, CancellationToken ct = default)
     {
         using var conn = db.Create();
+        // 預約本身欄位（AppointmentDate/PeriodTitle/SlotTitle/DoctorName/OutpatientNum/Status/Createdate
+        // 與 Branchs.IsAutoRowNumber）為舊 View 所無、2026-08-03 補上，JOIN 路徑與 ListAsync 完全相同，
+        // 確保「時間」欄的 Rosters→Periods OutpatientTimes fallback 兩處口徑一致。
         var row = await conn.QueryFirstOrDefaultAsync<DetailRow>(new CommandDefinition("""
             SELECT a.AppointmentID AS AppointmentId, a.Clinic, c.Title AS CategoryTitle, a.Photo,
+                   a.AppointmentDate, COALESCE(rot.Title, pot.Title) AS PeriodTitle, p.Title AS SlotTitle,
+                   d.Name AS DoctorName, a.OutpatientNum, a.Status, a.Createdate AS CreateDate,
+                   -- CAST AS BIT 不可省：COALESCE(bit, 0) 依型別優先序會回 int，record 建構子是 bool → 500
+                   -- （2026-07-04 已被 COALESCE(c.IsQuestion,0) 咬過一次，見 docs/gotchas.md）
+                   COALESCE(b.IsAutoRowNumber, CAST(0 AS BIT)) AS BranchIsAutoRowNumber,
                    m.MemberID AS MemberId, m.Number AS MemberNumber, m.Mobile AS MemberMobile,
                    m.Birthday AS MemberBirthday, m.Name AS MemberName, m.Gender AS MemberGender,
                    m.BloodType AS MemberBloodType, z.City AS MemberCity, z.Area AS MemberArea, m.Address AS MemberAddress,
@@ -180,9 +188,20 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
             JOIN Members m ON m.MemberID = a.MemberID
             LEFT JOIN Zipcodes z ON z.ZipcodeID = m.ZipcodeID
             JOIN Categorys c ON c.CategoryID = a.CategoryID
+            LEFT JOIN Doctors d ON d.DoctorID = a.DoctorID
+            JOIN Periods p ON p.PeriodID = a.PeriodID
+            LEFT JOIN OutpatientTimes pot ON pot.OutpatientTimeID = p.OutpatientTimeID
+            LEFT JOIN Rosters r ON r.RosterID = a.RosterID
+            LEFT JOIN OutpatientTimes rot ON rot.OutpatientTimeID = r.OutpatientTimeID
+            LEFT JOIN Branchs b ON b.BranchID = a.BranchID
             WHERE a.AppointmentID = @appointmentId
             """, new { appointmentId }, cancellationToken: ct));
         if (row is null) return null;
+
+        // 初診：口徑同列表頁（該會員 Status=1 預約總數 <=1），不讀 Appointments.IsFirstVisit 既有欄位。
+        var activeCount = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(*) FROM Appointments WHERE MemberID = @memberId AND Status = 1",
+            new { memberId = row.MemberId }, cancellationToken: ct));
 
         // 問卷：includeDisabled=true 讓「問卷類型後續被停用」不影響查看該預約當初的填答（同 MemberAdminService 慣例）。
         QuestionFormDto? questionnaire = row.QuestionTypeId is { } qtId
@@ -191,6 +210,8 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
 
         return new AppointmentAdminDetailDto(
             row.AppointmentId, row.Clinic, row.CategoryTitle, row.Photo,
+            row.AppointmentDate, row.PeriodTitle, row.SlotTitle, row.DoctorName,
+            row.OutpatientNum, row.Status, activeCount <= 1, row.BranchIsAutoRowNumber, row.CreateDate,
             row.MemberNumber, row.MemberMobile, row.MemberBirthday, row.MemberName,
             row.MemberGender, row.MemberBloodType, row.MemberCity, row.MemberArea, row.MemberAddress,
             FromCsv(row.Allergy), row.MemberAllergyOther,
@@ -397,6 +418,8 @@ public sealed class AppointmentAdminService(IDbConnectionFactory db, IQuestionSe
 
     private sealed record DetailRow(
         Guid AppointmentId, string Clinic, string CategoryTitle, string? Photo,
+        DateTime AppointmentDate, string? PeriodTitle, string SlotTitle, string? DoctorName,
+        int? OutpatientNum, int Status, DateTime? CreateDate, bool BranchIsAutoRowNumber,
         Guid MemberId, string MemberNumber, string MemberMobile, DateTime MemberBirthday, string? MemberName,
         int? MemberGender, string? MemberBloodType, string? MemberCity, string? MemberArea, string? MemberAddress,
         string? Allergy, string? MemberAllergyOther, string? MedicalHistory, string? MemberMedicalHistoryOther,

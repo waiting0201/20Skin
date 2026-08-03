@@ -15,7 +15,7 @@ related_docs:
   - admin-roster.md
   - admin-member.md
 keywords: [admin, reserve, appointment, export, excel, questionnaire, capacity, cancel]
-last_updated: 2026-08-03T14:40+08:00
+last_updated: 2026-08-03T15:40+08:00
 ---
 
 ## 背景與動機
@@ -24,7 +24,7 @@ last_updated: 2026-08-03T14:40+08:00
 ## 範圍
 ### 做什麼
 - 預約列表：多條件篩選（診別/項目/日期/會員編號/手機/姓名/生日）+ 分頁（固定 50 筆）+ 時段名額統計。
-- 詳情（含會員完整資料 + 問卷作答）、取消（Status=0 + 標記未發 SMS=CANCEL）。
+- 詳情（預約本身欄位 + 會員完整資料 + 問卷作答；2026-08-03 改版補上舊系統沒有的預約欄位與摘要條版面）、取消（Status=0 + 標記未發 SMS=CANCEL）。
 - 時段容量批次更新（`Periods.Patients`/`RosterPeriods.Patients`）。
 - 匯出：簽到單 Excel（.xlsx）、問卷結構化 JSON（前端另做可列印頁面）。
 ### 不做什麼
@@ -83,7 +83,7 @@ last_updated: 2026-08-03T14:40+08:00
 - **程式位置**：`web-admin/src/app/core/services/reserve-api.service.ts`（`RESERVE_SLUG`/`RESERVE_RESOURCE`/`RESERVE_LABEL` 3 組 branch 別名對照 `ta`/`ch`/`chDentist`，比照 `roster-api.service.ts` 同一設計理由）；頁面 `web-admin/src/app/pages/reserve/{reserve-list,appointment-detail,questionnaire-print}.ts`；`core/models.ts` 新增 8 個型別（`AppointmentAdminListItem`/`AppointmentAdminListResult`/`PeriodAmount`/`AppointmentAdminDetail`/`CapacityItemInput`/`CapacityUpdateRequest`/`QuestionnaireExportItem`/`QuestionnaireExportResult`）；路由 `app.routes.ts` 新增 `reserve`/`reserve/print/questionnaire`/`reserve/:id`（無靜態 `data.perm`，資源 key 依 `branch` query param 動態決定，比照 `roster`/`basic/periods`/`basic/categories` 既有慣例）；`menu-route-map.ts` 的 `BUILT_KEYS` 加入 `TaAppointments`/`ChAppointments`/`ChDentistAppointments`（`LIMS_ROUTE_MAP` 3 條路由本已預留）。
 - **版面比照舊系統**：`reserve-list.ts` 左窄欄「時段容量表」（設定人數可編輯 input + 預約人數/剩餘人數唯讀 + 確認按鈕呼叫 `updateCapacity`）+ 右寬欄「預約列表」，僅當後端回傳 `periodAmounts` 非空時顯示容量表（對應 ta/ch 的 clinic+categoryId+appointmentDate 三者皆選、或 chDentist 僅需 appointmentDate）。列表 grid 欄位/寬度/對齊已補入 [design/frontend-backend.md](../design/frontend-backend.md) 三個對照表（第 10 頁）；`pageSize` 固定 50（沿用舊系統 `ToPagedList(pageSize: 50)`，與其餘模組的 20 刻意不同）。
 - **逐欄比對舊 `TaAppointments.cshtml`/`ViewTaAppointments.cshtml` 發現並修正一處欄位對齊落差**：任務規格原稿標註「項目」欄為靠左（L），但實際讀取舊 `.cshtml` 原始碼確認該欄 `<th>`/`<td>` 皆有 `class="text-center"`，依 [design/frontend-backend.md](../design/frontend-backend.md) 已定案的「判斷標準只有一個：該欄在對應舊 View 是否有 `text-center`」規則，改以實際原始碼為準，「項目」欄最終實作為置中（C），已同步寫入該文件的欄位對齊對照表。
-- **詳情頁不設頁籤**：`appointment-detail.ts` 比照本專案「列表頁不設頁籤」定案（見 `design/frontend-backend.md` §RWD），「預約資料」+「問卷」兩段直接上下堆疊，不做舊系統原有的 tab 切換；`questionnaire===null` 時顯示「不需填寫問卷」，同時涵蓋舊系統 3 變體中「ChDentistAppointments 本來就沒有問卷 tab」與「Ta/Ch 有填問卷但尚未作答」兩種情境（單一文案無法區分兩者語意，已知簡化，非誤判）。
+- **詳情頁不設頁籤**：`appointment-detail.ts` 比照本專案「列表頁不設頁籤」定案（見 `design/frontend-backend.md` §RWD），「預約資料」+「問卷」兩段直接上下堆疊，不做舊系統原有的 tab 切換。（原本 `questionnaire===null` 一律顯示「不需填寫問卷」、無法區分「本來就沒問卷」與「有問卷但尚未作答」的已知簡化，已於 2026-08-03 改版時解掉，見下方「詳情頁改版」。）
 - **匯出策略最終決定：問卷改用瀏覽器原生列印，不用 `pdfmake`/`html2pdf`**（取代「風險與未解問題」原先記錄的待實作項）：`questionnaire-print.ts` 呼叫 `exportQuestionnaire` 取得結構化 JSON 後渲染唯讀勾選表格（重用 `member-questionnaire-view.ts` 的表格樣式），頁面自帶「列印」按鈕呼叫 `window.print()`（不自動彈窗）。刻意不引入 `pdfmake`/`html2pdf`：避免新增 npm 依賴、避免 CJK（中文）字型嵌入問題（`pdfmake` 預設字型不含中文，需額外處理 base64 字型檔，維護成本高於瀏覽器原生列印）。列印時透過 `web-admin/src/styles.css` 新增的全域 `@media print` 規則隱藏 `AdminLayoutComponent` 的側欄（`aside`）/頂欄（`header`）/Ribbon（新增 `.app-ribbon` class）/頁尾（`footer`），只印內容本體；列印按鈕本身加 Tailwind `print:hidden`。
 - **匯出簽到單 Excel**：`reserve-list.ts` 用 `HttpClient` `responseType:'blob'`+`observe:'response'` 接收，讀 `Content-Disposition` header 解析檔名（失敗則 fallback `${appointmentDate}預約.xlsx`），建立 `<a>`+`URL.createObjectURL`+click 觸發瀏覽器下載後 `revokeObjectURL`。匯出前（Excel 與問卷列印皆同）以 `alert()` 擋下未選 clinic（僅 ta/ch 需要）/appointmentDate 的情況，忠實比照舊系統 `btnExport`/`btnQuestionExport` 的 JS 前置檢查行為（含訊息文案「請選擇項目！」/「請選擇預約日期！」）。
 - **驗證**：`ng build` 0 error；`tsc --noEmit` 額外確認 0 型別錯誤；編譯後 `styles-*.css` 已逐一比對確認新用到的 Tailwind class（含 `lg:w-80`/`lg:flex-row`/`disabled:opacity-30`/`disabled:cursor-not-allowed`/`print:hidden`/`break-inside-avoid`/自訂 `@media print` 選擇器）皆正確產生對應規則。**未做**：瀏覽器互動實測（本次會話無 Playwright/chrome-devtools 工具可用，僅型別檢查+編譯+編譯後 CSS 比對，誠實記錄未做的部分，比照本專案其餘模組一貫做法），建議下次有瀏覽器工具時針對「篩選+容量編輯送出+詳情頁瀏覽+取消+Excel 下載+問卷列印頁渲染」逐一驗證。
@@ -95,6 +95,16 @@ last_updated: 2026-08-03T14:40+08:00
 - **修法取捨**：新增 `private readonly applied = signal<{clinic, appointmentDate}>` 於 `load()` 開頭快照「實際送出」的條件，`detailQuery` 改讀 `applied()`。**不**把 `appointmentDate` 直接改成 signal——那會讓連結隨打字即時變動（未按「篩選」就進詳情再返回會跳到沒看過的日期），且要連改 `load()`／`exportCheckin()`／`exportQuestionnaire()`／`initForBranch()` 等多處讀取點。快照法同時讓語意正確：返回還原的是「清單當時顯示的那一天」。此類 computed 陷阱已登錄 [gotchas.md](../gotchas.md) §前端。
 - **還原範圍刻意只含日期＋項目（clinic）**（使用者確認）：科別項目／身分證號／手機／姓名／生日／頁碼維持返回後清空、回第 1 頁，避免 URL 過長與 `initForBranch()` 重置邏輯複雜化。
 - **驗證**：`tsc --noEmit` 0 error、`ng build` 成功；編譯後 `styles-*.css` 已確認 `w-8`/`h-8`/`gap-4`/`hover:bg-red-50`/`disabled:hover:bg-transparent`/`w-24` 皆產生規則，且 `.disabled\:hover\:bg-transparent:disabled:hover` 特異度與順序都勝過 `.hover\:bg-red-50:hover`（disabled 態不會亮底色）。**未做**：瀏覽器互動實測（同本模組既有紀錄，誠實標示）。
+
+## 詳情頁改版：補預約本身欄位 + 摘要條版面（2026-08-03，使用者裁示）
+
+- **緣起與問題**：舊 `ViewTaAppointments.cshtml` 的詳情頁**只印會員資料 + 診別 + 項目**，完全沒有預約本身的資訊——櫃檯從清單點放大鏡進來，看不到這筆是哪一天、哪個診次、哪個時段、哪位醫師、門診號幾號，也**看不出是否已取消**（已取消的預約在詳情頁與正常的長得一模一樣）。新系統原樣照抄，缺口一併繼承。使用者裁示補齊，屬**刻意偏離「忠於舊系統」**。
+- **後端擴充**（`AppointmentAdminDetailDto` + `AppointmentAdminService.GetAsync`）：新增 `AppointmentDate`/`PeriodTitle`/`SlotTitle`/`DoctorName`/`OutpatientNum`/`Status`/`IsFirstVisit`/`BranchIsAutoRowNumber`/`CreateDate` 共 9 欄。JOIN 路徑（`Doctors`/`Periods`/`OutpatientTimes`×2/`Rosters`/`Branchs`）**逐字沿用 `ListAsync`**，確保「時間」欄的 `COALESCE(Rosters.OutpatientTimes.Title, Periods.OutpatientTimes.Title)` fallback 與列表頁同一口徑（此 fallback 與簽到單匯出刻意不同的既有規則不受影響，見上方）；`IsFirstVisit` 同樣**不讀** `Appointments.IsFirstVisit` 欄位，改以「該會員 Status=1 預約總數 ≤1」動態判斷（口徑同列表，代價是多一次 COUNT 查詢，詳情頁為單筆低頻操作可接受）。
+- **踩雷（同一個雷第二次）**：`COALESCE(b.IsAutoRowNumber, 0)` 依 SQL Server 型別優先序會回 **int**，對上 record 的 `bool` 參數會 500——與 2026-07-04 `COALESCE(c.IsQuestion,0)` 完全同型。已寫成 `COALESCE(b.IsAutoRowNumber, CAST(0 AS BIT))` 並在 SQL 內留註解，見 [gotchas.md](../gotchas.md)。
+- **版面（使用者選定「摘要條 + 分卡」）**：頂卡 = 標題列（右側狀態徽章：綠「預約成功」／紅「已取消」）+ **預約摘要條**（左側 4px 色條，已取消整條轉紅底；上排大字 日期(民國+星期)／時間(診次)／時段／門診號碼／醫師，下排 預約門診／項目／初診徽章／建立時間）。下方三張獨立卡：會員資料（`dt` 固定 `w-28` 對齊、過敏與病史改 chip 呈現、空值顯示「—」）、預約照片（有才顯示，點圖開新分頁看原圖）、問卷。門診號碼**僅 `BranchIsAutoRowNumber` 為真的分院顯示**（同列表頁「編號」欄規則）。
+- **問卷改三態**（順手解掉上方記錄的已知簡化）：`questionnaire===null`→「不需填寫問卷」；`answered===false`→「尚未作答」；否則顯示作答表格，且**已勾選列**改 `text-ink font-medium`、未勾選列 `text-muted`，一眼看得出勾了什麼。
+- **操作維持只有「返回」**（使用者裁示不加取消/列印/查該會員其他預約）：取消預約留在清單頁單一入口，避免不可逆操作出現在兩個地方。返回連結改為按鈕樣式並保留既有 `returnQuery` 還原機制。
+- **驗證**：`dotnet build` 0 warning 0 error、`ng build` 0 error、`tsc --noEmit` 乾淨、既有 `SmsDomainTests` 6/6；編譯後 `styles-*.css` 逐一比對新 class（`border-l-4`/`border-l-brand`/`border-l-red-500`/`bg-red-50`/`bg-green-50`/`border-green-200`/`text-green-700`/`bg-brand-tint`/`max-h-64`/`rounded-full`/`w-28`/`gap-x-8`/`leading-tight`/`max-w-4xl`/`py-0.5`/`mb-0.5`）皆產生規則。**真實本機 DB 驗證**（以拋棄式 xUnit 測試直接呼叫 `AppointmentAdminService`，只讀不寫、驗完刪除測試檔）：三分院各抽一筆有效 + 一筆已取消，詳情 8 個欄位與列表逐欄相等、`BranchIsAutoRowNumber` 與 `Branchs` 相符（台中 true／二林 false）、`CreateDate` 有值；另補驗四條抽樣沒抽到的路徑——有醫師（`彭于賓`）、有照片、有問卷已作答（`問卷一/answered=True/9 題`）、有問卷未作答（`問卷三/answered=False`）皆正確。**未做**：瀏覽器互動實測（本機 API 的 reCAPTCHA 於 dev 已設定 secret，本次會話無法取得後台 token 走 UI 流程），建議下次開瀏覽器確認摘要條在已取消預約的紅色樣式與 RWD 換行。
 
 ## 風險與未解問題
 - **二林．齒科（ChDentist）分院基礎資料缺口**：本機開發 DB 目前無任何 `Clinic='Dentist'` 的 `Categorys`/`Periods` 資料，正式環境資料庫是否有對應資料未經本次驗證（僅驗證程式邏輯正確，未驗證正式環境資料完整性）；若正式環境同樣缺漏，`ch-dentist` 端點會因缺少可選科別/時段而無法正常預約流程（非本模組問題，但會影響驗收體感）。
